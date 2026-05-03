@@ -1,0 +1,38 @@
+{
+  "name": "clean-code-skills",
+  "version": "1.0.0",
+  "description": "Codex-ready clean-code skill and instructions for maintainable, verifiable agent-written code across languages and frameworks.",
+  "author": {
+    "name": "Battseren Badral",
+    "email": "bbattseren88@gmail.com",
+    "url": "https://github.com/btseee"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "agents",
+    "skills",
+    "clean-code",
+    "code-review",
+    "refactoring",
+    "testing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Clean Code Skills",
+    "shortDescription": "Language-agnostic clean-code guidance for AI coding agents.",
+    "longDescription": "Reusable clean-code skill and project instructions covering naming, functions, modules, tests, error handling, boundaries, concurrency, security, and verification for agent-written code.",
+    "developerName": "Battseren Badral",
+    "developerEmail": "bbattseren88@gmail.com",
+    "developerUrl": "https://github.com/btseee",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use the clean-code skill before non-trivial code writing, editing, review, testing, or refactoring.",
+      "Keep changes simple, surgical, idiomatic to the local stack, and verified before completion."
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+---
+description: Apply language-agnostic clean-code discipline to all code writing, editing, reviewing, testing, and refactoring.
+globs:
+alwaysApply: true
+---
+
+# Clean Code
+
+Use these rules for every coding task in Cursor.
+
+## Work Loop
+
+1. Clarify assumptions that affect behavior, tests, security, data, or architecture.
+2. Inspect nearby code and match existing idioms before editing.
+3. Make the smallest change that solves the request.
+4. Keep names, functions, modules, tests, and errors readable and explicit.
+5. Verify with the narrowest meaningful check, then expand checks when risk demands it.
+6. Review the diff for unrelated edits, speculative abstractions, and hidden failure paths.
+
+## Clean-Code Baseline
+
+- Names reveal intent and use domain language.
+- Functions and methods do one thing at one abstraction level.
+- Comments explain why, constraints, or tradeoffs; they do not excuse unclear code.
+- Classes, modules, components, scripts, jobs, and queries stay cohesive.
+- Boundaries around external systems are explicit and tested when risk warrants it.
+- Errors preserve context and are not swallowed silently.
+- Tests are readable, deterministic, and behavior-focused.
+- Concurrency makes ownership, ordering, cancellation, and shared state explicit.
+
+## Do Not
+
+- Do not rewrite unrelated code.
+- Do not reformat files outside the touched area.
+- Do not add future-proofing that the request did not need.
+- Do not impose one language's style on another language.
+- Do not claim success without fresh verification evidence.

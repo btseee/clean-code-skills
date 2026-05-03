@@ -1,0 +1,37 @@
+{
+  "name": "clean-code-skills",
+  "id": "clean-code-skills",
+  "owner": {
+    "name": "Battseren Badral",
+    "email": "bbattseren88@gmail.com",
+    "url": "https://github.com/btseee"
+  },
+  "metadata": {
+    "description": "Installable clean-code guidance for AI coding agents across languages and frameworks.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "clean-code-skills",
+      "source": "./",
+      "description": "Language-agnostic clean-code skill for readable names, focused functions, cohesive modules, explicit boundaries, tests, errors, concurrency, security, and surgical agent diffs.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Battseren Badral",
+        "email": "bbattseren88@gmail.com",
+        "url": "https://github.com/btseee"
+      },
+      "keywords": [
+        "clean-code",
+        "coding-standards",
+        "agents",
+        "skills",
+        "refactoring",
+        "code-review",
+        "testing",
+        "maintainability"
+      ],
+      "category": "workflow"
+    }
+  ]
+}

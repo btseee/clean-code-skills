@@ -1,0 +1,24 @@
+{
+  "name": "clean-code-skills",
+  "description": "Language-agnostic clean-code skill for AI agents working across programming languages, frameworks, tests, reviews, and refactors.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Battseren Badral",
+    "email": "bbattseren88@gmail.com",
+    "url": "https://github.com/btseee"
+  },
+  "license": "MIT",
+  "keywords": [
+    "clean-code",
+    "coding-standards",
+    "agents",
+    "skills",
+    "refactoring",
+    "code-review",
+    "testing",
+    "maintainability"
+  ],
+  "skills": [
+    "./skills/clean-code"
+  ]
+}
