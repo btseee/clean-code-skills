@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate
+        run: bash scripts/validate.sh
+
+      - name: Check tag matches VERSION
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match VERSION ($version)" >&2
+            exit 1
+          fi
+
+      - name: Build skill zip (for Claude Desktop / claude.ai / Skills API upload)
+        run: |
+          mkdir -p dist/clean-code
+          cp -R skills/clean-code/. dist/clean-code/
+          cd dist && zip -r clean-code.zip clean-code
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/clean-code.zip \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

@@ -6,11 +6,12 @@ Clean code is portable as a set of questions, not as a single style. Use this gu
 
 1. What behavior is changing?
 2. What local idioms already exist?
-3. What names would a maintainer search for?
-4. Where is the boundary: user input, API, database, file system, queue, clock, browser, device, or third-party service?
-5. What failure mode matters most?
-6. What is the narrowest verification that proves the change?
-7. Which chapter-map area is most relevant: names, functions, comments, formatting, data structures, errors, boundaries, tests, classes, systems, emergence, concurrency, refinement, legacy refactoring, or smells?
+3. Where do new files and new logic belong in this project's layout, and what wiring makes them reachable?
+4. What names would a maintainer search for?
+5. Where is the boundary: user input, API, database, file system, queue, clock, browser, device, or third-party service?
+6. What failure mode matters most?
+7. What is the narrowest verification that proves the change?
+8. Which chapter-map area is most relevant: names, functions, comments, formatting, data structures, errors, boundaries, tests, classes, systems, emergence, concurrency, refinement, legacy refactoring, or smells?
 
 ## Language Notes
 

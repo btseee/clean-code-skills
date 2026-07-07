@@ -7,15 +7,15 @@
     "url": "https://github.com/btseee"
   },
   "metadata": {
-    "description": "Installable clean-code guidance for AI coding agents across languages and frameworks.",
-    "version": "1.0.0"
+    "description": "Installable clean-code guidance for AI coding agents across languages, frameworks, and agent harnesses.",
+    "version": "2.1.0"
   },
   "plugins": [
     {
       "name": "clean-code-skills",
       "source": "./",
-      "description": "Language-agnostic clean-code skill for readable names, focused functions, cohesive modules, explicit boundaries, tests, errors, concurrency, security, and surgical agent diffs.",
-      "version": "1.0.0",
+      "description": "Language-agnostic clean-code skill for readable names, focused functions, correct file placement, one job per unit, explicit boundaries, tests, errors, concurrency, security, agent failure modes, and surgical or whole-project refactoring.",
+      "version": "2.1.0",
       "author": {
         "name": "Battseren Badral",
         "email": "bbattseren88@gmail.com",
@@ -29,7 +29,9 @@
         "refactoring",
         "code-review",
         "testing",
-        "maintainability"
+        "maintainability",
+        "single-responsibility",
+        "file-placement"
       ],
       "category": "workflow"
     }

@@ -157,7 +157,70 @@ The refactor is behavior-preserving and has a verification loop.
 
 **Clean:** "I ran `npm test -- email-validator` and the empty-email regression test passes. I did not run the full suite."
 
-## 11. Full-Map Review
+## 11. File Created In The Wrong Place
+
+**Request:** Add a currency formatting helper for the invoice page.
+
+**Weak agent behavior:** Creates `formatCurrency.ts` in the repository root, or in whatever directory the last edit touched, and never imports it anywhere.
+
+**Clean-code behavior:** Look at where formatting helpers already live. If the project has `src/lib/format/date.ts` used by other pages, the new helper belongs at `src/lib/format/currency.ts`, named and exported the same way, imported by the invoice page, and covered by a test in the same pattern as `date.test.ts`. If a currency formatter already exists, extend it instead of adding a second one.
+
+## 12. Sibling-Variant File
+
+**Request:** Improve the retry logic in `http_client.py`.
+
+**Weak agent behavior:** Creates `http_client_v2.py` (or `http_client_new.py`) with the improved logic, leaving both files in the tree and callers split between them.
+
+**Clean-code behavior:** Edit `http_client.py` in place. Version control preserves the old implementation; the project keeps exactly one HTTP client.
+
+## 13. Mixed Responsibilities In One Function
+
+**Weak:**
+
+```python
+def register_user(raw):
+    data = json.loads(raw)
+    if "@" not in data["email"]:
+        return {"error": "bad email"}
+    user = db.insert("users", data)
+    smtp.send(data["email"], WELCOME_TEMPLATE)
+    log.info("registered %s", data["email"])
+    return {"id": user.id, "html": render("welcome.html", user)}
+```
+
+One function parses transport data, validates, persists, sends email, logs, and renders. Testing it needs a database, an SMTP server, and a template engine.
+
+**Cleaner shape:** `register_user` becomes an orchestrator that sequences `parse_registration(raw)`, `validate_registration(data)`, `create_user(data)`, and `send_welcome(user)` — each unit testable alone, each living in the layer the project uses for that concern (API parsing, domain, persistence, notifications). Rendering stays in the view layer that called it.
+
+Do not perform this split as a drive-by during an unrelated fix; do it when the task touches this function, or record it as a finding.
+
+## 14. Reinvented Helper
+
+**Request:** Truncate product descriptions to 140 characters in the search results.
+
+**Weak agent behavior:** Writes a new `truncateString` function from memory — the third one in the codebase.
+
+**Clean-code behavior:** Search first (`truncate`, `ellipsis`, `shorten`). Finding `text/truncate.ts` already used by two components, reuse it. If it lacks the needed option, extend it with a test, keeping its existing callers green.
+
+## 15. Whole-Project Cleanup Request
+
+**Request:** "Clean up this whole project with clean code."
+
+**Weak agent behavior:** Starts rewriting files alphabetically, mixing renames, logic changes, and formatting in giant diffs until context runs out, leaving the project half-migrated.
+
+**Clean-code behavior:** Switch to campaign mode (`references/project-refactor.md`):
+
+```text
+Proposed contract: structural depth, src/ only, behavior-preserving, one commit per batch.
+Baseline: 214/214 tests pass; lint clean; build green (recorded verbatim).
+Plan: 1) delete dead exports  2) rename ambiguous managers to domain names
+      3) split mixed-responsibility services  4) normalize error wrapping.
+Ledger: cleanup-ledger.md tracks batches, findings, and deferred bugs.
+```
+
+Each batch is verified against the baseline and committed separately. A rounding bug found in batch 3 goes into the ledger for the user, not silently fixed inside a rename commit.
+
+## 16. Full-Map Review
 
 **Request:** Review this service for clean code.
 

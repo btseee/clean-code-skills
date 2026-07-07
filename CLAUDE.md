@@ -1,42 +1,67 @@
 # CLAUDE.md
 
-Clean-code operating instructions for Claude Code. Merge these with project-specific instructions when installing into another repository.
+Clean-code operating instructions for Claude Code. In a project that installs this package, the managed block below is kept up to date by `scripts/install.sh` / `scripts/install.ps1`; content outside the markers is never touched by the installer.
 
-## Always Apply
+Use the `clean-code` skill when writing, editing, reviewing, or refactoring code. If the skill is not loadable by name, read it from `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, or `skills/clean-code/SKILL.md`. Keep the process light for trivial typo fixes; use the full loop for any non-trivial change.
 
-Use the `clean-code` skill when writing, editing, reviewing, or refactoring code in any programming language or framework. If the skill is not available by name, read the installed skill file from `skills/clean-code/SKILL.md` or `.github/skills/clean-code/SKILL.md`.
+<!-- clean-code-skills:begin v2.1.0 -->
+## Clean Code Rules (clean-code-skills)
 
-For trivial typo fixes, keep the process light. For any non-trivial behavior change, use the full loop below.
+These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. When the full skill is installed, read it for depth at the first existing path: `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, or `skills/clean-code/SKILL.md`. Its `references/` folder holds the deep checklists (chapter map, review checklist, framework map, project-refactor protocol).
 
-## Operating Loop
+### Work Loop
 
-1. **Frame the task.** State assumptions that affect design, data, safety, or tests. Ask only when ambiguity would change the implementation.
-2. **Read local context.** Inspect nearby code, tests, naming, error handling, and framework idioms before editing.
-3. **Prefer the smallest solution.** Solve today's requirement. Do not add speculative abstractions, options, dependencies, or future features.
-4. **Edit surgically.** Touch only files and lines required by the task. Preserve surrounding formatting and comments unless the task requires changing them.
-5. **Make intent obvious.** Favor meaningful names, small functions, cohesive modules, explicit boundaries, and tests that describe behavior.
-6. **Verify before claiming success.** Run the narrowest meaningful check first, then broader checks when the change has wider risk. Report what ran and what did not.
-7. **Review the diff.** Remove dead code introduced by your change, check for hidden failure paths, and call out unrelated issues instead of fixing them silently.
+1. Frame: name the behavior change, the assumptions that affect design, the smallest scope, and the check that will prove the change.
+2. Read first: nearby code, naming, tests, error style, framework idioms. Search for existing implementations before writing anything new.
+3. Place: put code and files where the project's conventions say they belong.
+4. Edit surgically: smallest diff that solves the task; targeted edits over whole-file regeneration; remove code your change orphaned; no unrelated changes.
+5. Verify: run the narrowest meaningful check, then broader checks when risk demands; never claim success without evidence.
+6. Review the diff: dead code, duplication, mixed responsibilities, swallowed errors, wrong-place files, missing tests.
 
-## Clean-Code Rules
+### File And Code Placement
 
-- Names should reveal intent, use domain language, and avoid misleading abbreviations.
-- Functions should do one thing at one level of abstraction and avoid hidden side effects.
-- Comments should explain why, constraints, or non-obvious tradeoffs. They should not narrate unclear code.
-- Modules, classes, components, and scripts should be cohesive and have explicit boundaries.
-- Error handling should preserve context, avoid swallowed failures, and match language idioms.
-- Tests should be deterministic, readable, behavior-focused, and tied to risk.
-- Concurrency should make ownership, cancellation, ordering, and shared state explicit.
-- Refactors should preserve behavior and be verified before and after when possible.
+- Mirror where similar files already live. Resolve paths from the project root and its source layout, never from the current working directory. Never default to the repository root.
+- Create a new file only when no cohesive home exists, then wire it in completely: imports, exports, index or barrel files, registration, build config. An unreferenced file is dead code, not a feature.
+- Never create sibling variants such as `_v2`, `_new`, `_final`, `_enhanced`, or `_copy`. Edit the original; version control keeps history.
+- Do not grow junk drawers (`utils`, `helpers`, `common`); name the domain concept instead.
+- Keep scratch files, experiments, and debug output out of the project tree.
 
-## Anti-Loopholes
+### One Job Per Unit
 
-Do not rationalize broad edits with:
+- Single responsibility at every scale: function, class, module, file, directory. If a unit's job cannot be described in one sentence without "and", split it.
+- Keep parsing, domain rules, persistence, external calls, presentation, and construction/wiring in their own established homes. Orchestrators sequence collaborators and contain no business rules of their own.
+- New behavior goes to the unit that owns that responsibility, not to whatever file is currently open.
 
-- "while I am here"
-- "this will be more flexible later"
-- "clean code means rewriting the whole thing"
-- "there are no tests, so I will assume it works"
-- "this framework is different, so the principles do not apply"
+### Quality Bars
 
-If a change cannot be verified, say exactly what was checked and what risk remains.
+- Names reveal intent, use project vocabulary, and disclose side effects.
+- Functions do one thing at one abstraction level; comments explain why, never narrate what or how.
+- Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values and reserve exceptions for genuine failures; keep secrets out of logs.
+- Tests are deterministic and behavior-focused; never weaken, skip, or delete a failing test just to get green.
+- Verify that every API, function, option, and config key you reference actually exists in this codebase and its dependency versions — never trust memory.
+- Match local style everywhere; the project's formatter and linter own formatting.
+
+### Scope And Honesty
+
+- Default mode is surgical: unrelated smells are reported, not silently fixed.
+- Whole-project or module-wide cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`: baseline verification first, small behavior-preserving batches, a written ledger, a checkpoint per batch.
+- Report honestly on completion: what was verified with what command, what was not run, and what risk remains.
+
+### Keeping These Rules Current
+
+This block is versioned in its begin marker. When the user asks you to update the clean-code rules, or before starting a cleanup campaign, you may check for a newer version by comparing the marker version against `https://raw.githubusercontent.com/btseee/clean-code-skills/main/VERSION`. To update, run one of the following from the project root (it re-installs exactly the pieces already present and preserves all surrounding content):
+
+- POSIX shells: `curl -fsSL https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.sh | bash -s -- --detect`
+- PowerShell: `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.ps1))) --detect`
+
+Ask the user before running an update unless they already asked for it, never update in the middle of another task, and skip the check entirely when offline or when the user has pinned a version.
+<!-- clean-code-skills:end -->
+
+## Working On This Repository
+
+When editing clean-code-skills itself:
+
+- The managed block above is the canonical text in `templates/agent-block.md`, and the version lives in `VERSION`. After changing either, run `bash scripts/sync.sh` — it stamps the version everywhere and mirrors the block into all eight adapter files. Never hand-edit the block inside an adapter; validators fail on drift.
+- Never commit book or course text. Study material such as `clean-code.md` / `clean-code.pdf` is gitignored and must stay untracked; everything in this repo is original synthesis.
+- Run `bash scripts/validate.sh` (or `pwsh scripts/validate.ps1` on Windows) before reporting completion.
+- Releases: tag `v$(cat VERSION)`; the release workflow publishes `clean-code.zip` for Claude Desktop / claude.ai upload.

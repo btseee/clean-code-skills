@@ -1,5 +1,5 @@
 ---
-description: Apply language-agnostic clean-code discipline to all code writing, editing, reviewing, testing, and refactoring.
+description: Apply language-agnostic clean-code discipline to all code writing, editing, reviewing, testing, and refactoring, including file placement, single responsibility, and verified completion.
 globs:
 alwaysApply: true
 ---
@@ -8,30 +8,55 @@ alwaysApply: true
 
 Use these rules for every coding task in Cursor.
 
-## Work Loop
+<!-- clean-code-skills:begin v2.1.0 -->
+## Clean Code Rules (clean-code-skills)
 
-1. Clarify assumptions that affect behavior, tests, security, data, or architecture.
-2. Inspect nearby code and match existing idioms before editing.
-3. Make the smallest change that solves the request.
-4. Keep names, functions, modules, tests, and errors readable and explicit.
-5. Verify with the narrowest meaningful check, then expand checks when risk demands it.
-6. Review the diff for unrelated edits, speculative abstractions, and hidden failure paths.
+These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. When the full skill is installed, read it for depth at the first existing path: `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, or `skills/clean-code/SKILL.md`. Its `references/` folder holds the deep checklists (chapter map, review checklist, framework map, project-refactor protocol).
 
-## Clean-Code Baseline
+### Work Loop
 
-- Names reveal intent and use domain language.
-- Functions and methods do one thing at one abstraction level.
-- Comments explain why, constraints, or tradeoffs; they do not excuse unclear code.
-- Classes, modules, components, scripts, jobs, and queries stay cohesive.
-- Boundaries around external systems are explicit and tested when risk warrants it.
-- Errors preserve context and are not swallowed silently.
-- Tests are readable, deterministic, and behavior-focused.
-- Concurrency makes ownership, ordering, cancellation, and shared state explicit.
+1. Frame: name the behavior change, the assumptions that affect design, the smallest scope, and the check that will prove the change.
+2. Read first: nearby code, naming, tests, error style, framework idioms. Search for existing implementations before writing anything new.
+3. Place: put code and files where the project's conventions say they belong.
+4. Edit surgically: smallest diff that solves the task; targeted edits over whole-file regeneration; remove code your change orphaned; no unrelated changes.
+5. Verify: run the narrowest meaningful check, then broader checks when risk demands; never claim success without evidence.
+6. Review the diff: dead code, duplication, mixed responsibilities, swallowed errors, wrong-place files, missing tests.
 
-## Do Not
+### File And Code Placement
 
-- Do not rewrite unrelated code.
-- Do not reformat files outside the touched area.
-- Do not add future-proofing that the request did not need.
-- Do not impose one language's style on another language.
-- Do not claim success without fresh verification evidence.
+- Mirror where similar files already live. Resolve paths from the project root and its source layout, never from the current working directory. Never default to the repository root.
+- Create a new file only when no cohesive home exists, then wire it in completely: imports, exports, index or barrel files, registration, build config. An unreferenced file is dead code, not a feature.
+- Never create sibling variants such as `_v2`, `_new`, `_final`, `_enhanced`, or `_copy`. Edit the original; version control keeps history.
+- Do not grow junk drawers (`utils`, `helpers`, `common`); name the domain concept instead.
+- Keep scratch files, experiments, and debug output out of the project tree.
+
+### One Job Per Unit
+
+- Single responsibility at every scale: function, class, module, file, directory. If a unit's job cannot be described in one sentence without "and", split it.
+- Keep parsing, domain rules, persistence, external calls, presentation, and construction/wiring in their own established homes. Orchestrators sequence collaborators and contain no business rules of their own.
+- New behavior goes to the unit that owns that responsibility, not to whatever file is currently open.
+
+### Quality Bars
+
+- Names reveal intent, use project vocabulary, and disclose side effects.
+- Functions do one thing at one abstraction level; comments explain why, never narrate what or how.
+- Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values and reserve exceptions for genuine failures; keep secrets out of logs.
+- Tests are deterministic and behavior-focused; never weaken, skip, or delete a failing test just to get green.
+- Verify that every API, function, option, and config key you reference actually exists in this codebase and its dependency versions — never trust memory.
+- Match local style everywhere; the project's formatter and linter own formatting.
+
+### Scope And Honesty
+
+- Default mode is surgical: unrelated smells are reported, not silently fixed.
+- Whole-project or module-wide cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`: baseline verification first, small behavior-preserving batches, a written ledger, a checkpoint per batch.
+- Report honestly on completion: what was verified with what command, what was not run, and what risk remains.
+
+### Keeping These Rules Current
+
+This block is versioned in its begin marker. When the user asks you to update the clean-code rules, or before starting a cleanup campaign, you may check for a newer version by comparing the marker version against `https://raw.githubusercontent.com/btseee/clean-code-skills/main/VERSION`. To update, run one of the following from the project root (it re-installs exactly the pieces already present and preserves all surrounding content):
+
+- POSIX shells: `curl -fsSL https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.sh | bash -s -- --detect`
+- PowerShell: `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.ps1))) --detect`
+
+Ask the user before running an update unless they already asked for it, never update in the middle of another task, and skip the check entirely when offline or when the user has pinned a version.
+<!-- clean-code-skills:end -->

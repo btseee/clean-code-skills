@@ -6,9 +6,10 @@ This is an agent-oriented synthesis of the full clean-code source structure: 17 
 
 - For a narrow task, jump to the relevant chapter area.
 - For a review, scan chapters 2-13 plus the chapter 17 smell groups.
-- For refactoring, scan chapters 3, 5, 10, 12, 14, 16, and 17.
+- For refactoring, scan chapters 3, 5, 10, 12, 14, 16, and 17. For whole-project cleanup, follow `project-refactor.md` and use this map inside each batch.
 - For concurrent code, scan chapter 13 and Appendix A.
 - For tests, scan chapter 9 and the tests smell group in chapter 17.
+- For "where does this code or file belong" questions, combine chapter 10 (cohesion), G6, G17, G24, and the Where Code Lives section of the skill.
 
 ## Chapter 1: Clean Code
 
@@ -18,8 +19,8 @@ Apply this as:
 
 - Treat code as read more than written.
 - Prefer maintainable clarity over clever completion.
-- Do not excuse mess because schedules are tight.
-- Leave touched code no worse than you found it, while staying inside task scope.
+- Do not excuse mess because schedules are tight; "clean it later" almost always means never.
+- Boy-scout rule: leave every touched area slightly cleaner than you found it — a better name, one removed dead branch — while staying inside task scope.
 - Recognize that redesign pressure often comes from accumulated small neglect.
 - Write for future maintainers as an author writes for readers.
 
@@ -162,9 +163,10 @@ Core agent lesson: error handling must preserve clarity in the happy path and co
 Cover these concerns:
 
 - prefer idiomatic exceptions/results over ignorable codes
+- design the failure path first: sketch the error skeleton for a risky operation before filling in the happy path
 - design try/catch or error branches around the caller's needs
 - preserve context and original cause
-- distinguish normal alternative flows from true failures
+- distinguish normal alternative flows from true failures; model expected alternate outcomes (not found, empty, declined) as values, result types, or special-case objects so callers do not need exceptional control flow for ordinary cases
 - avoid returning or passing null-like values when the language has safer options
 - keep error handling localized and cohesive
 
@@ -261,14 +263,16 @@ Agent questions:
 
 ## Chapter 12: Emergence
 
-Core agent lesson: clean design emerges through simple rules and repeated verification.
+Core agent lesson: clean design emerges through four simple rules applied in strict priority order.
 
-Cover these concerns:
+Cover these concerns, in order of importance:
 
-- run all tests
-- remove duplication
-- express intent clearly
-- minimize classes, methods, and moving parts
+1. runs all tests — correctness outranks every aesthetic concern
+2. contains no duplication — one authoritative home per piece of knowledge
+3. expresses the intent of the programmer — a reader can tell what and why
+4. minimizes classes, methods, and moving parts — subject to the first three
+
+Use the order as a tie-breaker: never remove duplication in a way that breaks tests, and never add elements that rules 1-3 do not require.
 
 Agent questions:
 
@@ -359,92 +363,93 @@ Agent questions:
 
 Core agent lesson: smells are review prompts, not automatic rewrite permission.
 
-Use these groups as a review scan:
+Use these groups as a review scan. The IDs follow the standard clean-code heuristic numbering so findings can cite a stable code (for example "G17 misplaced responsibility" or "N7 name hides side effects").
 
-### Comment Smells
+### Comment Smells (C)
 
-- inappropriate background that belongs elsewhere
-- obsolete comments
-- redundant comments
-- unclear comments
-- commented-out code
+- C1: comment carries background that belongs elsewhere (tickets, history, metadata)
+- C2: obsolete comment that no longer matches the code
+- C3: redundant comment that restates the code
+- C4: sloppy or unclear comment
+- C5: commented-out code
 
-### Environment Smells
+### Environment Smells (E)
 
-- build requires many manual steps
-- tests require many manual steps
+- E1: build requires more than one step
+- E2: tests require more than one step
 
-### Function Smells
+### Function Smells (F)
 
-- too many arguments
-- output arguments
-- flag arguments
-- dead functions
+- F1: too many arguments
+- F2: output arguments that mutate parameters
+- F3: flag arguments selecting behaviors
+- F4: dead, never-called functions
 
-### General Smells
+### General Smells (G)
 
-- mixed languages or paradigms in one file without need
-- obvious behavior left unimplemented
-- incorrect boundary behavior
-- disabled or overridden safeguards
-- duplication of knowledge
-- wrong abstraction level
-- dependency direction problems
-- too much exposed information
-- dead code
-- poor vertical separation
-- inconsistency
-- clutter
-- artificial coupling
-- feature envy
-- selector arguments
-- obscured intent
-- misplaced responsibility
-- inappropriate static/global behavior
-- missing explanatory variables
-- names that hide behavior
-- algorithm not understood before changing it
-- logical dependency not represented physically
-- repeated conditionals that need a better dispatch structure
-- ignored conventions
-- magic values without domain names
-- imprecision in assumptions or comparisons
-- convention where explicit structure is needed
-- complex or negative conditionals
-- functions doing more than one thing
-- hidden temporal coupling
-- arbitrary choices without rationale
-- boundary conditions not encapsulated
-- mixed abstraction levels in a function
-- low-level configuration buried in logic
-- transitive navigation through object graphs
+- G1: mixed languages or paradigms in one file without need
+- G2: obvious expected behavior left unimplemented
+- G3: incorrect behavior at boundaries and edge cases
+- G4: disabled or overridden safeguards (ignored warnings, skipped tests, silenced linters)
+- G5: duplication of knowledge
+- G6: code at the wrong abstraction level
+- G7: dependency direction problems (foundations depending on details)
+- G8: too much exposed information; wide interfaces
+- G9: dead code
+- G10: poor vertical separation; related code far apart
+- G11: inconsistency; same idea done different ways
+- G12: clutter that earns no keep
+- G13: artificial coupling between things that do not belong together
+- G14: feature envy; code operating on another module's internals
+- G15: selector arguments that switch behavior
+- G16: obscured intent
+- G17: misplaced responsibility; code living where it does not belong
+- G18: inappropriate static/global behavior
+- G19: missing explanatory variables
+- G20: function names that do not say what the function does
+- G21: algorithm not understood before changing it
+- G22: logical dependency not represented physically
+- G23: repeated conditionals that want a single dispatch structure (polymorphism, handler map)
+- G24: ignored standard conventions
+- G25: magic values without domain names
+- G26: imprecision in assumptions, types, or comparisons (money in floats, naive time math)
+- G27: relying on convention where explicit structure is needed
+- G28: unencapsulated complex conditionals
+- G29: negative conditionals where positive ones read clearer
+- G30: functions doing more than one thing
+- G31: hidden temporal coupling
+- G32: arbitrary, unjustified structural choices
+- G33: boundary conditions not encapsulated in one place
+- G34: functions descending more than one abstraction level
+- G35: configurable data buried at low levels instead of the top
+- G36: transitive navigation through object graphs (train wrecks)
 
-### Language-Specific Smells
+### Language-Specific Smells (J and equivalents)
 
 - imports, constants, and enum-like concepts handled against local language idioms
-- Java examples should be translated into the target language rather than copied blindly
+- rules from one language translated into another blindly instead of idiomatically
 
-### Naming Smells
+### Naming Smells (N)
 
-- non-descriptive names
-- names at the wrong abstraction level
-- missing standard nomenclature
-- ambiguous names
-- short names in long scopes
-- unnecessary encodings
-- names that hide side effects
+- N1: non-descriptive names
+- N2: names at the wrong abstraction level
+- N3: missing standard nomenclature the team or ecosystem already uses
+- N4: ambiguous names
+- N5: short names for long scopes, long names for short scopes inverted
+- N6: unnecessary encodings and prefixes
+- N7: names that hide side effects
 
-### Test Smells
+### Test Smells (T)
 
-- insufficient tests
-- no coverage signal where coverage would reveal gaps
-- skipped simple tests
-- ignored tests that encode unresolved ambiguity
-- missing boundary tests
-- no extra coverage near recent bugs
-- failure patterns not investigated
-- coverage patterns not inspected
-- slow tests that discourage frequent use
+- T1: insufficient tests; untested reachable behavior
+- T2: no coverage signal where coverage would reveal gaps
+- T3: skipped trivial tests that would document behavior
+- T4: ignored tests that encode unresolved ambiguity
+- T5: missing boundary tests
+- T6: no extra coverage near recent bugs
+- T7: failure patterns not investigated
+- T8: coverage patterns not inspected
+- T9: slow tests that discourage frequent runs
 
 Agent questions:
 

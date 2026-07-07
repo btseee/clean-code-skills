@@ -1,3 +1,10 @@
+# Copyrighted study material: never commit or publish these.
+clean-code.md
+clean-code.pdf
+
+# Local agent session config.
+.claude/settings.local.json
+
 .DS_Store
 Thumbs.db
 *.log

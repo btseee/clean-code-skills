@@ -1,11 +1,3 @@
----
-applyTo: "**/*"
----
-
-# Clean-Code Instructions
-
-Apply these rules to every file type unless a more specific instruction file overrides them.
-
 <!-- clean-code-skills:begin v2.1.0 -->
 ## Clean Code Rules (clean-code-skills)
 

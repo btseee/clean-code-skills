@@ -1,7 +1,7 @@
 {
   "name": "clean-code-skills",
-  "description": "Language-agnostic clean-code skill for AI agents working across programming languages, frameworks, tests, reviews, and refactors.",
-  "version": "1.0.0",
+  "description": "Language-agnostic clean-code skill for AI agents: naming, focused functions, file and code placement, single responsibility, boundaries, error handling, tests, concurrency, security, agent failure modes, and surgical or whole-project refactoring.",
+  "version": "2.1.0",
   "author": {
     "name": "Battseren Badral",
     "email": "bbattseren88@gmail.com",
@@ -16,7 +16,9 @@
     "refactoring",
     "code-review",
     "testing",
-    "maintainability"
+    "maintainability",
+    "single-responsibility",
+    "file-placement"
   ],
   "skills": [
     "./skills/clean-code"
