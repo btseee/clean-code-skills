@@ -197,6 +197,8 @@ installed_files=(
   "skills/clean-code/references/project-refactor.md"
   ".claude/skills/clean-code/SKILL.md"
   ".github/skills/clean-code/SKILL.md"
+  ".agents/skills/clean-code/SKILL.md"
+  ".grok/skills/clean-code/SKILL.md"
 )
 
 for file in "${installed_files[@]}"; do
@@ -236,6 +238,9 @@ CLEAN_CODE_HOME="$fake_home" bash "$ROOT_DIR/scripts/install.sh" --global all >/
 [[ -f "$fake_home/.codex/AGENTS.md" ]] || fail "global install did not create ~/.codex/AGENTS.md"
 [[ -f "$fake_home/.config/opencode/AGENTS.md" ]] || fail "global install did not create ~/.config/opencode/AGENTS.md"
 [[ -f "$fake_home/.gemini/GEMINI.md" ]] || fail "global install did not create ~/.gemini/GEMINI.md"
+[[ -f "$fake_home/.agents/skills/clean-code/SKILL.md" ]] || fail "global install did not create ~/.agents/skills/clean-code"
+[[ -f "$fake_home/.grok/skills/clean-code/SKILL.md" ]] || fail "global install did not create ~/.grok/skills/clean-code"
+[[ -f "$fake_home/.gemini/config/skills/clean-code/SKILL.md" ]] || fail "global install did not create ~/.gemini/config/skills/clean-code"
 [[ ! -e "$fake_home/.cursor" ]] || fail "global install must skip project-scoped cursor profile"
 CLEAN_CODE_HOME="$fake_home" bash "$ROOT_DIR/scripts/install.sh" --global --detect >/dev/null
 [[ "$(grep -c 'clean-code-skills:begin' "$fake_home/.claude/CLAUDE.md")" -eq 1 ]] || fail "global detect update duplicated the block"

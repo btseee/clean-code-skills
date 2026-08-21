@@ -147,7 +147,7 @@ try {
             '.windsurf/rules/clean-code.md', '.clinerules/clean-code.md',
             '.github/copilot-instructions.md', '.github/instructions/clean-code.instructions.md',
             'skills/clean-code/SKILL.md', 'skills/clean-code/references/project-refactor.md',
-            '.claude/skills/clean-code/SKILL.md', '.github/skills/clean-code/SKILL.md')) {
+            '.claude/skills/clean-code/SKILL.md', '.agents/skills/clean-code/SKILL.md', '.grok/skills/clean-code/SKILL.md', '.github/skills/clean-code/SKILL.md')) {
         if (-not (Test-Path (Join-Path $tmpDir $file))) { Fail "installer did not create $file" }
     }
     Pass 'installer all profile works'
@@ -182,7 +182,7 @@ try {
     $env:CLEAN_CODE_HOME = $fakeHome
     try {
         & (Join-Path $RootDir 'scripts/install.ps1') -Global all | Out-Null
-        foreach ($file in @('.claude/CLAUDE.md', '.claude/skills/clean-code/SKILL.md', '.codex/AGENTS.md', '.config/opencode/AGENTS.md', '.gemini/GEMINI.md')) {
+        foreach ($file in @('.claude/CLAUDE.md', '.claude/skills/clean-code/SKILL.md', '.codex/AGENTS.md', '.config/opencode/AGENTS.md', '.gemini/GEMINI.md', '.agents/skills/clean-code/SKILL.md', '.grok/skills/clean-code/SKILL.md', '.gemini/config/skills/clean-code/SKILL.md')) {
             if (-not (Test-Path (Join-Path $fakeHome $file))) { Fail "global install did not create $file" }
         }
         if (Test-Path (Join-Path $fakeHome '.cursor')) { Fail 'global install must skip project-scoped cursor profile' }

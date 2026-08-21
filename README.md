@@ -8,7 +8,7 @@
 [![CI](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-Clean-code **and clean-architecture** discipline for AI coding agents — Claude Code, Claude Desktop / claude.ai, Codex CLI, opencode, Jules, Gemini CLI, GitHub Copilot, Cursor, Windsurf, Cline, and any tool that reads `AGENTS.md` or Agent Skills.
+Clean-code **and clean-architecture** discipline for AI coding agents — Claude Code, Antigravity, Codex App, Codex CLI, Cursor, Devin CLI, Factory Droid, Gemini CLI, GitHub Copilot, Grok Build CLI, Kimi Code, OpenCode, Pi, Hermes Agent, Amp, Windsurf, Cline, and any tool that reads Agent Skills or `AGENTS.md`.
 
 ## Purpose
 
@@ -117,17 +117,37 @@ If you want the skill alone, without adapter blocks. It installs into `.agents/s
 npx skills add btseee/clean-code-skills --skill clean-code
 ```
 
-### Native, per client
+### Supported hosts
 
-| Client | Native path |
-| --- | --- |
-| Claude Code | `/plugin marketplace add btseee/clean-code-skills`, then `/plugin install clean-code-skills@clean-code-skills` — updates arrive through the marketplace |
-| Claude Desktop / claude.ai | Download `clean-code.zip` from the [latest release](https://github.com/btseee/clean-code-skills/releases/latest), then Settings → Capabilities → Skills → upload. Works for the Skills API too |
-| Gemini CLI | `gemini extensions install https://github.com/btseee/clean-code-skills`, update with `gemini extensions update clean-code-skills` |
-| Codex CLI, opencode, Jules, Amp | Quick-install with the `agents` profile, which writes the `AGENTS.md` block |
-| Cursor / Windsurf / Cline | Quick-install with the `cursor`, `windsurf`, or `cline` profile |
-| GitHub Copilot | Quick-install with the `copilot` profile — instructions plus `.github/skills/` |
-| Anything else | Paste `templates/agent-block.md` into whatever instruction file the tool reads, and copy `skills/clean-code/` next to it |
+Every path below comes from that vendor's own documentation. `.agents/skills/` is the shared
+cross-agent root, and the `agents` profile installs the whole skill there — not just an instruction
+block — which is what covers most of this table in one step.
+
+| Host | Install with | Reads |
+| --- | --- | --- |
+| Claude Code | `claude` profile, or `/plugin marketplace add btseee/clean-code-skills` then `/plugin install clean-code-skills@clean-code-skills` | `.claude/skills` |
+| Codex CLI | `agents` profile | `.agents/skills` |
+| Codex App | Upload in-product: Plugins → Skills, or the `clean-code.zip` release asset | in-product only |
+| Cursor | `agents` profile (also reads `.cursor/skills`) | `.agents/skills` |
+| Gemini CLI | `agents` profile, or `gemini extensions install https://github.com/btseee/clean-code-skills` | `.agents/skills`, `.gemini/skills` |
+| Antigravity | `agents` profile for a project; `antigravity` profile with `--global` | `.agents/skills`, `~/.gemini/config/skills` |
+| GitHub Copilot CLI | `copilot` profile, or `agents` | `.github/skills`, `.agents/skills` |
+| OpenCode | `agents` profile | `.opencode/skills`, `.agents/skills` |
+| Factory Droid | `agents` profile | `.factory/skills`, `.agents/skills` |
+| Devin CLI | `agents` profile | `.agents/skills`, `.devin/skills` |
+| Kimi Code | `agents` profile | `.kimi-code/skills`, `.agents/skills` |
+| Grok Build CLI | `grok` profile — its project root is **not** the shared one | `.grok/skills` |
+| Hermes Agent | `agents` profile | `.hermes/skills`, `.agents/skills` |
+| Pi | `agents` profile | `.pi/skills`, `.agents/skills` |
+| Amp | `agents` profile | `.agents/skills` |
+| Claude Desktop / claude.ai | Upload `clean-code.zip` from the [latest release](https://github.com/btseee/clean-code-skills/releases/latest): Settings → Capabilities → Skills. Works for the Skills API too | uploaded |
+| Windsurf / Cline | `windsurf` or `cline` profile — rules files, not skills | `.windsurf/rules`, `.clinerules` |
+| Anything else | Paste `templates/agent-block.md` into whatever instruction file it reads, and copy `skills/clean-code/` next to it | — |
+
+Three exceptions a generic installer gets wrong, and this one handles: Claude Code does not read the
+shared root; Grok Build CLI reads it personally but not inside a project; and Antigravity's personal
+root is `~/.gemini/config/skills`, not `~/.agents/skills`. Full detail, including how each host lets
+you invoke a skill explicitly, is in `references/host-matrix.md`.
 
 ### Once for every project
 
@@ -145,7 +165,9 @@ Editor rules (Cursor, Windsurf, Cline, Copilot) are project-scoped by design and
 
 ## Usage
 
-Once installed, agents pick the skill up on their own — the `description` is what every host matches against. You can also invoke it by name, or ask for one of the four workflows.
+Once installed, agents pick the skill up on their own — the `description` is what every host matches against, so a request about naming, structure, tests, or where a file belongs activates it without being asked.
+
+The four workflows cover the situations that need a different approach:
 
 | Workflow | Ask for it when |
 | --- | --- |
@@ -155,6 +177,88 @@ Once installed, agents pick the skill up on their own — the `description` is w
 | **Audit** | you want a report or health check with no code changed |
 
 Cleanup of a whole project is a distinct mode: baseline verification first, small behavior-preserving batches, a written ledger, and a checkpoint per batch (`references/project-refactor.md`). It never starts implicitly.
+
+### Prompt usage
+
+You do not need special syntax. Ask for what you want and name the concern — the skill is written so that naming a concern routes the agent to the right rule.
+
+**Forcing it, when the host did not pick it up.** The explicit form varies more than you would expect: `/clean-code` in Claude Code, Copilot CLI, Grok Build CLI, Devin CLI and Hermes Agent (or `/clean-code-skills:clean-code` as a Claude Code plugin); `$clean-code` in Codex CLI; `@clean-code` in the Codex App; `/skill:clean-code` in Kimi Code. Gemini CLI and OpenCode have no user syntax — the agent activates it through a tool call. Cursor, Antigravity, Factory Droid and Pi document none, so name it in plain language:
+
+```text
+Use the clean-code skill for this.
+```
+
+That works everywhere, because it puts the skill's own name into the text the description is matched against. The per-host table is in `references/host-matrix.md`.
+
+Starting a project:
+
+```text
+Bootstrap a new payments service with clean architecture. Ask me whatever you
+need before you design anything.
+
+Set up the project structure and declare the layers in .clean/architecture.md
+before writing any code.
+```
+
+Working in an existing project — plain requests are enough, the skill loads itself:
+
+```text
+Add a retry with backoff to the invoice sync. Keep the change surgical and tell
+me what you did not run.
+
+Where should this currency formatter live? Follow the project's conventions and
+do not invent a new folder.
+
+This function validates, persists, sends mail, and renders. Split it along
+responsibilities -- but only if my task actually touches it.
+```
+
+Reviewing and auditing:
+
+```text
+Audit this project for clean code and architecture. Report only, change nothing.
+Cite file and line for every finding.
+
+Review my current diff. Findings first, cite smell IDs, and skip anything the
+formatter already owns.
+
+Does anything in src/domain import outward? Check the dependency direction and
+show me the violations.
+```
+
+Cleaning up, at scale:
+
+```text
+Clean up this whole project. Propose the contract first -- depth, breadth, and
+batch size -- and do not start editing until I agree.
+
+Resume the cleanup campaign from .clean/ledger.md. Re-read the baseline before
+the next batch.
+```
+
+Architecture questions:
+
+```text
+Should this be a service, or a module in the same address space? Argue it from
+the dependency rule, not from preference.
+
+Explain why this ORM type in the domain layer is a problem, and what the fix
+would cost.
+
+Is this true duplication or accidental? These two functions look identical.
+```
+
+Verification and handoff:
+
+```text
+Run the verification you would need to prove this works, then report exactly
+what passed, what failed, and what you skipped.
+
+Record this session's decisions in .clean/decisions.md and give me a clean
+handoff.
+```
+
+Two of these are worth knowing because they exercise what agents usually skip: asking for the **contract before a cleanup**, and asking what was **not run**. The skill is built to answer both honestly.
 
 ### Optional enforcement
 
@@ -249,7 +353,9 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 ### Install profiles
 
-`claude`, `agents`, `codex`, `opencode`, `jules`, `gemini`, `cursor`, `copilot`, `windsurf`, `cline`, `skill`, `all`. Pass any combination; `--detect` picks the ones already present.
+`claude`, `agents`, `codex`, `opencode`, `jules`, `gemini`, `cursor`, `copilot`, `windsurf`, `cline`, `grok`, `antigravity`, `skill`, `all`. Pass any combination; `--detect` picks the ones already present.
+
+`agents` is the one that matters most: it writes the `AGENTS.md` block **and** installs the full skill into `.agents/skills/clean-code/`, the shared root that eleven of the supported hosts read. `codex`, `opencode` and `jules` are aliases for it.
 
 ### Hooks
 

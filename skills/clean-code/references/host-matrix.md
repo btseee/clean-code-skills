@@ -13,18 +13,42 @@ to the prose step when it is not.
 
 Where each host looks for skills. Project-scoped roots are relative to the repository.
 
+Where each host looks. Project roots are relative to the repository. Every path below was taken
+from the vendor's own documentation; where a vendor documents no path, the row says so rather than
+guessing.
+
 | Host | Personal | Project |
 | --- | --- | --- |
-| Claude Code | `~/.claude/skills` | `.claude/skills` |
-| OpenAI Codex | `~/.agents/skills`, `/etc/codex/skills` | `.agents/skills` |
+| Claude Code | `~/.claude/skills` | `.claude/skills` (also nested, and inside each `--add-dir`) |
+| OpenAI Codex CLI | `~/.agents/skills`, `/etc/codex/skills` (admin) | `.agents/skills`, scanned from the cwd up to the repo root |
+| Codex App (ChatGPT desktop / web) | in-product only | in-product only |
 | GitHub Copilot (CLI and VS Code) | `~/.copilot/skills`, `~/.agents/skills` | `.github/skills`, `.claude/skills`, `.agents/skills` |
 | Gemini CLI | `~/.gemini/skills`, `~/.agents/skills` | `.gemini/skills`, `.agents/skills` |
-| Cursor | — | `.cursor/skills` |
+| Google Antigravity | `~/.gemini/config/skills` | `.agents/skills` (legacy alias `.agent/skills`) |
+| Cursor | `~/.agents/skills`, `~/.cursor/skills`, `~/.claude/skills`, `~/.codex/skills` | `.agents/skills`, `.cursor/skills`, `.claude/skills`, `.codex/skills` |
 | Amp | `~/.agents/skills`, `~/.config/agents/skills` | `.agents/skills` |
+| OpenCode | `~/.config/opencode/skills`, `~/.claude/skills`, `~/.agents/skills` | `.opencode/skills`, `.claude/skills`, `.agents/skills` |
+| Factory Droid | `~/.factory/skills`, `~/.agents/skills` | `.factory/skills`, `.agents/skills` |
+| Devin CLI | `~/.agents/skills`, `~/.config/devin/skills` | `.agents/skills`, `.devin/skills`, `.windsurf/skills` |
+| Kimi Code | `~/.kimi-code/skills`, `~/.agents/skills` | `.kimi-code/skills`, `.agents/skills` |
+| Grok Build CLI | `~/.grok/skills`, `~/.agents/skills` | `.grok/skills` |
+| Hermes Agent | `~/.hermes/skills` | `.hermes/skills`, `.agents/skills` |
+| pi | `~/.pi/agent/skills`, `~/.agents/skills` | `.pi/skills`, `.agents/skills` |
 
-`.agents/skills` is the most widely shared root. Installing there and symlinking into the
-host-specific directories is what the cross-host installers do, and what `scripts/install.sh` in
-this repository does.
+**`.agents/skills` is the shared root, read project-side by every host above except Claude Code,
+Grok Build CLI, and the Codex App.** That is why `scripts/install.sh` writes the whole skill there
+under the `agents` profile, rather than only dropping an instruction block.
+
+Three exceptions worth knowing, because a generic installer gets them wrong:
+
+- **Claude Code** uses `.claude/skills` and `~/.claude/skills`; it does not read the shared root.
+- **Grok Build CLI** reads `~/.agents/skills` personally but only `.grok/skills` inside a project.
+- **Antigravity**'s personal root is `~/.gemini/config/skills`, *not* `~/.agents/skills`. Its
+  project root is the shared one.
+
+The **Codex App** has no documented on-disk skill directory. Skills are managed in-product — the
+Plugins → Skills tab, or uploaded as a folder or zip — so install it there rather than by writing
+files. Its underlying Codex binary reads the Codex paths above.
 
 ## Frontmatter
 
@@ -53,10 +77,33 @@ demand, so depth belongs in `references/`, not in the main file.
 | Session-start hook | Claude Code (`SessionStart`) and some others | Step 1 of `session-protocol.md`: read `.clean/` before anything else |
 | Post-edit hook | Claude Code (`PostToolUse` on edits) | Step 16: check dependency direction during diff review |
 | Pre-commit enforcement | git, on every host | none needed — this is the portable path, see `assets/hooks/pre-commit` |
-| Slash commands | Claude Code, Codex (`$name`), Copilot, others | invoke the workflow by name: "run the audit workflow" |
+| Slash commands | varies — see the invocation table below | invoke the workflow by name: "run the audit workflow" |
 | Tool permissions | every host, all differently | declare needs in `compatibility`; keep scripts read-only |
 | Persistent memory | a few hosts | `.clean/` on disk — works everywhere, and survives host changes |
 | Subagents | several hosts | do the work inline |
+
+## How a user forces a skill
+
+Every host activates a skill automatically by matching the request against the `description`. What
+differs is the explicit form, and it differs more than most documentation admits:
+
+| Host | Explicit invocation |
+| --- | --- |
+| Claude Code | `/clean-code`, or `/clean-code-skills:clean-code` when installed as a plugin |
+| Codex CLI and IDE extension | `$clean-code`, or `/skills` to browse |
+| Codex App | `@clean-code` |
+| Kimi Code | `/skill:clean-code`, and it accepts arguments after the name |
+| Grok Build CLI, Devin CLI, Hermes Agent, Copilot CLI | `/clean-code` |
+| Hermes Agent | also stacks: `/skill-one /skill-two <instruction>` |
+| Gemini CLI | no user syntax — the model calls an `activate_skill` tool and asks you to approve |
+| OpenCode | no user syntax — the agent calls a native `skill` tool |
+| Cursor, Antigravity, Factory Droid, pi | no documented syntax; name the skill in plain language |
+
+Where there is no explicit form, "Use the clean-code skill for this" works everywhere, because it
+puts the skill's own name in the request the description is matched against.
+
+Grok Build CLI, Cursor, and Factory Droid all document a `disable-model-invocation` opt-out. This
+skill does not set it — automatic activation is the point.
 
 ## Recommended setup per host
 
@@ -68,11 +115,23 @@ enforcement that works identically everywhere.
 session-start context print and a post-edit scan. Optionally expose the four workflows as commands in
 `.claude/commands/`.
 
-**Codex, Copilot, Gemini CLI, Cursor, Amp:** install the skill into `.agents/skills/clean-code`
-(or the host root above), and rely on the pre-commit hook plus the prose protocol. The managed
-instruction block that `scripts/install.sh` writes into `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
-`.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`, and the Copilot instruction files keeps the
-non-negotiable rules visible even when the skill is not loaded.
+**Codex CLI, Copilot, Gemini CLI, Cursor, Amp, OpenCode, Factory Droid, Devin CLI, Kimi Code,
+Antigravity, pi:** the `agents` profile of `scripts/install.sh` installs the whole skill into
+`.agents/skills/clean-code`, which every one of these reads project-side. Add the pre-commit hook and
+you are done.
+
+**Grok Build CLI:** use the `grok` profile — its project root is `.grok/skills`, not the shared one.
+
+**Antigravity, installed globally:** use the `antigravity` profile, which targets
+`~/.gemini/config/skills`. Its project side needs nothing beyond the `agents` profile.
+
+**Codex App:** nothing to install on disk. Upload the skill in-product, from Plugins → Skills, or use
+the `clean-code.zip` release asset.
+
+The managed instruction block that `scripts/install.sh` writes into `AGENTS.md`, `CLAUDE.md`,
+`GEMINI.md`, `.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`, and the Copilot instruction files
+keeps the non-negotiable rules visible even when the skill itself is not loaded — which is the
+fallback for any host not listed here.
 
 **Hosted or sandboxed agents with no shell:** every workflow works with zero tooling. Each step that
 names a script also names the manual equivalent. Do that instead, and say in your report that the

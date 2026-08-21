@@ -26,7 +26,8 @@ run.
 Profiles (project mode):
   all       Every target below
   claude    CLAUDE.md block + .claude/skills/clean-code/
-  agents    AGENTS.md block (Codex CLI, opencode, Jules, and other AGENTS.md readers)
+  agents    AGENTS.md block + .agents/skills/clean-code/ (Codex CLI, opencode, Jules,
+            Amp, and any host reading the shared .agents/skills root)
   codex     Alias for agents
   opencode  Alias for agents
   jules     Alias for agents
@@ -35,6 +36,8 @@ Profiles (project mode):
   copilot   .github/copilot-instructions.md block + instructions file + .github/skills/clean-code/
   windsurf  .windsurf/rules/clean-code.md
   cline     .clinerules/clean-code.md
+  grok      AGENTS.md block + .grok/skills/clean-code/ (Grok Build CLI)
+  antigravity  .agents/skills/clean-code/ (same shared root as agents)
   skill     skills/clean-code/ (portable copy for any skill-aware harness)
 
 Profiles (--global mode, installed once for all projects in your home directory):
@@ -42,8 +45,10 @@ Profiles (--global mode, installed once for all projects in your home directory)
   codex     ~/.codex/AGENTS.md block
   opencode  ~/.config/opencode/AGENTS.md block
   gemini    ~/.gemini/GEMINI.md block
-  agents    codex + opencode
-  all       claude + agents + gemini
+  agents    codex + opencode + ~/.agents/skills/clean-code/
+  grok      ~/.grok/skills/clean-code/
+  antigravity  ~/.gemini/config/skills/clean-code/
+  all       claude + agents + gemini + grok + antigravity
   (cursor, copilot, windsurf, cline, and skill are project-scoped and are skipped globally)
 
 Options:
@@ -133,17 +138,20 @@ detect_profiles() {
   local found=()
   if [[ "$GLOBAL" -eq 1 ]]; then
     { has_block "$TARGET_DIR/.claude/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    has_block "$TARGET_DIR/.codex/AGENTS.md" && found+=(codex)
+    { has_block "$TARGET_DIR/.codex/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(codex)
     has_block "$TARGET_DIR/.config/opencode/AGENTS.md" && found+=(opencode)
     has_block "$TARGET_DIR/.gemini/GEMINI.md" && found+=(gemini)
+    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
+    [[ -d "$TARGET_DIR/.gemini/config/skills/clean-code" ]] && found+=(antigravity)
   else
     { has_block "$TARGET_DIR/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    has_block "$TARGET_DIR/AGENTS.md" && found+=(agents)
+    { has_block "$TARGET_DIR/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(agents)
     has_block "$TARGET_DIR/GEMINI.md" && found+=(gemini)
     [[ -f "$TARGET_DIR/.cursor/rules/clean-code.mdc" ]] && found+=(cursor)
     { has_block "$TARGET_DIR/.github/copilot-instructions.md" || [[ -d "$TARGET_DIR/.github/skills/clean-code" ]]; } && found+=(copilot)
     [[ -f "$TARGET_DIR/.windsurf/rules/clean-code.md" ]] && found+=(windsurf)
     [[ -f "$TARGET_DIR/.clinerules/clean-code.md" ]] && found+=(cline)
+    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
     [[ -d "$TARGET_DIR/skills/clean-code" ]] && found+=(skill)
   fi
   printf '%s\n' "${found[@]:-}"
@@ -321,6 +329,8 @@ apply_global_profile() {
       apply_global_profile claude
       apply_global_profile agents
       apply_global_profile gemini
+      apply_global_profile grok
+      apply_global_profile antigravity
       ;;
     claude)
       block_target "$TARGET_DIR/.claude/CLAUDE.md"
@@ -329,6 +339,7 @@ apply_global_profile() {
     agents)
       apply_global_profile codex
       apply_global_profile opencode
+      skill_target "$TARGET_DIR/.agents/skills/clean-code"
       ;;
     codex)
       block_target "$TARGET_DIR/.codex/AGENTS.md"
@@ -341,6 +352,13 @@ apply_global_profile() {
       ;;
     gemini)
       block_target "$TARGET_DIR/.gemini/GEMINI.md"
+      ;;
+    grok)
+      skill_target "$TARGET_DIR/.grok/skills/clean-code"
+      ;;
+    antigravity)
+      # Antigravity's personal skill root is the Gemini config dir, not ~/.agents/skills.
+      skill_target "$TARGET_DIR/.gemini/config/skills/clean-code"
       ;;
     cursor|copilot|windsurf|cline|skill)
       skip_in_global "$1"
@@ -363,6 +381,7 @@ apply_project_profile() {
       apply_project_profile copilot
       apply_project_profile windsurf
       apply_project_profile cline
+      apply_project_profile grok
       apply_project_profile skill
       ;;
     claude)
@@ -371,6 +390,10 @@ apply_project_profile() {
       ;;
     agents|codex|opencode|jules)
       block_target "$TARGET_DIR/AGENTS.md"
+      # .agents/skills is the shared cross-agent skill root: Codex CLI, GitHub Copilot,
+      # Gemini CLI and Amp all read it, so installing here makes the skill itself
+      # discoverable rather than only the instruction block.
+      skill_target "$TARGET_DIR/.agents/skills/clean-code"
       ;;
     gemini)
       block_target "$TARGET_DIR/GEMINI.md"
@@ -388,6 +411,16 @@ apply_project_profile() {
       ;;
     cline)
       owned_file_target "$ROOT_DIR/.clinerules/clean-code.md" "$TARGET_DIR/.clinerules/clean-code.md"
+      ;;
+    grok)
+      # Grok Build CLI reads AGENTS.md, but its project skill root is .grok/skills,
+      # not the shared .agents/skills root.
+      block_target "$TARGET_DIR/AGENTS.md"
+      skill_target "$TARGET_DIR/.grok/skills/clean-code"
+      ;;
+    antigravity)
+      # Antigravity defaults to the shared project root; only its personal root differs.
+      skill_target "$TARGET_DIR/.agents/skills/clean-code"
       ;;
     skill)
       skill_target "$TARGET_DIR/skills/clean-code"
