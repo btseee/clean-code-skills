@@ -100,6 +100,10 @@ Removes managed blocks (keeping your own content) and deletes package-owned file
 | Chapter and smell map | `skills/clean-code/references/chapter-map.md` | Deep review coverage with stable smell IDs (G17, N7, T5...) |
 | Review checklist | `skills/clean-code/references/review-checklist.md` | Finding-first review scan including placement and responsibility |
 | Framework map | `skills/clean-code/references/framework-map.md` | Per-language idioms and file-placement conventions |
+| Canon index | `skills/clean-code/references/canon.md` | Every named rule from both books with its operational meaning — the fastest way in when you know the name |
+| Test discipline | `skills/clean-code/references/tests.md` | Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, and the test failure modes |
+| Concurrency | `skills/clean-code/references/concurrency.md` | Execution models, the four deadlock conditions, and the seven tactics that actually catch a race |
+| Worked examples | `skills/clean-code/references/examples.md` | Before-and-after cases in Python, TypeScript, Go and SQL, plus output templates |
 | Memory protocol | `skills/clean-code/references/memory-protocol.md` | What to persist in `.clean/` so a memoryless session can resume |
 | Host matrix | `skills/clean-code/references/host-matrix.md` | Per-host skill paths, capabilities, and portable substitutes |
 | Tools | `skills/clean-code/scripts/*.py` | `detect_stack.py` (context), `scan_repo.py` (measurable smells), `check_boundaries.py` (dependency direction) |

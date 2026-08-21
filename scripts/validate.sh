@@ -20,8 +20,6 @@ required_files=(
   "CLAUDE.md"
   "GEMINI.md"
   "AGENTS.md"
-  "EXAMPLES.md"
-  "FRAMEWORKS.md"
   "CONTRIBUTING.md"
   "LICENSE"
   "VERSION"
@@ -47,6 +45,10 @@ required_files=(
   "skills/clean-code/references/architecture-map.md"
   "skills/clean-code/references/principles.md"
   "skills/clean-code/references/smell-triage.md"
+  "skills/clean-code/references/canon.md"
+  "skills/clean-code/references/tests.md"
+  "skills/clean-code/references/concurrency.md"
+  "skills/clean-code/references/examples.md"
   "skills/clean-code/references/session-protocol.md"
   "skills/clean-code/references/new-project.md"
   "skills/clean-code/references/audit-report.md"
@@ -336,12 +338,24 @@ list_repo_files() {
   fi
 }
 
+# `grep -U` forces binary mode. Without it, the grep shipped with Git for Windows
+# strips CR before matching, so a plain `grep $'\r'` reports every file as clean and
+# the whole check silently passes. Verify the detector against a known-CRLF fixture
+# before trusting it, so this cannot rot back into a check that always succeeds.
+crlf_probe="$(mktemp)"
+printf 'probe\r\n' > "$crlf_probe"
+if ! LC_ALL=C grep -qU $'\r' "$crlf_probe"; then
+  rm -f "$crlf_probe"
+  fail "CRLF detector is not working on this platform; the line-ending check cannot be trusted"
+fi
+rm -f "$crlf_probe"
+
 while IFS= read -r -d '' file; do
   file="$ROOT_DIR/${file#$ROOT_DIR/}"
   [[ -f "$file" ]] || continue
   LC_ALL=C grep -Iq . "$file" 2>/dev/null || continue
 
-  if LC_ALL=C grep -q $'\r' "$file"; then
+  if LC_ALL=C grep -qU $'\r' "$file"; then
     fail "CRLF line ending found in ${file#$ROOT_DIR/}"
   fi
 

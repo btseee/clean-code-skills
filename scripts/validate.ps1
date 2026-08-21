@@ -20,8 +20,8 @@ function Pass([string]$Message) {
 # --- required files ---------------------------------------------------------
 
 $requiredFiles = @(
-    'README.md', 'CLAUDE.md', 'GEMINI.md', 'AGENTS.md', 'EXAMPLES.md',
-    'FRAMEWORKS.md', 'CONTRIBUTING.md', 'LICENSE', 'VERSION',
+    'README.md', 'CLAUDE.md', 'GEMINI.md', 'AGENTS.md',
+    'CONTRIBUTING.md', 'LICENSE', 'VERSION',
     'gemini-extension.json', '.markdownlint.json',
     '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json',
     '.codex-plugin/plugin.json', '.cursor/rules/clean-code.mdc',
@@ -38,6 +38,10 @@ $requiredFiles = @(
     'skills/clean-code/references/architecture-map.md',
     'skills/clean-code/references/principles.md',
     'skills/clean-code/references/smell-triage.md',
+    'skills/clean-code/references/canon.md',
+    'skills/clean-code/references/tests.md',
+    'skills/clean-code/references/concurrency.md',
+    'skills/clean-code/references/examples.md',
     'skills/clean-code/references/session-protocol.md',
     'skills/clean-code/references/new-project.md',
     'skills/clean-code/references/audit-report.md',

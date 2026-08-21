@@ -30,60 +30,14 @@ find the right rule fast; the reasoning lives in `architecture.md`.
 
 ## By topic
 
-Each topic below names the principle or rule, and the specific failure it prevents.
+The named rules themselves now live in one place each, so this file does not restate them:
 
-**Design goal.** Architecture minimizes the human effort to build and maintain the system. The
-strategy is to leave options open; a good architect maximizes the decisions *not* made. Behavior is
-urgent but not always important; structure is important but never urgent — which is why it loses
-arguments it should win.
-
-**Paradigms as discipline.** Structured programming disciplines direct transfer of control, giving
-falsifiable units. Object orientation disciplines indirect transfer of control, giving absolute
-control over source dependencies through polymorphism — that control is the whole architectural
-payoff. Functional programming disciplines assignment; every race condition, deadlock, and
-concurrent-update defect traces to a mutable variable.
-
-**SOLID.** SRP: one actor per module — the misreading "do one thing" is a function-level rule, not
-this one. OCP: extend without modifying; protect A from B by making B depend on A. LSP: a call site
-that must know which implementation it has is the violation. ISP: do not depend on things you do not
-use, because transitive baggage sets both your recompile and your failure blast radius. DIP: depend
-on abstractions, where the test is volatility rather than abstractness.
-
-**Component cohesion.** REP: the granule of reuse is the granule of release. CCP: gather what changes
-together for the same reason. CRP: do not force users to depend on what they do not need. REP and CCP
-grow components; CRP shrinks them. Favour CCP early, shift toward REP when real consumers appear.
-
-**Component coupling.** ADP: no cycles — a cycle fuses components into one release unit. SDP: depend
-in the direction of stability, where stability is the work required to change something. SAP: as
-abstract as it is stable. SDP plus SAP is DIP at component scale.
-
-**Boundaries.** Draw them on the axes of change, which is the SRP again. Full, partial (skip the last
-step, one-dimensional, facade), or none — each partial form has a specific failure mode, and none
-maintains itself without enforcement. Crossing cost rises steeply from function call to network, and
-chattiness must match it.
-
-**The circles.** Entities (enterprise critical rules), use cases (application-specific rules),
-interface adapters (controllers, presenters, gateways, all SQL), frameworks and drivers (everything
-else). Outer circles are mechanisms; inner circles are policies. Control flow crosses outward at the
-end of a use case while source dependencies still point inward — resolved by an output port the use
-case owns.
-
-**Details.** The database is a detail; the data model is not. The web is a GUI, and a GUI is an I/O
-device. Frameworks are an asymmetric commitment: use them, do not marry them. `main` is the ultimate
-detail and the only place wiring belongs.
-
-**Testability.** Tests are a system component in the outermost circle. The Humble Object pattern
-splits hard-to-test from easy-to-test, and that split usually *is* the boundary. Structural coupling
-— a test class per production class — makes tests fragile and production code rigid. Provide a
-testing API rather than letting tests know the structure.
-
-**Packaging.** Package by layer, by feature, by ports and adapters, or by component. If every type is
-public, all four are syntactically identical and none is enforced: packages become folders. One
-public entry point per component lets the compiler do the enforcing.
-
-**Decoupling modes.** Source, deployment, service. Push to the point where a service *could* be
-extracted, then stay in one address space as long as possible, and keep the move reversible in both
-directions.
+- **`canon.md`** — every named rule from both books with a one-line operational meaning. Start here
+  when you know the name but not the rule.
+- **`architecture.md`** — the reasoning, in this order: the dependency rule and level, the circles
+  and boundary crossing, boundary costs and partial boundaries, SOLID as dependency rules, component
+  cohesion and coupling with the metrics, keeping details out, systems and cross-cutting policy,
+  testability, packaging and enforcement, decoupling modes, duplication.
 
 ## Reading order
 

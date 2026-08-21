@@ -278,6 +278,43 @@ one nothing else depends on. All wiring, configuration loading, and framework bi
 Treat `main` as a plugin: prefer a separate `main` per environment, jurisdiction, or customer over
 configuration branches inside policy code.
 
+## Systems: construction, growth, and cross-cutting policy
+
+**Separate constructing the system from using it.** Startup is its own concern: building the object
+graph, reading configuration, choosing implementations. Code that does real work should receive what
+it needs, never go and build it. The moment a business rule constructs its own dependency, it has
+taken on a second job and become untestable in isolation.
+
+- Use factories when an object must be created *during* execution rather than at startup — the
+  calling policy names the factory interface, and the concrete factory lives outward.
+- Use dependency injection to move construction to `main`. Inject there, then pass dependencies
+  onward as ordinary arguments; do not scatter the framework's annotations through the system.
+- **Lazy initialization is a construction decision leaking into use.** It hardcodes a concrete type
+  at the point of use and makes the null-check path part of the business logic.
+
+**Systems grow; they are not built whole.** Software architecture is not physical architecture — you
+cannot pour the foundation once and be done, and pretending otherwise is why big up-front design
+fails. A clean system starts simple and grows because its concerns stayed separated: new use cases
+arrive as new components rather than as edits spread across old ones. Decide at the **last
+responsible moment**, with the most information and the least commitment.
+
+**Isolate cross-cutting concerns.** Persistence, transactions, security, logging, caching, and
+metrics apply across many modules and cut against clean separation — implemented naively they end up
+duplicated in every handler. Concentrate each one in a single place and apply it at a boundary:
+middleware, a decorator, a proxy, an interceptor, an aspect, whatever the ecosystem provides. The
+principle is what matters, not the mechanism: **one home per policy, applied at the edge, invisible
+to the business rules it protects.**
+
+**Test-drive the architecture.** If you can write a use case's tests with no database, no web server,
+and no framework running, the architecture is decoupled — the test suite is the proof, not the
+diagram. If you cannot, the coupling is real regardless of what the diagram claims.
+
+**Use standards wisely, and build a language when it pays.** Adopt a standard when it demonstrably
+buys interoperability or reuse, not because it is a standard — an over-engineered standard adopted for
+its own sake costs more than it returns. And where a domain concept recurs constantly, a small
+domain-specific language or a well-named vocabulary of helpers lets the code state intent directly
+instead of restating mechanism. That is the same instinct as the testing language in `tests.md`.
+
 ## Testability is an architectural property
 
 **The Humble Object pattern.** When behavior is hard to test, split it into two modules rather than

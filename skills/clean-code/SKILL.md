@@ -13,10 +13,8 @@ Clean code makes intent, behavior, boundaries, and failure modes easy for the ne
 understand and safely change. Clean architecture keeps the cost of a change proportional to its
 scope instead of its shape.
 
-This skill is written for AI coding agents of any vendor and is language-agnostic. It does not mean
-"write Java everywhere" or "add object-oriented patterns everywhere". Adapt every rule to the
-project's language, framework, runtime, and local style. Three agent-specific truths shape
-everything below:
+Written for AI coding agents of any vendor, and language-agnostic: adapt every rule to the project's
+language, framework, runtime, and local style. Three agent-specific truths shape everything below:
 
 1. You read faster than humans but forget context between sessions. Structure, names, placement,
    and written-down decisions are how your work survives you.
@@ -220,14 +218,14 @@ Summary only. Full detail in `references/principles.md`.
 - **Errors** are designed with the happy path: handle where a decision can be made, preserve causes,
   model expected outcomes as values, never swallow.
 - **Boundaries** get validation, an interface you own, and explicit serialization and nullability.
-- **Tests** are a system component: behavior-focused, deterministic, asserting outcomes not
-  structure. Never weaken or skip a failing test to get green.
+- **Tests** follow the Three Laws of TDD and F.I.R.S.T.: written first, behavior-focused,
+  deterministic, asserting outcomes not structure. Never weaken or skip a failing test to get green.
 - **Concurrency** makes ownership and ordering visible; prefer immutability and confine mutation.
 - **Security** validates at boundaries, keeps authorization next to the protected operation, and
   keeps secrets out of code and logs.
 - **Performance** is measured before it is optimized.
-- **When rules conflict**, decide in this order: tests pass; no duplicated knowledge; intent is
-  expressed; fewest elements.
+- **When rules conflict**, decide in this order: tests pass; no duplicated knowledge (**DRY**, and
+  only for true duplication); intent is expressed; fewest elements.
 
 ## Workflows
 
@@ -305,9 +303,8 @@ When you see a smell, decide whether it is in scope before you touch it. Fix now
 the requested change, creates immediate risk, or was introduced by your work. Otherwise mention it
 separately. In campaign mode, log it in the ledger and handle it in its batch.
 
-`references/smell-triage.md` lists the code-level and architectural smells with the usual response
-for each, and the order to work in when several apply. Cite smell IDs from
-`references/chapter-map.md` (G17, N7, T5...) so findings stay unambiguous.
+`references/smell-triage.md` lists every smell with its usual response and the order to fix them in.
+Cite IDs from `references/chapter-map.md` (G17, N7, T5...) so findings stay unambiguous.
 
 ## Framework And Language Adaptation
 
@@ -316,8 +313,7 @@ in an unfamiliar language or stack. Clean code should look idiomatic to a senior
 stack, and the project's existing layout always overrides the ecosystem default.
 
 Examples: in Go, small interfaces at consumers beat deep hierarchies. In Rust, encode invariants in
-types and ownership rather than defensive runtime checks. In SQL, prefer set-based operations and
-explicit transaction boundaries.
+types and ownership rather than defensive runtime checks.
 
 ## Anti-Loopholes
 
@@ -330,7 +326,6 @@ Stop and reassess when you catch yourself thinking:
 | "This abstraction will help later." | Later requirements can pay for later abstraction. |
 | "The code is bad, so a rewrite is cleaner." | Rewrites need explicit scope, tests, and migration risk control. The team that made the mess usually rebuilds it. |
 | "There are no tests, so verification is impossible." | Use the best available check and report remaining risk. |
-| "Comments make it understandable." | Prefer clearer names and structure; comment only the why. |
 | "I will put it here for now." | "For now" placements become permanent. Place it correctly once. |
 | "The user asked for cleanup, so everything is in scope." | Campaign mode has a protocol: baseline, batches, ledger, verification. |
 | "Clean code means following this skill over local style." | Local, idiomatic style wins unless it is unsafe or broken. |
@@ -357,9 +352,13 @@ Before saying the work is complete, confirm:
 
 ## References
 
-- `architecture.md` — dependency rule, SOLID, component principles, boundaries, packaging,
+- `canon.md` — every named rule from both books, one line each. Start here when you know the name.
+- `architecture.md` — dependency rule, SOLID, component principles, boundaries, systems, packaging,
   testability, decoupling modes.
-- `principles.md` — naming, functions, errors, tests, concurrency, security, performance in full.
+- `principles.md` — naming, functions, formatting, errors, data, security, performance in full.
+- `tests.md` — the Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, test failure modes.
+- `concurrency.md` — execution models, deadlock conditions, and how to actually catch a race.
+- `examples.md` — worked before-and-after cases and output templates.
 - `smell-triage.md` — every smell with its usual response, and the order to fix them in.
 - `project-refactor.md` — campaign protocol for whole-project or module-wide cleanup.
 - `new-project.md` — greenfield protocol: architecture and standards before code.

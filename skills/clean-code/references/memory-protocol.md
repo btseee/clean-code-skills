@@ -9,7 +9,7 @@ Everything lives in a `.clean/` directory at the project root. Templates are in
 
 | File | Holds | Written by | Read when |
 | --- | --- | --- | --- |
-| `context.json` | detected stack, frameworks, test command, layout | `scripts/detect_stack.py --write` | every session, first |
+| `context.json` | detected stack, frameworks, test command, layout | `scripts/detect_stack.py --write`, or hand-written — it is only a cache of what you can read off the project | every session, first |
 | `architecture.md` | declared layers and allowed dependencies | a human or an agent, with the user's agreement | every session; enforced by `check_boundaries.py` |
 | `decisions.md` | decisions made and why, append-only | any session that made a real choice | before proposing a design change |
 | `ledger.md` | state of a cleanup campaign in progress | campaign mode only | before starting or resuming a campaign |
