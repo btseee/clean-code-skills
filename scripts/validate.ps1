@@ -177,6 +177,25 @@ try {
     if (Test-Path (Join-Path $tmpDir 'skills/clean-code')) { Fail 'uninstall left skills/clean-code behind' }
     Pass 'uninstall removes managed content and keeps user content'
 
+    # Install then uninstall must restore a shared file byte for byte.
+    $roundtripDir = Join-Path ([System.IO.Path]::GetTempPath()) ("ccs-roundtrip-" + [System.Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $roundtripDir | Out-Null
+    try {
+        $roundtripFile = Join-Path $roundtripDir 'CLAUDE.md'
+        [System.IO.File]::WriteAllText($roundtripFile, "# My Project`n`nLocal notes.`n")
+        $before = [System.IO.File]::ReadAllBytes($roundtripFile)
+        & (Join-Path $RootDir 'scripts/install.ps1') -Target $roundtripDir claude | Out-Null
+        & (Join-Path $RootDir 'scripts/install.ps1') -Target $roundtripDir -Uninstall claude | Out-Null
+        $after = [System.IO.File]::ReadAllBytes($roundtripFile)
+        if (-not ([System.Linq.Enumerable]::SequenceEqual($before, $after))) {
+            Fail 'install then uninstall did not restore CLAUDE.md byte for byte'
+        }
+        Pass 'install/uninstall round trip is byte-identical'
+    }
+    finally {
+        Remove-Item $roundtripDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     $fakeHome = Join-Path $tmpDir 'fake-home'
     New-Item -ItemType Directory -Path $fakeHome | Out-Null
     $env:CLEAN_CODE_HOME = $fakeHome

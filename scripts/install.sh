@@ -241,7 +241,17 @@ remove_block() {
     rm -f "$tmp" "$dest"
     printf 'REMOVED: %s (file contained only the managed block)\n' "$(relpath "$dest")"
   else
-    mv "$tmp" "$dest"
+    # merge_block inserts a blank separator line before an appended block. Removing the
+    # block must take that separator with it, or install-then-uninstall leaves the file
+    # one blank line longer each round trip instead of restoring it exactly.
+    trimmed="$(mktemp)"
+    awk '{ lines[NR] = $0 } END {
+      last = NR
+      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
+      for (i = 1; i <= last; i++) print lines[i]
+    }' "$tmp" > "$trimmed"
+    mv "$trimmed" "$dest"
+    rm -f "$tmp"
     printf 'UPDATED: %s (managed block removed; your content kept)\n' "$(relpath "$dest")"
   fi
 }

@@ -157,6 +157,10 @@ function Remove-Block([string]$Dest) {
         Remove-Item $Dest -Force
         Write-Output "REMOVED: $(Get-RelPath $Dest) (file contained only the managed block)"
     } else {
+        # Merge-Block inserts a blank separator before an appended block. Removing the
+        # block must take that separator with it, or install-then-uninstall leaves the
+        # file one blank line longer each round trip instead of restoring it exactly.
+        $stripped = $stripped.TrimEnd("`n", "`r", " ", "`t")
         Write-FileLf $Dest $stripped
         Write-Output "UPDATED: $(Get-RelPath $Dest) (managed block removed; your content kept)"
     }

@@ -229,6 +229,21 @@ fi
 [[ ! -e "$install_tmp_dir/skills/clean-code" ]] || fail "uninstall left skills/clean-code behind"
 [[ ! -e "$install_tmp_dir/.cursor/rules/clean-code.mdc" ]] || fail "uninstall left cursor rule behind"
 pass "uninstall removes managed content and keeps user content"
+# Install then uninstall must restore a shared file byte for byte. Without this, each
+# round trip left an extra blank line where the block separator had been.
+roundtrip_dir="$(mktemp -d)"
+printf '# My Project
+
+Local notes.
+' > "$roundtrip_dir/CLAUDE.md"
+roundtrip_before="$(cksum < "$roundtrip_dir/CLAUDE.md")"
+bash "$ROOT_DIR/scripts/install.sh" --target "$roundtrip_dir" claude >/dev/null
+bash "$ROOT_DIR/scripts/install.sh" --target "$roundtrip_dir" --uninstall claude >/dev/null
+roundtrip_after="$(cksum < "$roundtrip_dir/CLAUDE.md")"
+rm -rf "$roundtrip_dir"
+[[ "$roundtrip_before" == "$roundtrip_after" ]] || fail "install then uninstall did not restore CLAUDE.md byte for byte"
+pass "install/uninstall round trip is byte-identical"
+
 
 fake_home="$install_tmp_dir/fake-home"
 mkdir -p "$fake_home"

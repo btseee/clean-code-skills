@@ -403,14 +403,31 @@ def render_summary(findings: dict, limit: int) -> str:
         lambda item: f"{item['count']:>4}x  {item['file']}",
     )
 
-    areas = [area for area in findings["areas_by_test_presence"] if area["production"] > 0]
-    untested = [area for area in areas if area["test"] == 0]
-    lines += render_section(
-        "Areas with production code but no test files",
-        untested,
-        lambda item: f"{item['production']:>4} files  {item['area']}",
-        empty="none: every area with production code has test files somewhere",
-    )
+    areas = findings["areas_by_test_presence"]
+    test_roots = [area for area in areas if area["test"] > 0 and area["production"] == 0]
+    untested = [area for area in areas if area["production"] > 0 and area["test"] == 0]
+
+    if test_roots:
+        # A dedicated top-level test tree is the most common layout in Python, Java,
+        # Rust and Go. Reporting "app has no test files" there is a false alarm: the
+        # tests exist, they just do not sit beside the code. Say what is actually known.
+        roots = ", ".join(f"{a['area']} ({a['test']})" for a in test_roots)
+        lines += ["", f"  Tests live in a separate tree: {roots}"]
+        lines.append("    Per-area coverage cannot be inferred from layout. Run the project's")
+        lines.append("    coverage tool for that; the areas below only lack *co-located* tests.")
+        lines += render_section(
+            "Production areas with no co-located tests",
+            untested,
+            lambda item: f"{item['production']:>4} files  {item['area']}",
+            empty="none",
+        )
+    else:
+        lines += render_section(
+            "Areas with production code but no test files",
+            untested,
+            lambda item: f"{item['production']:>4} files  {item['area']}",
+            empty="none: every area with production code has test files somewhere",
+        )
 
     lines.append("")
     lines.append("  " + findings["reminder"])

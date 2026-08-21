@@ -184,6 +184,25 @@ QUALITY_TOOL_FILES = {
     ".importlinter": "import-linter",
 }
 
+# Many projects configure their formatter, linter and test runner inside a manifest
+# rather than as a standalone dotfile -- pyproject.toml [tool.ruff], package.json
+# "eslintConfig", setup.cfg [flake8]. Looking only for files reports "no quality
+# tools" on a project that has four of them, which invites an agent to hand-format.
+QUALITY_TOOL_MARKERS = {
+    "pyproject.toml": {
+        "[tool.black]": "Black", "[tool.ruff": "Ruff", "[tool.isort]": "isort",
+        "[tool.mypy]": "mypy", "[tool.pytest": "pytest", "[tool.flake8]": "Flake8",
+        "[tool.pylint": "Pylint", "[tool.coverage": "coverage",
+    },
+    "setup.cfg": {"[flake8]": "Flake8", "[mypy]": "mypy", "[tool:pytest]": "pytest"},
+    "package.json": {
+        '"eslintConfig"': "ESLint", '"prettier"': "Prettier",
+        '"jest"': "Jest", '"biome"': "Biome",
+    },
+    "Cargo.toml": {"[lints": "Cargo lints"},
+    "composer.json": {'"phpstan"': "PHPStan", '"php-cs-fixer"': "PHP-CS-Fixer"},
+}
+
 AGENT_CONTEXT_FILES = (
     "AGENTS.md", "CLAUDE.md", "GEMINI.md", "CONTRIBUTING.md",
     ".github/copilot-instructions.md", ".cursor/rules", ".windsurf/rules",
@@ -358,12 +377,24 @@ def infer_layers(files) -> dict:
     }
 
 
-def find_quality_tools(files) -> list:
+def find_quality_tools(root: Path, files) -> list:
     tools = set()
-    for _, filename in files:
+    manifests_seen = set()
+    for relative_path, filename in files:
         label = QUALITY_TOOL_FILES.get(filename)
         if label:
             tools.add(label)
+        if filename in QUALITY_TOOL_MARKERS and len(relative_path.parts) <= 2:
+            manifests_seen.add((filename, relative_path))
+
+    for filename, relative_path in manifests_seen:
+        text = read_text_safely(root / relative_path)
+        if not text:
+            continue
+        lowered = text.lower()
+        for marker, label in QUALITY_TOOL_MARKERS[filename].items():
+            if marker.lower() in lowered:
+                tools.add(label)
     return sorted(tools)
 
 
@@ -429,7 +460,7 @@ def build_context(root: Path) -> dict:
         "suggested_verify_commands": verify_commands[:8],
         "source_roots": find_source_roots(root),
         "layer_candidates": infer_layers(files),
-        "quality_tools": find_quality_tools(files),
+        "quality_tools": find_quality_tools(root, files),
         "existing_context_files": find_existing_context_files(root),
         "purpose": infer_purpose(root, manifests, languages, tests),
         "files_scanned": len(files),
