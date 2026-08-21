@@ -1,6 +1,0 @@
-{
-  "name": "clean-code-skills",
-  "version": "2.1.0",
-  "description": "Language-agnostic clean-code rules for Gemini CLI: naming, file placement, single responsibility, boundaries, errors, tests, and verified surgical or whole-project refactoring.",
-  "contextFileName": "GEMINI.md"
-}
