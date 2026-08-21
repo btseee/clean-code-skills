@@ -338,31 +338,33 @@ list_repo_files() {
   fi
 }
 
-# `grep -U` forces binary mode. Without it, the grep shipped with Git for Windows
-# strips CR before matching, so a plain `grep $'\r'` reports every file as clean and
-# the whole check silently passes. Verify the detector against a known-CRLF fixture
-# before trusting it, so this cannot rot back into a check that always succeeds.
-crlf_probe="$(mktemp)"
-printf 'probe\r\n' > "$crlf_probe"
-if ! LC_ALL=C grep -qU $'\r' "$crlf_probe"; then
-  rm -f "$crlf_probe"
-  fail "CRLF detector is not working on this platform; the line-ending check cannot be trusted"
+# Assert on what git has *committed*, not on the working tree. A Windows checkout with
+# core.autocrlf=true legitimately holds CRLF on disk while the blob is LF, so scanning
+# the worktree fails on every correct file there. `git ls-files --eol` reports the index
+# encoding directly, which is the thing that actually has to be LF.
+if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  crlf_in_index="$(
+    git -C "$ROOT_DIR" ls-files --eol |
+      awk -F'\t' '{
+             split($1, attrs, /[ \t]+/)
+             if (attrs[1] == "i/crlf" || attrs[1] == "i/mixed") print $2
+           }'
+  )"
+  if [[ -n "$crlf_in_index" ]]; then
+    fail "CRLF committed in: $(printf '%s' "$crlf_in_index" | tr '\n' ' ')"
+  fi
+
+  while IFS= read -r -d '' file; do
+    absolute="$ROOT_DIR/${file#$ROOT_DIR/}"
+    [[ -f "$absolute" ]] || continue
+    LC_ALL=C grep -Iq . "$absolute" 2>/dev/null || continue
+    if [[ -s "$absolute" && "$(tail -c 1 "$absolute" | wc -l)" -eq 0 ]]; then
+      fail "missing final newline in ${file#$ROOT_DIR/}"
+    fi
+  done < <(list_repo_files)
+  pass "line endings are LF in the index"
+else
+  printf 'WARN: not a git checkout; skipping line-ending check\n'
 fi
-rm -f "$crlf_probe"
-
-while IFS= read -r -d '' file; do
-  file="$ROOT_DIR/${file#$ROOT_DIR/}"
-  [[ -f "$file" ]] || continue
-  LC_ALL=C grep -Iq . "$file" 2>/dev/null || continue
-
-  if LC_ALL=C grep -qU $'\r' "$file"; then
-    fail "CRLF line ending found in ${file#$ROOT_DIR/}"
-  fi
-
-  if [[ -s "$file" && "$(tail -c 1 "$file" | wc -l)" -eq 0 ]]; then
-    fail "missing final newline in ${file#$ROOT_DIR/}"
-  fi
-done < <(list_repo_files)
-pass "line endings are LF"
 
 pass "clean-code-skills repository is valid"

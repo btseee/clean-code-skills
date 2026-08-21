@@ -318,21 +318,36 @@ Pass 'shipped skill content has no absolute machine paths'
 # Check the files this repository ships, not everything under the checkout: a working
 # tree can also hold ignored caches, study material, and vendored third-party skills.
 
-$tracked = & git -C $RootDir ls-files --cached --exclude-standard 2>$null
-if ($LASTEXITCODE -eq 0 -and $tracked) {
-    foreach ($relative in $tracked) {
+# Assert on what git has *committed*, not on the working tree. A Windows checkout with
+# core.autocrlf=true legitimately holds CRLF on disk while the blob is LF, so scanning
+# the worktree fails on every correct file there -- which is exactly how this check
+# broke CI. `git ls-files --eol` reports the index encoding, which is the real
+# requirement.
+$eolReport = & git -C $RootDir ls-files --eol 2>$null
+if ($LASTEXITCODE -eq 0 -and $eolReport) {
+    # Format is "i/lf<spaces>w/lf<spaces>attr/<spaces>" then a TAB then the path.
+    $committedCrlf = foreach ($line in $eolReport) {
+        $fields = $line -split "`t", 2
+        $indexEol = ($fields[0] -split '\s+')[0]
+        if ($indexEol -in @('i/crlf', 'i/mixed')) { $fields[1] }
+    }
+    if ($committedCrlf) { Fail "CRLF committed in: $($committedCrlf -join ', ')" }
+
+    foreach ($line in $eolReport) {
+        $fields = $line -split "`t", 2
+        $indexEol = ($fields[0] -split '\s+')[0]
+        if ($indexEol -eq 'i/-text') { continue }  # binary
+        $relative = $fields[1]
         $path = Join-Path $RootDir $relative
         if (-not (Test-Path $path -PathType Leaf)) { continue }
         $bytes = [System.IO.File]::ReadAllBytes($path)
         if ($bytes.Length -eq 0) { continue }
-        if ($bytes -contains 0) { continue }  # binary
-        if ($bytes -contains 13) { Fail "CRLF line ending found in $relative" }
         if ($bytes[-1] -ne 10) { Fail "missing final newline in $relative" }
     }
-    Pass 'line endings are LF'
+    Pass 'line endings are LF in the index'
 }
 else {
-    Write-Output 'WARN: git file list unavailable; skipping line-ending check'
+    Write-Output 'WARN: not a git checkout; skipping line-ending check'
 }
 
 Pass 'clean-code-skills repository is valid'
