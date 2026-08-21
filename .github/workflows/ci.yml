@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Run validator
         run: bash scripts/validate.sh
 
@@ -19,6 +23,51 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Run validator
         shell: pwsh
         run: ./scripts/validate.ps1
+
+  lint-markdown:
+    name: Lint markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run markdownlint
+        # .markdownlint.json has been in the repo since the start but nothing ran it.
+        # Lint what this repository ships; vendored third-party skills are not ours to fix.
+        run: >
+          npx --yes markdownlint-cli2
+          "**/*.md" "#books" "#node_modules" "#agent" "#.agents" "#.claude"
+
+  skill-tools:
+    name: Skill tools behave
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: detect_stack runs on this repository
+        run: python skills/clean-code/scripts/detect_stack.py --root . --json > /dev/null
+      - name: scan_repo runs on this repository
+        run: python skills/clean-code/scripts/scan_repo.py --root . --json > /dev/null
+      - name: check_boundaries reports a violation and exits non-zero
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/.clean" "$fixture/src/domain" "$fixture/src/infra"
+          printf '```clean-architecture\nlayer domain = src/domain/**\nlayer infra  = src/infra/**\n```\n' \
+            > "$fixture/.clean/architecture.md"
+          printf "import { Db } from '../infra/db';\n" > "$fixture/src/domain/order.ts"
+          printf 'export const Db = 1;\n' > "$fixture/src/infra/db.ts"
+          if python skills/clean-code/scripts/check_boundaries.py --root "$fixture"; then
+            echo "expected a dependency-rule violation to fail the check" >&2
+            exit 1
+          fi
+          printf "import { Order } from '../domain/order';\n" > "$fixture/src/infra/repo.ts"
+          rm "$fixture/src/domain/order.ts"
+          python skills/clean-code/scripts/check_boundaries.py --root "$fixture"

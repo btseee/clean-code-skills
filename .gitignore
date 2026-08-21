@@ -17,6 +17,16 @@ books/
 .claude/settings.local.json
 .serena/
 
+# Locally installed skills, including vendored third-party ones. This repo is the
+# source of skills/clean-code/; these directories are install targets and copies,
+# not repository content.
+.claude/skills/
+.agents/skills/
+agent/
+
+# Working state written by the clean-code skill itself.
+.clean/
+
 # =============================================================================
 # OS Generated Files
 # =============================================================================

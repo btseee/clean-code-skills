@@ -34,6 +34,23 @@ $requiredFiles = @(
     'skills/clean-code/references/framework-map.md',
     'skills/clean-code/references/review-checklist.md',
     'skills/clean-code/references/project-refactor.md',
+    'skills/clean-code/references/architecture.md',
+    'skills/clean-code/references/architecture-map.md',
+    'skills/clean-code/references/principles.md',
+    'skills/clean-code/references/smell-triage.md',
+    'skills/clean-code/references/session-protocol.md',
+    'skills/clean-code/references/new-project.md',
+    'skills/clean-code/references/audit-report.md',
+    'skills/clean-code/references/memory-protocol.md',
+    'skills/clean-code/references/host-matrix.md',
+    'skills/clean-code/scripts/detect_stack.py',
+    'skills/clean-code/scripts/scan_repo.py',
+    'skills/clean-code/scripts/check_boundaries.py',
+    'skills/clean-code/assets/templates/architecture.md',
+    'skills/clean-code/assets/templates/decisions.md',
+    'skills/clean-code/assets/templates/ledger.md',
+    'skills/clean-code/assets/hooks/pre-commit',
+    'skills/clean-code/assets/hooks/claude-settings.json',
     'scripts/install.sh', 'scripts/install.ps1',
     'scripts/remote-install.sh', 'scripts/remote-install.ps1',
     'scripts/sync.sh',
@@ -180,6 +197,138 @@ try {
 }
 finally {
     Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# --- editor rule front matter -----------------------------------------------
+# Cursor and Copilot both refuse to apply a rule file whose front matter is wrong,
+# and the failure is silent, so it has to be checked rather than assumed.
+
+$cursorRule = Join-Path $RootDir '.cursor/rules/clean-code.mdc'
+$cursorLines = Get-Content $cursorRule
+if ($cursorLines[0] -ne '---') { Fail 'Cursor rule must start with front matter' }
+if (-not ($cursorLines | Select-String -Pattern '^alwaysApply: true$' -Quiet)) {
+    Fail 'Cursor rule must set alwaysApply: true'
+}
+Pass 'Cursor rule front matter is valid'
+
+$copilotInstructions = Join-Path $RootDir '.github/instructions/clean-code.instructions.md'
+$copilotLines = Get-Content $copilotInstructions
+if ($copilotLines[0] -ne '---') { Fail 'Copilot instructions must start with front matter' }
+if (-not ($copilotLines | Select-String -Pattern '^applyTo: "\*\*/\*"$' -Quiet)) {
+    Fail 'Copilot instructions must set applyTo: "**/*"'
+}
+Pass 'Copilot instruction front matter is valid'
+
+# --- skill budget -----------------------------------------------------------
+# The Agent Skills spec recommends keeping SKILL.md under 500 lines and roughly
+# 5,000 tokens, because hosts load the whole body on activation.
+
+$skillFile = Join-Path $RootDir 'skills/clean-code/SKILL.md'
+$skillLines = (Get-Content $skillFile).Count
+# Split on whitespace runs so this counts words the same way `wc -w` does. Measure-Object
+# -Word disagrees with wc by a fraction of a percent, which is enough to make one
+# validator fail while the other passes.
+$skillWords = (((Get-Content $skillFile -Raw) -split '\s+') | Where-Object { $_ }).Count
+$skillTokens = [int]($skillWords * 4 / 3)
+if ($skillLines -gt 500) {
+    Fail "SKILL.md is $skillLines lines; keep it under 500 and move depth into references/"
+}
+if ($skillTokens -gt 5000) {
+    Fail "SKILL.md is ~$skillTokens tokens; keep it under 5000 and move depth into references/"
+}
+Pass "SKILL.md is within budget ($skillLines lines, ~$skillTokens tokens)"
+
+# --- skill scripts ----------------------------------------------------------
+# The scripts must run on a clean machine, so they may only use the standard library.
+
+$python = @('python3', 'python', 'py') |
+    ForEach-Object { Get-Command $_ -ErrorAction SilentlyContinue } |
+    Select-Object -First 1
+
+if ($python) {
+    $checker = @'
+import ast
+import pathlib
+import sys
+
+ALLOWED = {
+    "argparse", "ast", "collections", "dataclasses", "difflib", "fnmatch",
+    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "re",
+    "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
+    "unicodedata", "__future__",
+}
+
+root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
+bad = []
+for path in sorted(root.glob("*.py")):
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError as error:
+        print(f"{path.name} is not valid Python: {error}")
+        sys.exit(1)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""]
+        else:
+            continue
+        for name in names:
+            if name.split(".")[0] not in ALLOWED:
+                bad.append(f"{path.name}: {name}")
+
+if bad:
+    print("third-party imports found: " + ", ".join(bad))
+    sys.exit(1)
+'@
+    $checkerPath = Join-Path ([System.IO.Path]::GetTempPath()) 'clean-code-import-check.py'
+    Set-Content -Path $checkerPath -Value $checker -Encoding utf8
+    try {
+        $output = & $python.Source $checkerPath $RootDir 2>&1
+        if ($LASTEXITCODE -ne 0) { Fail "skill scripts: $output" }
+        Pass 'skill scripts parse and use only the standard library'
+    }
+    finally {
+        Remove-Item $checkerPath -Force -ErrorAction SilentlyContinue
+    }
+}
+else {
+    Write-Output 'WARN: python not found; skipping skill script checks'
+}
+
+# --- portability of shipped skill content ------------------------------------
+# Skill content is read by many agents. An absolute path from the author's machine
+# breaks it everywhere else.
+
+$shipped = Get-ChildItem -Path (Join-Path $RootDir 'skills'), (Join-Path $RootDir 'templates') `
+    -Recurse -File -Filter '*.md'
+foreach ($file in $shipped) {
+    if (Select-String -Path $file.FullName -Pattern '(/Users/|/home/[a-z]|[A-Za-z]:\\\\)' -Quiet) {
+        $relative = $file.FullName.Substring($RootDir.Length + 1)
+        Fail "$relative contains an absolute machine path; use paths relative to the skill or project root"
+    }
+}
+Pass 'shipped skill content has no absolute machine paths'
+
+# --- line endings -----------------------------------------------------------
+# Check the files this repository ships, not everything under the checkout: a working
+# tree can also hold ignored caches, study material, and vendored third-party skills.
+
+$tracked = & git -C $RootDir ls-files --cached --exclude-standard 2>$null
+if ($LASTEXITCODE -eq 0 -and $tracked) {
+    foreach ($relative in $tracked) {
+        $path = Join-Path $RootDir $relative
+        if (-not (Test-Path $path -PathType Leaf)) { continue }
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        if ($bytes.Length -eq 0) { continue }
+        if ($bytes -contains 0) { continue }  # binary
+        if ($bytes -contains 13) { Fail "CRLF line ending found in $relative" }
+        if ($bytes[-1] -ne 10) { Fail "missing final newline in $relative" }
+    }
+    Pass 'line endings are LF'
+}
+else {
+    Write-Output 'WARN: git file list unavailable; skipping line-ending check'
 }
 
 Pass 'clean-code-skills repository is valid'
