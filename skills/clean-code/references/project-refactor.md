@@ -18,11 +18,17 @@ If the user just said "clean it up", propose a contract with your recommended de
 
 ## Phase 1: Inventory And Baseline
 
-1. Map the project: layout, entry points, module boundaries, test locations, build and verification commands, formatter and linter configuration.
+1. Map the project: layout, entry points, module boundaries, test locations, build and verification commands, formatter and linter configuration. `scripts/detect_stack.py --write` does this and caches the answers in `.clean/context.json`; otherwise establish the same facts by inspection.
 2. Run the full available verification: tests, build, typecheck, lint. Record the results verbatim.
 3. The recorded result is the **baseline**. A red baseline is not a blocker, but it must be written down — otherwise pre-existing failures get attributed to your refactor, or worse, your breakage hides among them.
 4. Where risky code has no tests, add characterization tests first: capture what the code currently does (including its oddities), so refactoring has a safety net. If characterization is impractical, mark the area high-risk in the plan and reduce depth there.
-5. Sweep for smells using the skill's Smell Triage table and `chapter-map.md` heuristics. Record findings as a list with file paths — this becomes the ledger.
+5. Sweep for smells using `smell-triage.md` and the `chapter-map.md` heuristics. `scripts/scan_repo.py` gathers the measurable part — oversized files, sibling variants, junk drawers, debug output, skipped tests, untested areas — and the rest needs reading. Record findings as a list with file paths; this becomes the ledger.
+6. Take the architectural inventory, because it determines what the later batches can safely do:
+   - Is the intended layering written down? If `.clean/architecture.md` exists, that is the contract. If not, infer the layering from the structure, show the user what you inferred, and get it confirmed — an undeclared architecture cannot be violated, which also means it cannot be defended.
+   - Which dependencies point the wrong way? `scripts/check_boundaries.py` answers this once layers are declared; otherwise check the imports of the modules you believe are innermost.
+   - Are there cycles between components, and which edge would you invert?
+   - Do details reach inward — ORM types, framework annotations, HTTP objects, raw rows inside business rules?
+   - Can the business rules be tested with no infrastructure running? If not, that is the finding that gates everything else, because it decides whether a re-layering batch can be verified at all.
 
 ## Phase 2: Plan In Batches
 
@@ -69,7 +75,7 @@ After the planned batches:
 
 ## The Ledger
 
-The ledger is a plain markdown file that survives context loss and session ends. Keep it in the location the user prefers — project docs folder, a scratch directory, or the task tracker; do not commit it to the repo unless asked. Structure:
+The ledger is a plain markdown file that survives context loss and session ends. The default home is `.clean/ledger.md`, started from `assets/templates/ledger.md`; keep it wherever the user prefers, and do not commit it unless asked. See `memory-protocol.md` for how it fits with the project's other durable state. Structure:
 
 ```markdown
 # Cleanup Ledger: <project> — <date>
@@ -106,6 +112,24 @@ Pause and report instead of pushing through when:
 
 ## What This Protocol Is Not
 
-- Not a license to rewrite: preserve public behavior and contracts unless explicitly contracted otherwise.
+- Not a license to rewrite: preserve public behavior and contracts unless explicitly contracted otherwise. A rewrite is not the remedy for a mess; the team that produced the mess generally reproduces it.
 - Not a style crusade: the project's formatter, linter, and idioms define style; the campaign enforces them, it does not replace them.
 - Not all-at-once: an agent that edits thirty files in one pass produces thirty unreviewable diffs. Small batches are the only way a large cleanup stays safe.
+- Not an architecture redesign in disguise: re-layering is the highest-risk depth and only happens inside the agreed contract. If the inventory shows the architecture is the real problem, say so and let the user decide — do not smuggle it in as batch 7.
+
+## Leaving it better than a checklist would
+
+A campaign that only removes smells produces a tidier version of the same design. These are the
+changes that actually lower the future cost of change, in the order they are usually worth doing:
+
+1. **Declare the architecture** in `.clean/architecture.md`. Cheapest possible batch, and it converts
+   every later architectural argument into an automated check.
+2. **Add the tests that make the risky areas verifiable.** Everything else is safer afterwards.
+3. **Fix dependency direction** on the worst offenders — the inner modules that name outer ones.
+4. **Remove the cycles**, so components can be built and released independently again.
+5. **Pull details out of policy**: get ORM types, framework annotations, and HTTP objects out of the
+   business rules, behind interfaces the business rules own.
+6. **Then** the code-level work: naming, function size, duplication, dead code.
+
+Record what you decided and why in `.clean/decisions.md` as you go. The next agent inherits the
+reasoning, not just the result.

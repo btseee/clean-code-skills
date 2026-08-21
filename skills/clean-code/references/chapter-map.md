@@ -20,9 +20,30 @@ Apply this as:
 - Treat code as read more than written.
 - Prefer maintainable clarity over clever completion.
 - Do not excuse mess because schedules are tight; "clean it later" almost always means never.
-- Boy-scout rule: leave every touched area slightly cleaner than you found it — a better name, one removed dead branch — while staying inside task scope.
+- **LeBlanc's law**: later equals never.
 - Recognize that redesign pressure often comes from accumulated small neglect.
 - Write for future maintainers as an author writes for readers.
+
+### The Boy Scout Rule, and where this skill departs from it
+
+The source rule is to leave the code a little cleaner than you found it — change one variable name
+for the better, break up one function that is slightly too large, remove one small duplication —
+every time you check code in.
+
+**This skill deliberately narrows that rule, and you should know it is a departure.** An agent
+applies it at a scale and speed the rule was not written for: a human improving one name while
+passing through produces a two-line diff, whereas an agent doing the same across every file it opens
+produces an unreviewable diff, drags unrelated and possibly untested code into the change, and buries
+the actual fix. The reviewer then cannot tell which lines were the task.
+
+So the rule here is: **clean the lines your task already touches, and report the rest.** A better
+name, a removed dead branch, a clarified condition — inside the diff you already have, never by
+widening it. Unrelated mess is named in your summary so a human can schedule it, or handled properly
+under campaign mode in `project-refactor.md`, which exists precisely so that broad cleanup gets a
+baseline, batches, and review.
+
+The intent of the original is preserved — leave it better, never worse. What is dropped is the
+license to widen the change surface, because for an agent that license costs more than it returns.
 
 Agent questions:
 
@@ -122,14 +143,20 @@ Core agent lesson: formatting communicates structure before the reader understan
 
 Cover these concerns:
 
-- file opens with high-level intent, then details below
-- related concepts stay close together
-- blank lines separate concepts, not every line
-- variable declarations are near use when idiomatic
-- dependent functions are close and ordered for reading
-- horizontal spacing shows grouping without alignment theater
-- indentation reflects scope honestly
+- the **newspaper metaphor**: the file opens with high-level intent, details descend below it
+- **vertical openness** — blank lines separate concepts, not every line
+- **vertical density** — related lines stay adjacent
+- **vertical distance** — declare variables near use; keep dependent functions close, caller above
+  callee
+- **conceptual affinity** — code that reads as one idea belongs together even without a call between
+- **vertical ordering** — the direction of dependency runs down the file
+- horizontal openness and density show grouping; **skip alignment theater**
+- **indentation reflects scope honestly** — no collapsing a short block onto one line, and no
+  **dummy scopes** (an empty body hiding behind a semicolon)
 - team formatter rules override personal preference
+
+The formatter owns whitespace. It does not own **ordering** — vertical distance, vertical ordering,
+and conceptual affinity are design decisions no tool makes for you. See `principles.md`.
 
 Agent questions:
 
@@ -202,13 +229,16 @@ Core agent lesson: tests are production assets that enable change.
 
 Cover these concerns:
 
-- write tests before implementation when feasible
-- keep test code clean, readable, and maintainable
-- use a test-specific language or helpers only when they clarify intent
-- allow different efficiency standards in tests without making them unclear
-- prefer one behavior concept per test
-- use enough assertions to describe the behavior without obscuring the point
-- FIRST: fast, independent, repeatable, self-validating, timely
+- the **Three Laws of TDD**: no production code before a failing test; no more test than needed to
+  fail; no more production code than needed to pass
+- keep test code clean, readable, and maintainable — it is production code
+- a **domain-specific testing language**: helpers that let a test read as the behavior it describes
+- the **dual standard**: tests may trade efficiency for clarity, never clarity for cleverness
+- **single concept per test**; minimize assertions rather than obeying a hard one-assert rule
+- **BUILD-OPERATE-CHECK** as the default test shape
+- **F.I.R.S.T.**: Fast, Independent, Repeatable, Self-validating, Timely
+
+Full detail, including where each of these fails in practice, is in `tests.md`.
 
 Agent questions:
 
@@ -292,12 +322,15 @@ Cover these concerns:
 - using copies or immutable data when useful
 - keeping threads/tasks independent when possible
 - knowing library concurrency primitives
-- understanding execution models such as producer-consumer and readers-writers
+- the named execution models: **Producer-Consumer**, **Readers-Writers**, **Dining Philosophers**
 - avoiding dependencies between synchronized methods
 - keeping critical sections small
 - designing shutdown carefully
-- treating sporadic failures as possible concurrency bugs
+- treating sporadic failures as possible concurrency bugs, never as noise to retry away
 - testing with stress, instrumentation, different platforms, and varied schedules
+
+Full detail, including the seven distinct tactics for actually catching a race, is in
+`concurrency.md`.
 
 Agent questions:
 
@@ -326,20 +359,36 @@ Agent questions:
 
 ## Chapter 15: JUnit Internals
 
-Core agent lesson: even respected frameworks improve through naming, decomposition, simplification, and focused refactoring.
+Core agent lesson: code written by experts, already working and already respected, still carries
+obvious debt — and the cleanup is unglamorous rename-and-extract work, not redesign.
 
-Apply this beyond JUnit as:
+The case study cleans a string-comparison class, and the specific defects it finds are the ones that
+recur everywhere:
 
-- Review framework-like code for API clarity.
-- Keep internals understandable, not merely functional.
-- Make comparison, formatting, and failure-reporting code explicit.
-- Prefer readable extension points over clever reflection or hidden conventions.
+- **Redundant member prefixes.** Every field carrying the same prefix means the prefix belongs to the
+  class, not the fields. Drop it.
+- **Names that do not say what the value is.** Encoded or abbreviated member names get renamed to the
+  concept they hold, and the code becomes readable without comment.
+- **Hidden temporal coupling through member variables.** Methods that must run in a particular order
+  because each leaves state behind for the next. Make the sequence explicit — pass values, or return
+  them — so the order cannot be got wrong silently.
+- **Negative conditionals and unclear boundary checks** rewritten positively, which is where the
+  remaining edge-case bugs become visible.
+- **Functions that do slightly more than their name admits**, split until each does one thing.
+
+Apply this beyond the case study as:
+
+- Expect to clean working code you did not write, without changing what it does.
+- Rename first: most structural problems become obvious once the names are honest.
+- Treat "these methods must be called in this order" as a defect to be designed away.
+- Keep test and framework infrastructure to the same standard as production code — it is read more
+  often.
 
 Agent questions:
 
-- Would users of this internal framework understand failures?
-- Are extension points named for user intent?
-- Is test infrastructure itself clean enough to maintain?
+- Do these fields share a prefix that belongs to the type instead?
+- Does any method depend on state a previous call left behind?
+- Would users of this internal API understand a failure it reports?
 
 ## Chapter 16: Refactoring SerialDate
 
@@ -393,7 +442,7 @@ Use these groups as a review scan. The IDs follow the standard clean-code heuris
 - G4: disabled or overridden safeguards (ignored warnings, skipped tests, silenced linters)
 - G5: duplication of knowledge
 - G6: code at the wrong abstraction level
-- G7: dependency direction problems (foundations depending on details)
+- G7: base classes depending on their derivatives — a base class naming or reaching into a subclass. (Broader layering violations are architectural; see the structural smells in `smell-triage.md`, not G7.)
 - G8: too much exposed information; wide interfaces
 - G9: dead code
 - G10: poor vertical separation; related code far apart
@@ -426,8 +475,18 @@ Use these groups as a review scan. The IDs follow the standard clean-code heuris
 
 ### Language-Specific Smells (J and equivalents)
 
-- imports, constants, and enum-like concepts handled against local language idioms
-- rules from one language translated into another blindly instead of idiomatically
+The source numbers these J1-J3 for Java. Two generalize to any language and keep their IDs:
+
+- J2: do not inherit constants. Pulling constants in through a base type or interface hides where
+  they come from; name the source explicitly instead.
+- J3: prefer typed enumerations over bare integer or string constants. An enum carries meaning,
+  exhaustiveness, and a compiler check; a loose constant carries none.
+
+J1 (avoid long import lists by using wildcards) is genuinely Java-specific and is **intentionally
+omitted** so the numbering stays auditable — the local formatter and linter own import style.
+
+Also, whatever the language: never translate another language's idiom in literally. Apply the
+principle, not the syntax.
 
 ### Naming Smells (N)
 
@@ -484,23 +543,41 @@ Agent questions:
 
 ## Appendix B: SerialDate Source
 
-Core agent lesson: a substantial legacy example is useful for characterization, naming, responsibility movement, and behavior-preserving cleanup.
-
-Use this appendix as a reminder to:
-
-- inspect real code before abstracting rules
-- preserve public behavior unless the task explicitly changes it
-- make date, time, calendar, locale, and boundary assumptions explicit
+Core agent lesson: before abstracting a rule, read real code. Preserve public behavior unless the
+task explicitly changes it, and make date, time, calendar, locale, and boundary assumptions
+explicit.
 
 ## Appendix C: Cross References Of Heuristics
 
-Core agent lesson: clean-code review is interconnected. A naming problem may also be a function problem, a test problem, and a boundary problem.
+Core agent lesson: findings are interconnected. One root cause surfaces as several smells, so fixing
+the symptom you noticed first often leaves the cause in place — or trades one smell for another.
 
-Use this appendix as a reminder to:
+Use this table when a finding is confirmed: check the related IDs before deciding what to fix, and
+report the root cause rather than the symptom.
 
-- cross-check related smells instead of treating each finding in isolation
-- group review findings by root cause when possible
-- avoid fixing one smell by introducing another
+| You found | Also check | Because the shared root cause is usually |
+| --- | --- | --- |
+| G30 function does more than one thing | G34, F1, F3, G16, N1 | one function absorbing several responsibilities, which then needs more arguments and a vaguer name |
+| F1 too many arguments | G30, G20, N1, primitive obsession | a missing concept: the arguments are an unnamed object |
+| G5 duplication of knowledge | G23, G11, G6, N3 | one rule with no authoritative home, so each site reimplements it slightly differently |
+| G23 repeated conditionals | G5, G6, G13, N3 | a missing dispatch point or a missing type |
+| G17 misplaced responsibility | G6, G14, G22, G13 | a boundary that was never drawn, so behavior settled where it was convenient |
+| G14 feature envy | G17, G36, G8 | data and the behavior that belongs to it living in different modules |
+| G36 train wreck | G14, G8, Law of Demeter | a caller navigating structure instead of asking for a decision |
+| G8 too much exposed information | G36, G14, ISP | a wide public surface leaking internals as transitive dependencies |
+| C1-C5 comment smells | G16, N1, G30 | a comment compensating for code that should have been clearer or smaller |
+| C5 commented-out code | G9 dead code | uncertainty preserved instead of resolved; version control already keeps it |
+| N1 non-descriptive name | G16, G20, G30 | the unit's job is unclear, so no name fits it |
+| N7 name hides side effects | G31, command-query separation | a function both answering and changing |
+| T1 insufficient tests | T5, T6, G3, G33 | untested boundaries, which is exactly where G3 defects live |
+| T5 missing boundary tests | G3, G26, G33 | boundary conditions never encapsulated in one place |
+| T9 slow tests | E2, T1 | tests coupled to infrastructure, so they run rarely and coverage decays |
+| E1/E2 multi-step build or test | T9, T1 | friction that suppresses the feedback loop the other rules depend on |
+| G31 hidden temporal coupling | N7, G18, G22 | order-dependent state that the API does not express |
+| G18 inappropriate static or global | G31, T1 | shared mutable state, which also makes tests order-dependent |
+| G25 magic value | N1, G26, G35 | a domain concept with no name and no home |
+| G35 buried configuration | G25, G6 | a tunable value decided at the wrong level |
+| G9 dead code | F4, C5, G12 | a change that orphaned code nobody deleted |
 
 ## Coverage Pressure Scenarios
 

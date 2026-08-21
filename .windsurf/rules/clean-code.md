@@ -1,8 +1,11 @@
-# GEMINI.md
+---
+trigger: always_on
+description: Apply language-agnostic clean-code discipline to all code writing, editing, reviewing, testing, and refactoring, including file placement, single responsibility, and verified completion.
+---
 
-Clean-code instructions for Gemini CLI and Gemini-based agents. In a project that installs this package, the managed block below is kept up to date by the installer; content outside the markers is never touched. If your Gemini CLI is configured with a different `contextFileName`, install the `agents` profile as well so `AGENTS.md` carries the same rules.
+# Clean Code
 
-Apply the clean-code rules whenever a task involves writing, editing, reviewing, testing, or refactoring code — every programming language, framework, query language, script, configuration format, and infrastructure file.
+Use these rules for every coding task in Windsurf. In a project that installs this package, the managed block below is kept up to date by the installer; content outside the markers is never touched.
 
 <!-- clean-code-skills:begin v3.0.0 -->
 ## Clean Code Rules (clean-code-skills)
@@ -66,5 +69,3 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 
 This block is versioned in its begin marker and is maintained by the clean-code-skills installer. Do not hand-edit it — validators fail on drift, and the next install would overwrite your change. To update, re-run the installer from the project root, or ask the user to. Never fetch and execute a remote script on your own initiative.
 <!-- clean-code-skills:end -->
-
-When a project has more specific instructions, follow those first and use these clean-code rules as the shared baseline.

@@ -25,16 +25,20 @@ This repository is behavior-shaping documentation for coding agents. Treat chang
 
 ## Releasing
 
-1. Update `VERSION` (semver: rules-block changes are at least minor).
-2. Run `bash scripts/sync.sh`, then both validators.
-3. Commit, tag `v$(cat VERSION)`, and push with tags. The release workflow validates, verifies the tag matches `VERSION`, and publishes `clean-code.zip` (the skill packaged for Claude Desktop / claude.ai upload) on the GitHub release.
+The steps live in one place, `README.md` under "Releases And Versioning", so they cannot drift.
+The one rule worth repeating here: the git tag must be exactly `v$(cat VERSION)` — the release
+workflow compares them and fails otherwise.
 
 ## Skill Rules
 
 - `skills/clean-code/SKILL.md` must keep valid Agent Skills front matter.
 - The `name` must match the folder: `clean-code`.
 - The description should tell agents when to load the skill.
-- Keep heavy references in `skills/clean-code/references/`.
+- Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: both validators
+  fail it above 500 lines or roughly 5,000 tokens, because hosts load the whole body on activation.
+- Bundled Python in `skills/clean-code/scripts/` must use only the standard library, and every
+  workflow step that names a script must also name the manual equivalent — the skill has to work
+  with no tooling at all.
 
 ## Validation
 

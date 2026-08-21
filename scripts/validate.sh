@@ -20,8 +20,6 @@ required_files=(
   "CLAUDE.md"
   "GEMINI.md"
   "AGENTS.md"
-  "EXAMPLES.md"
-  "FRAMEWORKS.md"
   "CONTRIBUTING.md"
   "LICENSE"
   "VERSION"
@@ -43,6 +41,27 @@ required_files=(
   "skills/clean-code/references/framework-map.md"
   "skills/clean-code/references/review-checklist.md"
   "skills/clean-code/references/project-refactor.md"
+  "skills/clean-code/references/architecture.md"
+  "skills/clean-code/references/architecture-map.md"
+  "skills/clean-code/references/principles.md"
+  "skills/clean-code/references/smell-triage.md"
+  "skills/clean-code/references/canon.md"
+  "skills/clean-code/references/tests.md"
+  "skills/clean-code/references/concurrency.md"
+  "skills/clean-code/references/examples.md"
+  "skills/clean-code/references/session-protocol.md"
+  "skills/clean-code/references/new-project.md"
+  "skills/clean-code/references/audit-report.md"
+  "skills/clean-code/references/memory-protocol.md"
+  "skills/clean-code/references/host-matrix.md"
+  "skills/clean-code/scripts/detect_stack.py"
+  "skills/clean-code/scripts/scan_repo.py"
+  "skills/clean-code/scripts/check_boundaries.py"
+  "skills/clean-code/assets/templates/architecture.md"
+  "skills/clean-code/assets/templates/decisions.md"
+  "skills/clean-code/assets/templates/ledger.md"
+  "skills/clean-code/assets/hooks/pre-commit"
+  "skills/clean-code/assets/hooks/claude-settings.json"
   "scripts/install.sh"
   "scripts/install.ps1"
   "scripts/remote-install.sh"
@@ -228,15 +247,124 @@ pass "global install, detect, and uninstall work"
 
 # --- line endings -------------------------------------------------------------------
 
-while IFS= read -r file; do
-  if LC_ALL=C grep -q $'\r' "$file"; then
-    fail "CRLF line ending found in ${file#$ROOT_DIR/}"
+# --- skill budget -------------------------------------------------------------------
+
+# The Agent Skills spec recommends keeping SKILL.md under 500 lines and roughly 5,000
+# tokens, because hosts load the whole body on activation. Depth belongs in references/,
+# which load on demand.
+skill_file="$ROOT_DIR/skills/clean-code/SKILL.md"
+skill_lines="$(wc -l < "$skill_file" | tr -d '[:space:]')"
+skill_words="$(wc -w < "$skill_file" | tr -d '[:space:]')"
+skill_tokens=$(( skill_words * 4 / 3 ))
+
+[[ "$skill_lines" -le 500 ]] || fail "SKILL.md is $skill_lines lines; keep it under 500 and move depth into references/"
+[[ "$skill_tokens" -le 5000 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 5000 and move depth into references/"
+pass "SKILL.md is within budget ($skill_lines lines, ~$skill_tokens tokens)"
+
+# --- skill scripts ------------------------------------------------------------------
+
+# The scripts are optional accelerators that must run anywhere, so they may only use the
+# standard library: a third-party import would make them fail on a clean machine.
+if command -v python3 >/dev/null 2>&1; then
+  SKILL_PYTHON=python3
+elif command -v python >/dev/null 2>&1; then
+  SKILL_PYTHON=python
+else
+  SKILL_PYTHON=""
+fi
+
+if [[ -n "$SKILL_PYTHON" ]]; then
+  for script in "$ROOT_DIR"/skills/clean-code/scripts/*.py; do
+    "$SKILL_PYTHON" -c "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8').read())" "$script" \
+      || fail "${script#$ROOT_DIR/} is not valid Python"
+  done
+  pass "skill scripts parse"
+
+  "$SKILL_PYTHON" - "$ROOT_DIR" <<'PY' || fail "a skill script imports a third-party module; keep them standard-library only"
+import ast
+import pathlib
+import sys
+
+ALLOWED = {
+    "argparse", "ast", "collections", "dataclasses", "difflib", "fnmatch",
+    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "re",
+    "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
+    "unicodedata", "__future__",
+}
+
+root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
+bad = []
+for path in sorted(root.glob("*.py")):
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""]
+        else:
+            continue
+        for name in names:
+            if name.split(".")[0] not in ALLOWED:
+                bad.append(f"{path.name}: {name}")
+
+if bad:
+    print("third-party imports found: " + ", ".join(bad))
+    sys.exit(1)
+PY
+  pass "skill scripts use only the standard library"
+else
+  printf 'WARN: python not found; skipping skill script checks\n'
+fi
+
+# --- portability of shipped skill content --------------------------------------------
+
+# Skill content is read by many different agents. Naming one host's tools, or an absolute
+# path from the author's machine, breaks it everywhere else.
+while IFS= read -r -d '' shipped; do
+  if LC_ALL=C grep -nE '(^|[^A-Za-z])(/Users/|/home/[a-z]|[A-Z]:\\\\)' "$shipped" >/dev/null; then
+    fail "${shipped#$ROOT_DIR/} contains an absolute machine path; use paths relative to the skill or project root"
+  fi
+done < <(find "$ROOT_DIR/skills" "$ROOT_DIR/templates" -type f -name '*.md' -print0)
+pass "shipped skill content has no absolute machine paths"
+
+# Check the files this repository ships, not everything under the checkout: a working
+# tree can also hold ignored caches, study material, and vendored third-party skills,
+# none of which this repo controls.
+list_repo_files() {
+  if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    git -C "$ROOT_DIR" ls-files -z --cached --exclude-standard
+  else
+    find "$ROOT_DIR" \( -path "$ROOT_DIR/.git" -o -name "clean-code.md" -o -name "clean-code.pdf" -o -path "*/node_modules" \) -prune -o -type f -print0
+  fi
+}
+
+# Assert on what git has *committed*, not on the working tree. A Windows checkout with
+# core.autocrlf=true legitimately holds CRLF on disk while the blob is LF, so scanning
+# the worktree fails on every correct file there. `git ls-files --eol` reports the index
+# encoding directly, which is the thing that actually has to be LF.
+if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  crlf_in_index="$(
+    git -C "$ROOT_DIR" ls-files --eol |
+      awk -F'\t' '{
+             split($1, attrs, /[ \t]+/)
+             if (attrs[1] == "i/crlf" || attrs[1] == "i/mixed") print $2
+           }'
+  )"
+  if [[ -n "$crlf_in_index" ]]; then
+    fail "CRLF committed in: $(printf '%s' "$crlf_in_index" | tr '\n' ' ')"
   fi
 
-  if [[ -s "$file" && "$(tail -c 1 "$file" | wc -l)" -eq 0 ]]; then
-    fail "missing final newline in ${file#$ROOT_DIR/}"
-  fi
-done < <(find "$ROOT_DIR" \( -path "$ROOT_DIR/.git" -o -name "clean-code.md" -o -name "clean-code.pdf" -o -path "*/node_modules" \) -prune -o -type f -print)
-pass "line endings are LF"
+  while IFS= read -r -d '' file; do
+    absolute="$ROOT_DIR/${file#$ROOT_DIR/}"
+    [[ -f "$absolute" ]] || continue
+    LC_ALL=C grep -Iq . "$absolute" 2>/dev/null || continue
+    if [[ -s "$absolute" && "$(tail -c 1 "$absolute" | wc -l)" -eq 0 ]]; then
+      fail "missing final newline in ${file#$ROOT_DIR/}"
+    fi
+  done < <(list_repo_files)
+  pass "line endings are LF in the index"
+else
+  printf 'WARN: not a git checkout; skipping line-ending check\n'
+fi
 
 pass "clean-code-skills repository is valid"

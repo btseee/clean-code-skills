@@ -1,17 +1,56 @@
+# =============================================================================
 # Copyrighted study material: never commit or publish these.
-clean-code.md
-clean-code.pdf
+# =============================================================================
+# The books are extraction input only. The shipped skill contains original
+# operational prose that cites principle names; it never reproduces book text.
+#
+# Root-anchored on purpose: an unanchored `clean-code.md` also matches the
+# Windsurf and Cline adapter files (.windsurf/rules/clean-code.md,
+# .clinerules/clean-code.md), which silently kept them out of every commit.
+books/
+*.pdf
+/clean-code.md
+/clean-code.pdf
 
-# Local agent session config.
+# =============================================================================
+# Locally installed skills and local agent state
+# =============================================================================
+# This repo is the source of skills/clean-code/. These directories are install
+# targets and vendored copies, not repository content.
+.claude/skills/
 .claude/settings.local.json
+.agents/skills/
+agent/
+.serena/
 
+# Working state written by the clean-code skill itself.
+.clean/
+
+# =============================================================================
+# Build and release output
+# =============================================================================
+dist/
+*.zip
+
+# =============================================================================
+# OS and editor noise
+# =============================================================================
 .DS_Store
+._*
 Thumbs.db
-*.log
-node_modules/
+Desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
+
+# =============================================================================
+# Tooling caches (the validators and CI run Python and npx)
+# =============================================================================
+__pycache__/
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-dist/
-build/
-coverage/
+node_modules/
+*.log
