@@ -94,12 +94,35 @@ SKIPPED_TEST_PATTERNS = (
 )
 
 # A commented-out line of code, as opposed to a comment written for a reader.
+# The keyword alone is not enough: English prose frequently opens with one
+# ("# from sleeping the instance...", "# for each bank we..."), and flagging that
+# as dead code is the kind of false positive that makes people stop reading output.
 COMMENTED_CODE_PATTERN = re.compile(
     r"^\s*(?://|#|--)\s*"
     r"(?:if|for|while|return|import|from|const|let|var|def|class|function|func|"
     r"public|private|protected|await|async|print|console\.|new |try|catch|switch)"
     r"[\s({\[]"
 )
+
+CODE_PUNCTUATION = re.compile(r"[=(){}\[\];]|:\s*$")
+COMMENT_OPENER = re.compile(r"^\s*(?://|#|--)\s*")
+
+
+def looks_like_commented_code(line: str) -> bool:
+    """Distinguish a commented-out statement from prose that starts with a keyword.
+
+    Accept it as code when the comment body carries code punctuation, or when it is
+    terse enough that no sentence is plausible. Reject a long clause ending in a
+    full stop, which is how a human writes an explanation.
+    """
+    if not COMMENTED_CODE_PATTERN.search(line):
+        return False
+    body = COMMENT_OPENER.sub("", line).strip()
+    if not body:
+        return False
+    if CODE_PUNCTUATION.search(body):
+        return True
+    return len(body.split()) <= 5 and not body.endswith(".")
 
 TEST_DIR_NAMES = frozenset({
     "test", "tests", "spec", "specs", "__tests__", "testing",
@@ -214,7 +237,10 @@ def scan_file(path: Path, relative_path: str) -> dict | None:
         ],
         "todo_lines": count_matches(lines, [TODO_PATTERN]),
         "debug_lines": [] if is_test else count_matches(lines, DEBUG_PATTERNS),
-        "commented_code_lines": count_matches(lines, [COMMENTED_CODE_PATTERN]),
+        "commented_code_lines": [
+            number for number, line in enumerate(lines, 1)
+            if len(line) <= 1000 and looks_like_commented_code(line)
+        ],
         "skipped_test_lines": count_matches(lines, SKIPPED_TEST_PATTERNS) if is_test else [],
     }
 
