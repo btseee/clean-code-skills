@@ -74,14 +74,17 @@ for.
 
 **18. Leave it cleaner than you found it** — within the diff you already have, never by widening it.
 
-**19. Record decisions worth keeping.** Append to `.clean/decisions.md` when you chose between real
-alternatives, deferred something deliberately, or discovered a constraint the next session would
-otherwise have to rediscover. See `memory-protocol.md`.
+**19. Record decisions worth keeping.** When `.clean/` exists, append to `.clean/decisions.md`
+whenever you chose between real alternatives, deferred something deliberately, or discovered a
+constraint the next session would otherwise have to rediscover. When it does not exist, offer to
+create it at the end — creating `.clean/` is the `audit` and `questions` workflows' job, never a
+silent side effect (`memory-protocol.md`).
 
 **20. Hand off cleanly.** Report: what changed and why; what command you ran and its result; what you
 did *not* run and what risk remains; what you found but deliberately left alone. If work is
-unfinished, write the remaining steps into `.clean/ledger.md` so the next session resumes instead of
-restarting.
+unfinished and `.clean/` exists, write the remaining steps into `.clean/ledger.md` so the next
+session resumes instead of restarting; otherwise put them in the handoff report and offer to
+persist them.
 
 ## Honesty rules
 

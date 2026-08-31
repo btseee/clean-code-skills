@@ -19,15 +19,20 @@ set -eu
 
 [ "${CLEAN_CODE_HOOK:-on}" = "off" ] && exit 0
 
-# Locate the skill: installed in this project, or set CLEAN_CODE_SKILL explicitly.
+# Locate the skill: installed in this project or globally, or set CLEAN_CODE_SKILL
+# explicitly. Project locations first; global roots cover --global installs.
 SKILL_DIR="${CLEAN_CODE_SKILL:-}"
 if [ -z "$SKILL_DIR" ]; then
   for candidate in \
-    ".clean/skill" \
     ".claude/skills/clean-code" \
     ".agents/skills/clean-code" \
     ".github/skills/clean-code" \
-    "skills/clean-code"
+    ".grok/skills/clean-code" \
+    "skills/clean-code" \
+    "${HOME:-}/.claude/skills/clean-code" \
+    "${HOME:-}/.agents/skills/clean-code" \
+    "${HOME:-}/.grok/skills/clean-code" \
+    "${HOME:-}/.gemini/config/skills/clean-code"
   do
     if [ -d "$candidate/scripts" ]; then
       SKILL_DIR="$candidate"
@@ -60,9 +65,13 @@ status=0
 
 # 1. Dependency direction. Blocking, but only when layers are actually declared:
 #    a project that has not declared its architecture has nothing to violate.
+#    Exit 1 is a violation; exit 2 means the declaration itself could not be
+#    checked (bad config, or globs matching no files) -- a different problem.
 if [ -f ".clean/architecture.md" ] || [ -f "ARCHITECTURE.md" ]; then
-  if ! "$PYTHON" "$SKILL_DIR/scripts/check_boundaries.py" --root .; then
-    status=1
+  boundary_exit=0
+  "$PYTHON" "$SKILL_DIR/scripts/check_boundaries.py" --root . || boundary_exit=$?
+  if [ "$boundary_exit" -ne 0 ]; then
+    status="$boundary_exit"
   fi
 fi
 
@@ -71,7 +80,17 @@ if [ -f "$SKILL_DIR/scripts/scan_repo.py" ]; then
   "$PYTHON" "$SKILL_DIR/scripts/scan_repo.py" --root . --changed --top 5 || true
 fi
 
-if [ "$status" -ne 0 ]; then
+if [ "$status" -eq 2 ]; then
+  cat >&2 <<'MESSAGE'
+
+clean-code: commit blocked because the architecture declaration could not be
+checked. This is not a violation -- the declaration itself is the problem
+(unparseable, or its globs match no files). Fix .clean/architecture.md so the
+check verifies real files; the error above says what failed.
+
+To commit anyway: git commit --no-verify
+MESSAGE
+elif [ "$status" -ne 0 ]; then
   cat >&2 <<'MESSAGE'
 
 clean-code: commit blocked by a dependency-rule violation.

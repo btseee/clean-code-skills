@@ -12,7 +12,7 @@ This repository is behavior-shaping documentation for coding agents. Treat chang
 ## Content Rules
 
 - Keep guidance language-agnostic unless a section is explicitly stack-specific.
-- Do not copy copyrighted book, article, or course text into this repo. Local study material (`clean-code.md`, `clean-code.pdf`) is gitignored and must stay untracked; everything committed here is original synthesis.
+- Do not copy copyrighted book, article, or course text into this repo. Local study material (`clean-code.md`, `books/`, and any `*.pdf`) is gitignored and must stay untracked; everything committed here is original synthesis.
 - Prefer original synthesis, short examples, and practical checks.
 - Do not add broad workflow requirements unless they reduce real agent failure modes.
 - Write for agents, not for humans reading a book: rules should be checkable at the moment an agent writes, places, or verifies code.
@@ -25,7 +25,7 @@ This repository is behavior-shaping documentation for coding agents. Treat chang
 
 ## Releasing
 
-The steps live in one place, `README.md` under "Releases And Versioning", so they cannot drift.
+The steps live in one place, `README.md` under "Releases and versioning", so they cannot drift.
 The one rule worth repeating here: the git tag must be exactly `v$(cat VERSION)` — the release
 workflow compares them and fails otherwise.
 
@@ -61,11 +61,16 @@ bash -n scripts/install.sh
 bash -n scripts/validate.sh
 ```
 
+CI runs both validators, markdownlint, and a `skill-tools` job that executes the three bundled
+Python scripts against a fixture — including a boundary check that must fail and then pass — so a
+change to `skills/clean-code/scripts/` needs those scripts to keep working end to end.
+
 ## Pull Request Checklist
 
 - The change has one clear purpose.
 - Agent-facing files stay consistent (block sync passes).
 - Versions were bumped together when the block changed.
+- `SKILL.md` stays under its budget (500 lines / ~5,000 tokens; both validators fail above it).
 - Examples are original and minimal.
 - Plugin JSON remains valid.
 - Validation passes on at least one platform, ideally both.

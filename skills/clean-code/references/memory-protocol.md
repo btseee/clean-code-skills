@@ -9,10 +9,10 @@ Everything lives in a `.clean/` directory at the project root. Templates are in
 
 | File | Holds | Written by | Read when |
 | --- | --- | --- | --- |
-| `context.json` | detected stack, frameworks, test command, layout | `scripts/detect_stack.py --write`, or hand-written — it is only a cache of what you can read off the project | every session, first |
-| `architecture.md` | declared layers and allowed dependencies | a human or an agent, with the user's agreement | every session; enforced by `check_boundaries.py` |
+| `context.json` | detected stack, frameworks, test command, layout, dependencies with versions; plus the interview's `confirmed` object | `scripts/detect_stack.py --write` (merges: detector keys refreshed, everything else preserved) and the `questions` interview; or hand-written | every session, first |
+| `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow — ordering confirmed with the user — or a human | every session; enforced by `check_boundaries.py` |
 | `decisions.md` | decisions made and why, append-only | any session that made a real choice | before proposing a design change |
-| `ledger.md` | state of a cleanup campaign in progress | campaign mode only | before starting or resuming a campaign |
+| `ledger.md` | the audit's coverage checklist and findings, then cleanup-campaign state | the `audit` workflow first; campaign sessions keep it current | before starting or resuming an audit or campaign |
 
 ## Rules
 
@@ -62,6 +62,26 @@ Do not record:
 
 ## Formats
 
+### `context.json`
+
+Two kinds of keys share the file. **Detector-owned keys** (`primary_language`, `frameworks`,
+`dependencies`, `suggested_verify_commands`, and the rest of what `detect_stack.py` emits) are a
+cache of what the project already says; `--write` refreshes them and preserves everything else.
+**`confirmed`** is a reserved top-level object owned by humans and the `questions` interview —
+facts detection cannot infer:
+
+```json
+"confirmed": {
+  "purpose": "what the system is for, one sentence",
+  "actors": ["who demands changes"],
+  "verify_command": "the command the user actually trusts",
+  "load_bearing_dependencies": ["packages the design leans on"],
+  "notes": "anything else the next session must not rediscover"
+}
+```
+
+`confirmed` outranks the detected keys when they disagree, because a person said so.
+
 ### `decisions.md`
 
 Append-only. Newest last. One entry per decision:
@@ -77,19 +97,22 @@ Append-only. Newest last. One entry per decision:
 
 ### `ledger.md`
 
-Campaign state. The one file that makes a multi-session cleanup survivable — see
-`project-refactor.md`. Keep it current *during* the campaign, not at the end: an accurate ledger and
-an interrupted campaign is a good outcome, while a finished campaign with a stale ledger is not.
+Audit and campaign state. The one file that makes a multi-session cleanup survivable — see
+`audit-report.md` and `project-refactor.md`. Keep it current *during* the work, not at the end: an
+accurate ledger and an interrupted campaign is a good outcome, while a finished campaign with a
+stale ledger is not.
 
-Sections: Contract, Baseline, Batches (a checklist with commit references), Found But Not Fixed,
-Deferred.
+Sections, in template order: Audit Coverage (the per-file checklist and convergence line),
+Contract, Baseline, Batches (a checklist with commit references), Found But Not Fixed, Deferred,
+Close-out.
 
 ### `architecture.md`
 
 Prose for humans, plus one fenced `clean-architecture` block that tools can read. Layers are
 declared innermost first; the default rule is that a layer may depend only on itself and on layers
 declared before it. See `assets/templates/architecture.md` for the full format and
-`architecture.md` in this directory for the reasoning behind it.
+`references/architecture.md` for the reasoning behind it. (Three files share the name: the
+template, the reference, and the project's own `.clean/architecture.md` that the template becomes.)
 
 ## If the host has session hooks
 

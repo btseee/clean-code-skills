@@ -69,5 +69,32 @@ jobs:
             exit 1
           fi
           printf "import { Order } from '../domain/order';\n" > "$fixture/src/infra/repo.ts"
-          rm "$fixture/src/domain/order.ts"
+          printf 'export const Order = 1;\n' > "$fixture/src/domain/order.ts"
           python skills/clean-code/scripts/check_boundaries.py --root "$fixture"
+      - name: check_boundaries exits 2 when the declaration matches no files
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/.clean" "$fixture/src"
+          printf '```clean-architecture\nlayer domain = nomatch/**\nlayer infra  = alsonot/**\n```\n' \
+            > "$fixture/.clean/architecture.md"
+          printf 'export const X = 1;\n' > "$fixture/src/a.ts"
+          code=0
+          python skills/clean-code/scripts/check_boundaries.py --root "$fixture" || code=$?
+          if [ "$code" -ne 2 ]; then
+            echo "expected exit 2 for a declaration matching no files, got $code" >&2
+            exit 1
+          fi
+      - name: detect_stack --write merges instead of clobbering
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/.clean"
+          printf '{"name":"x","dependencies":{"react":"18.3.1"}}\n' > "$fixture/package.json"
+          printf '{"confirmed":{"purpose":"demo"},"future_key":123}\n' > "$fixture/.clean/context.json"
+          python skills/clean-code/scripts/detect_stack.py --root "$fixture" --write > /dev/null
+          python - "$fixture/.clean/context.json" <<'EOF'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert data["confirmed"]["purpose"] == "demo", "confirmed object was clobbered"
+          assert data["future_key"] == 123, "unknown key was dropped"
+          assert data["primary_language"], "detector keys missing after merge"
+          EOF

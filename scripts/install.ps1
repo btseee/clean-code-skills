@@ -17,9 +17,11 @@
 # so the same command line works in every shell.
 #
 # Project profiles: all, claude, agents, codex/opencode/jules (aliases for
-# agents), gemini, cursor, copilot, windsurf, cline, skill.
-# Global profiles: all, claude (~/.claude), codex (~/.codex), opencode
-# (~/.config/opencode), gemini (~/.gemini), agents (codex + opencode).
+# agents), gemini, cursor, copilot, windsurf, cline, grok, antigravity, skill.
+# Global profiles: all (claude + agents + gemini + grok + antigravity),
+# claude (~/.claude), codex (~/.codex), opencode (~/.config/opencode),
+# gemini (~/.gemini), agents (codex + opencode + ~/.agents/skills),
+# grok (~/.grok/skills), antigravity (~/.gemini/config/skills).
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Target = (Get-Location).Path,
@@ -289,7 +291,7 @@ function Invoke-ProjectProfile([string]$Name) {
         }
         'skill' { Invoke-SkillTarget (Join-Path $TargetDir 'skills/clean-code') }
         default {
-            throw "Unknown profile: $Name (expected all, claude, agents, codex, opencode, jules, gemini, cursor, copilot, windsurf, cline, skill)"
+            throw "Unknown profile: $Name (expected all, claude, agents, codex, opencode, jules, gemini, cursor, copilot, windsurf, cline, grok, antigravity, skill)"
         }
     }
 }

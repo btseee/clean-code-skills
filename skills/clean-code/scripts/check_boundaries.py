@@ -381,8 +381,9 @@ def render_report(result: dict) -> str:
     else:
         lines.append("  Files matched           : none")
         lines.append("")
-        lines.append("  No source file matched any declared layer. The globs in your")
-        lines.append("  architecture declaration probably do not match this layout.")
+        lines.append("  ERROR: no source file matched any declared layer, so nothing was")
+        lines.append("  checked. The globs in your architecture declaration do not match")
+        lines.append("  this layout. Fix the declaration; a passing check must check files.")
         return "\n".join(lines)
 
     lines.append(f"  Cross-layer imports     : {result['cross_layer_imports_checked']}")
@@ -452,11 +453,18 @@ def main(argv=None) -> int:
     except ValueError:
         result["config"] = str(config_path)
 
+    checked_nothing = not result["files_by_layer"]
+    if checked_nothing:
+        result["error"] = ("no source file matched any declared layer; the globs in "
+                           "the architecture declaration do not match this layout")
+
     if arguments.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(render_report(result))
 
+    if checked_nothing:
+        return 2
     return 1 if result["violation_count"] else 0
 
 

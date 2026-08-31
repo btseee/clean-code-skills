@@ -1,7 +1,7 @@
 {
   "name": "clean-code-skills",
-  "description": "Language-agnostic clean-code skill for AI agents: naming, focused functions, file and code placement, single responsibility, boundaries, error handling, tests, concurrency, security, agent failure modes, and surgical or whole-project refactoring.",
-  "version": "3.1.0",
+  "description": "Clean code and clean architecture for AI agents, language-agnostic: naming, focused functions, file placement, single responsibility, the Dependency Rule, SOLID and component principles, errors, tests, concurrency, agent failure modes — plus /clean-code audit, new-project, clean-up, and questions commands that persist project memory in .clean/.",
+  "version": "3.1.1",
   "author": {
     "name": "Battseren Badral",
     "email": "bbattseren88@gmail.com",
@@ -10,11 +10,15 @@
   "license": "MIT",
   "keywords": [
     "clean-code",
+    "clean-architecture",
+    "dependency-rule",
+    "solid",
     "coding-standards",
     "agents",
     "skills",
     "refactoring",
     "code-review",
+    "audit",
     "testing",
     "maintainability",
     "single-responsibility",

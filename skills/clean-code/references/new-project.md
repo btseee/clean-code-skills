@@ -6,6 +6,12 @@ structure — it is to make the first correct decisions cheap and the later ones
 The governing idea: **a good architect maximizes the number of decisions not made.** Everything below
 is about deferring what can be deferred while keeping the domain independent of what you defer.
 
+**When invoked as `new-project <description>`**, the description is the draft answer set for
+Phase 0. Extract what it already answers — purpose, actors, scope, domain vocabulary — read that
+understanding back to the user, and ask only the questions it leaves open. A rich description can
+answer most of Phase 0; a thin one just means more to ask. Never re-ask what the description
+plainly states.
+
 ## Phase 0 — Understand before designing
 
 **1. Clarify the requirements.** What must the system do, for whom, and what makes it valuable? Ask

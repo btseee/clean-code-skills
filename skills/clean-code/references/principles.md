@@ -89,8 +89,9 @@ merges.
 documentation living in the wrong place — the knowledge belongs in a better name, an extracted
 function, or a doc file the comment can point to. Never write banner or section-divider comments;
 structure is shown by structure. `scan_repo.py` flags runs of eight or more consecutive comment
-lines for exactly this reason (license headers at the top of a file are exempt — those are legal
-text, not commentary).
+lines (license headers at the top of a file are exempt — legal text, not commentary). The gap
+between three and eight is deliberate: the script is a coarse net for the worst offenders, while
+the one-to-three-line rule is the standard you write to.
 
 ## Formatting And Layout
 

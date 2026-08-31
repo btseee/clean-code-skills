@@ -3,6 +3,78 @@
 All notable changes to this project. Versions follow semver; the version in `VERSION` is the single
 source and the git tag must match it exactly.
 
+## 3.1.1
+
+Hardening release: three read-only deep-scan passes walked the skill the way a user would — a cold
+agent following every pointer, the four commands and three scripts against a real project, and the
+docs against actual behavior. Everything below fixes something one of those passes found.
+
+### Fixed
+
+- **`detect_stack.py --write` no longer clobbers `context.json`.** It merges: detector-owned keys
+  are refreshed; the reserved `confirmed` object (the interview's answers — purpose, actors,
+  verify command, load-bearing dependencies, notes) and any unknown keys survive. `questions.md`
+  and `memory-protocol.md` define the schema. Previously, running the audit after the interview
+  silently destroyed the interview.
+- **`check_boundaries.py` fails instead of passing when its globs match no files** — exit 2 with an
+  explicit error in both output modes. A fitness function that can silently check nothing is worse
+  than none.
+- **`scan_repo.py --json` is now always complete**; `--top` caps only the human summary (with an
+  explicit "... and N more" line). The audit's convergence loop compares full lists, so a capped
+  list no longer turns "entry 16 became visible" into a phantom new finding.
+- **`scan_repo.py --changed` says so when git is unavailable** — a `scope_note` in JSON and a
+  stderr warning — instead of reporting an empty scan that looks like a clean change.
+- **The pre-commit hook finds every install location**: `.grok/skills` and the global roots
+  (`~/.claude/skills`, `~/.agents/skills`, `~/.grok/skills`, `~/.gemini/config/skills`) joined the
+  candidate list; the phantom `.clean/skill` candidate is gone; a config error (exit 2) now gets
+  its own message instead of being reported as a violation. `claude-settings.json` probes the same
+  locations and `python3`/`python`/`py` instead of hardcoding both.
+- **`assets/templates/ledger.md` gained the `## Audit Coverage` section** the audit protocol has
+  been instructed to fill since 3.1.0 — inventory count, reviewed count, sweeps, findings per
+  sweep, and the per-file checklist. Section names are now identical across the template,
+  `memory-protocol.md`, and `project-refactor.md`.
+- **`install.ps1`'s help text and unknown-profile error caught up with its implementation**: both
+  now list `grok` and `antigravity`, and global mode's documented roots include `~/.agents/skills`,
+  `~/.grok/skills`, and `~/.gemini/config/skills`. (`install.sh` was already right.)
+- `assets/templates/architecture.md` replaced its unexplained `<skill>` path placeholder with real
+  install-location examples; `examples.md` says three output templates, not two; `host-matrix.md`
+  lost a duplicated intro sentence and now marks `scripts/install.sh` and `clean-code.zip`
+  explicitly as repository artifacts that do not ship inside the skill folder.
+
+### Changed
+
+- **One rule for who creates `.clean/`, stated once**: reading it is always fine; creating it is
+  the `audit` and `questions` workflows' job. `SKILL.md` step 1 no longer suggests `--write` in a
+  plain session, and `session-protocol.md` steps 19–20 write to `.clean/` only when it exists,
+  offering to persist otherwise.
+- **`clean-up` without a ledger asks first**: it proposes the audit, names the project's file
+  count, and waits for consent instead of launching hours of unasked work. The campaign contract is
+  negotiated once — the audit drafts it, Phase 0 confirms it.
+- **The audit protocol scales honestly** (`audit-report.md`): per-file ticks to ~500 files,
+  per-directory with flagged-directory detail to ~2,000 (shape agreed with the user), module-scoped
+  audits beyond that. The denominator is stated (`git ls-files`; script counts are code-only
+  subsets), the report's destination is stated (the conversation — `.clean/` holds the ledger), and
+  sweep comparison explicitly uses the full JSON.
+- **`new-project <description>` finally says what the description is for**: the draft answer set
+  for Phase 0 — extract what it answers, ask only what it leaves open.
+- `argument-hint` moved from an HTML comment into SKILL.md frontmatter, where Claude Code actually
+  reads it and other hosts ignore it per the spec's unknown-key rule.
+- `detect_stack.py` no longer counts a generic `app/` directory as an application-layer hint — the
+  boundary checker deliberately discards that guess, and now the two scripts agree.
+- README truth pass: the `.clean/` table (dependencies, `confirmed`, real creators), the validator
+  paragraph (byte-identical round trip, final-newline check, the `skill-tools` CI job), the
+  `detect_stack.py` example output (all nine summary lines plus dependencies and layer candidates),
+  the audit example (coverage line, dependencies, placement), the global-install root list, the
+  twelve-host shared-root count, and the four manifest descriptions, which still described the
+  pre-3.0.0 comment-focused package.
+
+### Not verified
+
+- The zero-match failure mode of `check_boundaries.py` and the new hook messages are covered by
+  fixtures on Windows (Git Bash `sh`) and by the CI `skill-tools` job on Linux, but not on macOS.
+- Cross-host behavior remains conformance-based, as the README's constraints section states — no
+  new smoke tests on other hosts were run for this release.
+
 ## 3.1.0
 
 Field-driven release: every change answers a failure observed using v3.0.0 on a real project.
@@ -28,6 +100,10 @@ Field-driven release: every change answers a failure observed using v3.0.0 on a 
   architectural choice (segregation of mutability, event sourcing), the four things architecture
   must support, Conway's law, the two values, the third cohesion-tension edge, ISP's
   typing-dependence, the standard-library marriage exception, and the hardware-abstraction layer.
+- *(Backfilled in 3.1.1 — shipped in the 3.1.0 tag but missing from this entry.)* **Every named
+  host**: `grok` and `antigravity` install profiles in both installers, the host matrix expanded to
+  fifteen vendor-verified rows with per-host invocation forms, and the README's prompt-usage
+  section.
 
 ### Changed
 
@@ -50,6 +126,13 @@ Field-driven release: every change answers a failure observed using v3.0.0 on a 
 - `smell-triage.md` folded volatility into the Zone of Pain definition; it is a separate axis.
 - Two dangling cross-references (`canon.md`, `concurrency.md` pointing at architecture.md for
   mutability content it lacked) now resolve.
+- *(Backfilled in 3.1.1.)* `scan_repo.py` stopped flagging prose comments as commented-out code —
+  a line is code-like only with code punctuation or a short fragment, so `# from sleeping
+  processes` no longer counts.
+- *(Backfilled in 3.1.1.)* Three defects caught by the field test: `detect_stack.py` reported
+  Next.js on a .NET solution (framework signatures now respect word boundaries and skip comments),
+  reported "Quality tools: none" despite pyproject `[tool.*]` sections, and `scan_repo.py` raised a
+  false "no test files" alarm on projects with a separate top-level test tree.
 
 ## 3.0.0
 

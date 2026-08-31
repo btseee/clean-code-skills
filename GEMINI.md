@@ -4,7 +4,7 @@ Clean-code instructions for Gemini CLI and Gemini-based agents. In a project tha
 
 Apply the clean-code rules whenever a task involves writing, editing, reviewing, testing, or refactoring code — every programming language, framework, query language, script, configuration format, and infrastructure file.
 
-<!-- clean-code-skills:begin v3.1.0 -->
+<!-- clean-code-skills:begin v3.1.1 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
