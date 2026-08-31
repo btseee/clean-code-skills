@@ -1,122 +1,140 @@
-# Audit Report Protocol
+# Audit Protocol
 
-For a request like "review this project", "how clean is this codebase", "where is the architectural
-debt", or "give me a cleanup report". The deliverable is a **report, not a diff**: change no code
-unless the user asks afterwards.
+For "audit this project", `/clean-code audit`, "how clean is this codebase", or as the mandatory
+first half of a cleanup. The audit does two things: it produces a **report**, and it populates
+**`.clean/`** so that the cleanup — this session or any later one — starts from durable state
+instead of from memory. It changes no production code.
 
-An audit is worth reading only if every claim is checkable. Cite a file and line for each finding, or
-say plainly that you could not verify it.
+**An audit is complete only when every inventoried file has been reviewed and a full sweep adds
+zero new findings.** Anything less is a partial audit, and partial audits are why projects need
+auditing three times. The criterion is checkable, so check it before claiming completion.
 
-## Gather evidence first
+## Phase A — Inventory: establish the denominator
 
-1. **Context** — `scripts/detect_stack.py`, or determine by inspection: languages, frameworks, test
-   command, source and test layout, quality tooling.
-2. **Measurements** — `scripts/scan_repo.py --json`, or by inspection: largest files, sibling-variant
-   filenames, junk-drawer directories, debug output in production code, commented-out code, skipped
-   tests, areas with no test files.
-3. **Dependency direction** — `scripts/check_boundaries.py` if the project declares layers. If it
-   does not, infer the intended layering from the directory names, state that you inferred it, and
-   propose a declaration as a finding in its own right.
-4. **Baseline** — run the test suite and record the result verbatim, including failures. An audit
-   that does not know whether the suite is green is guessing.
-5. **History, if available** — which files change most often, and which change together. Frequently
-   co-changing files in different modules are evidence of a missing boundary.
+1. Enumerate every tracked file: `git ls-files` (fall back to a full directory walk excluding
+   dependency and build directories when there is no git).
+2. Record the total count and the list, grouped by directory, into `.clean/ledger.md` as a
+   **coverage checklist** — one tick-box per file (batch trivially small files per directory, but
+   list them). Use `assets/templates/ledger.md` as the frame if the file does not exist.
+3. Nothing below counts as done until the ticked set equals this inventory. A file never ticked was
+   never audited, whatever the summary claims.
 
-Never report a number you did not measure. If a check could not run, the report says so.
+## Phase B — Evidence: run the measurements
 
-## Report structure
+- `scripts/detect_stack.py --write` — stack, frameworks, test command, layout, **dependencies with
+  versions**, saved to `.clean/context.json`. Manual equivalent: derive the same facts by reading
+  the manifests, and write them into `context.json` by hand — it is only a cache of what the project
+  already says.
+- `scripts/scan_repo.py --json` — oversized files, sibling variants, junk drawers, debug output,
+  commented-out code, comment blocks, skipped tests. Manual equivalent: targeted searches for each.
+- Run the project's own verification and record the result **verbatim** — this is the baseline, and
+  a red baseline must be written down, not worked around.
+- `scripts/check_boundaries.py` once a layering is declared (Phase D). Manual equivalent: read the
+  imports of the innermost modules.
+
+Script output is evidence for judgement, never a verdict.
+
+## Phase C — Read pass: earn the numerator
+
+Work through the inventory directory by directory, ticking files in the ledger as they are read.
+For every file, judge at least:
+
+- **Responsibility** — does it pass the one-sentence test; which actor owns it?
+- **Placement** — does its directory match its responsibility, per the declared layers and the
+  conventions in `framework-map.md`? A file in the wrong folder goes in the ledger as a **move
+  candidate** with its intended destination. This is where "the files are not in the right folders"
+  gets caught — placement is audited per file, not noticed incidentally.
+- **Dependencies** — anything imported against the grain (details in policy, wrong-way layer
+  imports, a package used against its documented intent for the installed version in
+  `context.json`)?
+- **Smells** — anything from `smell-triage.md`, cited by ID.
+- **Tests** — is this file's behavior verifiable, and does anything here explain a coverage gap?
+
+Small files are read in batches; generated files are ticked as "generated, skipped" — a decision,
+not an omission.
+
+## Phase D — Fill `.clean/` (the audit's second deliverable)
+
+1. `context.json` — already written by Phase B.
+2. `architecture.md` — from `assets/templates/architecture.md`: the detected layer candidates as a
+   starting point, **ordering confirmed with the user** — innermost-first order is a decision, not
+   an inference, and both a strict and a pragmatic reading can be legitimate. Once written, run
+   `check_boundaries.py` and add its violations to the ledger.
+3. `decisions.md` — initial entries: the verify command, the layering choice and why, declared
+   no-go zones, and any deliberate exception discovered during the read pass.
+4. `ledger.md` — convert the findings into the prioritized batch plan of
+   `project-refactor.md`, with a proposed campaign contract (depth, breadth, behavior policy,
+   checkpoint style) at the top, ready for the user to approve when they ask for the cleanup.
+
+## Phase E — Convergence: the loop that replaces "audit it again"
+
+After the first full pass, sweep again: re-run the scripts, re-check the ledger against the
+inventory, and re-examine every file the first pass flagged plus every file *adjacent* to a finding
+(same directory, same responsibility, callers and callees). New findings go in the ledger.
+
+- **The audit closes only when a complete sweep adds zero new findings.**
+- Minimum two full sweeps, always. If sweep N found anything new, sweep N+1 is mandatory.
+- Cap at four sweeps; if the fourth still finds new material, close anyway and state plainly what
+  was still churning and where — an honest open end beats a false clean bill.
+- Record in the ledger: `inventoried N / reviewed N / sweeps M / new findings per sweep: a, b, c`.
+
+## Phase F — Report
+
+Findings first, ordered by consequence. Same structure as before, plus the coverage line at the
+top of the verdict.
 
 ```markdown
 # Clean Code And Architecture Audit: <project>
 
 **Date**: <date>   **Commit**: <sha>   **Scope**: <what was and was not examined>
+**Coverage**: <N> files inventoried / <N> reviewed / <M> sweeps to convergence
 
 ## Verdict
-<Three to five sentences. The single most important structural fact, the biggest risk, and
-whether the codebase is currently safe to change quickly. No hedging.>
+<Three to five sentences. The most important structural fact, the biggest risk, and whether the
+codebase is currently safe to change quickly. No hedging.>
 
 ## Baseline
-- Test command: <command>
-- Result: <pass/fail, counts, verbatim summary>
-- Coverage or untested areas: <what has no tests>
-- What could not be verified: <explicitly>
+- Verify command and verbatim result; untested areas; what could not be run.
 
 ## Findings
-
 ### Critical - wrong behavior or security risk
 ### High - blocks safe change
 ### Medium - raises the cost of every change
 ### Low - readability and consistency
 
-<Each finding, in this shape:>
-**<Short title>** - `path/to/file.ext:120`
-- What: <the observable fact>
-- Why it matters: <the concrete failure it causes or permits>
-- Fix: <the specific change, and its rough size>
-- Effort: <hours or days>   Risk of fixing: <low/medium/high>
+<Per finding:>
+**<Title>** - `path/file.ext:line`
+- What: <observable fact>   Why it matters: <the failure it causes>
+- Fix: <specific change>   Effort: <estimate>   Risk: <low/med/high>
 
 ## Architecture assessment
-- Declared layering: <from .clean/architecture.md, or "none declared">
-- Dependency direction: <violations found, with counts and examples>
-- Boundaries: <where they are, where they are missing>
-- Details leaking into policy: <ORM types, framework annotations, HTTP objects in business rules>
-- Testability: <can business rules be tested without infrastructure?>
-- Component cycles: <any, with the edge to invert>
+Declared layering; dependency direction with counts; boundaries present and missing; details
+leaking inward; testability without infrastructure; cycles.
 
-## Metrics
-| Measure | Value | Note |
-|---|---|---|
-| Files / lines | | |
-| Largest file | | |
-| Test files vs production files | | |
-| Areas with no tests | | |
-| Dependency-rule violations | | |
-| Sibling-variant files | | |
+## Dependencies
+Installed versions from context.json; anything used against its documented intent; majors that
+look stale (verify currency yourself only where you have web access — never guess).
 
-## Recommended sequence
-<Ordered, each with the reason it comes at that position. First item should be
-independently valuable, so the work survives being stopped after one step.>
+## Placement
+Move candidates from the read pass: file, intended home, what re-wiring the move needs.
 
 ## What is already good
-<Genuine strengths. An audit that lists only faults gets discounted as noise, and the
-strengths tell the next agent what patterns to imitate.>
+<Real strengths — they tell the next agent what to imitate.>
+
+## Recommended sequence
+<Ordered by risk reduced per effort; first item independently valuable.>
 ```
 
-## Rules for the findings
+Rules that keep the report worth reading: severity is consequence, not untidiness; no finding
+without a location; count instead of listing when instances are many; separate measured from
+inferred; formatting belongs to the formatter, not to the report.
 
-- **Severity is about consequence, not ugliness.** A 900-line file nobody touches is Low. A skipped
-  authorization layer is Critical no matter how tidy the code is.
-- **One finding per line item.** If the fix differs, it is a different finding.
-- **No finding without a location.** "Naming is inconsistent" is not a finding; three cited examples
-  are.
-- **Count instead of listing** when there are many instances: "47 occurrences, worst three cited".
-- **Separate what you measured from what you inferred.** Both are useful; conflating them is not.
-- **Say what the fix costs.** A finding with no effort estimate cannot be prioritized, so it will be
-  ignored.
-- **Do not pad.** Ten real findings beat sixty with fifty stylistic nits. Formatting belongs to the
-  formatter.
+## After the audit
 
-## Ordering the recommendations
+The state is on disk, so the follow-up is cheap:
 
-Order by risk reduced per unit of effort, not by severity alone:
-
-1. Anything that can cause wrong behavior or a security hole.
-2. Anything that makes verification impossible — because until this is fixed, every other fix is
-   unsafe. Missing tests for the areas you are about to change come first.
-3. Declaring the architecture, if it is undeclared. It is cheap, and it turns every later
-   architectural finding from an opinion into a check.
-4. Wrong-way dependencies and cycles, which compound.
-5. Duplicated knowledge that is genuinely true duplication.
-6. Readability.
-
-## After the report
-
-Offer, do not act:
-
-- Fix the Critical findings now, one at a time with verification between them.
-- Run the Onboard workflow (`project-refactor.md`) for anything larger — baseline, batches, ledger.
-- Write `.clean/architecture.md` so the architectural findings become automated checks.
-- Re-run the audit after the first batch, so improvement is measured rather than asserted.
-
-If the user asks for fixes immediately, switch to `project-refactor.md` and treat this report as its
-Phase 1 inventory. Do not begin editing directly from an audit: the report is a map, not a mandate.
+- **"Clean it up" / `/clean-code clean-up`** → `project-refactor.md`, consuming the ledger's batch
+  plan — the contract is already drafted, the baseline already recorded. Never begin editing
+  straight from the report; the ledger is the working document.
+- Re-run the audit after the campaign and compare coverage lines, so improvement is measured
+  rather than asserted.

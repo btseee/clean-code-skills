@@ -327,6 +327,202 @@ def scan_manifest_contents(root: Path, manifests: list) -> tuple:
     return sorted(frameworks), sorted(test_runners)
 
 
+MAX_DEPENDENCIES = 120
+
+DEPENDENCY_LINE_PARSERS = {
+    # requirements.txt: "fastapi==0.111.0", "requests>=2.31", bare "ruff"
+    "requirements.txt": re.compile(
+        r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(?:(?:==|>=|<=|~=|!=|>|<)\s*([^\s;#]+))?"
+    ),
+    # go.mod require lines: "github.com/gin-gonic/gin v1.9.1"
+    "go.mod": re.compile(r"^\s*([A-Za-z0-9._/\-]+\.[A-Za-z0-9._/\-]+)\s+(v[\w.\-+]+)"),
+    # Gemfile: gem "rails", "~> 7.1"
+    "Gemfile": re.compile(r"""^\s*gem\s+['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?"""),
+}
+
+CSPROJ_PACKAGE_PATTERN = re.compile(
+    r"""<PackageReference\s+[^>]*Include\s*=\s*"([^"]+)"[^>]*?(?:Version\s*=\s*"([^"]+)")?""",
+    re.IGNORECASE,
+)
+# .NET Central Package Management: versions live in Directory.Packages.props, and the
+# csproj carries only the name. Without this, every version on such a solution is blank.
+PACKAGE_VERSION_PATTERN = re.compile(
+    r"""<PackageVersion\s+[^>]*Include\s*=\s*"([^"]+)"[^>]*Version\s*=\s*"([^"]+)\"""",
+    re.IGNORECASE,
+)
+
+
+def central_package_versions(root: Path) -> dict:
+    versions: dict = {}
+    candidates = [root / "Directory.Packages.props"]
+    try:
+        candidates.extend(sorted(root.glob("*/Directory.Packages.props"))[:5])
+    except OSError:
+        pass
+    for path in candidates:
+        if not path.is_file():
+            continue
+        for name, version in PACKAGE_VERSION_PATTERN.findall(read_text_safely(path)):
+            versions.setdefault(name.lower(), version)
+    return versions
+TOML_SECTION_PATTERN = re.compile(r"^\s*\[([^\]]+)\]\s*$")
+TOML_KEY_VALUE_PATTERN = re.compile(r"""^\s*([A-Za-z0-9._\-"]+)\s*=\s*(.+?)\s*(?:#.*)?$""")
+PEP508_PATTERN = re.compile(
+    r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(?:(?:==|>=|<=|~=|!=|>|<)\s*([^\s;,]+))?"
+)
+
+
+def parse_json_dependencies(text: str, keys) -> list:
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return []
+    found = []
+    for key in keys:
+        section = data.get(key)
+        if isinstance(section, dict):
+            found.extend(
+                {"name": name, "version": str(version)}
+                for name, version in section.items()
+            )
+    return found
+
+
+def parse_toml_table_dependencies(text: str, table_names) -> list:
+    """Read `name = "version"` pairs from named TOML tables, standard library only.
+
+    tomllib exists from 3.11, but the scripts promise 3.8 -- and dependency tables are
+    flat enough that a line parser is honest about what it can and cannot read.
+    """
+    found = []
+    current = None
+    for line in text.splitlines():
+        section = TOML_SECTION_PATTERN.match(line)
+        if section:
+            current = section.group(1).strip()
+            continue
+        if current not in table_names:
+            continue
+        pair = TOML_KEY_VALUE_PATTERN.match(line)
+        if not pair:
+            continue
+        name = pair.group(1).strip('"')
+        value = pair.group(2).strip()
+        version = ""
+        if value.startswith('"'):
+            version = value.strip('"')
+        else:
+            embedded = re.search(r'version\s*=\s*"([^"]+)"', value)
+            if embedded:
+                version = embedded.group(1)
+        found.append({"name": name, "version": version})
+    return found
+
+
+def parse_pyproject_dependencies(text: str) -> list:
+    """PEP 621 `[project] dependencies = [...]` entries, one string each."""
+    found = []
+    in_project = False
+    in_list = False
+    for line in text.splitlines():
+        section = TOML_SECTION_PATTERN.match(line)
+        if section:
+            in_project = section.group(1).strip() == "project"
+            in_list = False
+            continue
+        if not in_project:
+            continue
+        if re.match(r"^\s*dependencies\s*=\s*\[", line):
+            in_list = True
+        if not in_list:
+            continue
+        for spec in re.findall(r'"([^"]+)"', line):
+            match = PEP508_PATTERN.match(spec)
+            if match:
+                found.append({"name": match.group(1), "version": match.group(2) or ""})
+        if "]" in line:
+            in_list = False
+    return found
+
+
+def parse_line_dependencies(text: str, pattern: re.Pattern) -> list:
+    found = []
+    in_require_block = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "//", "-")):
+            continue
+        # go.mod groups requirements in a `require ( ... )` block.
+        if stripped.startswith("require ("):
+            in_require_block = True
+            continue
+        if in_require_block and stripped == ")":
+            in_require_block = False
+            continue
+        match = pattern.match(line)
+        if match and match.group(1):
+            found.append({"name": match.group(1), "version": match.group(2) or ""})
+    return found
+
+
+def parse_dependencies(root: Path, manifests: list) -> list:
+    """Collect declared dependencies with their versions, per manifest.
+
+    The point is that an agent verifies API usage against the versions actually in
+    use, instead of against its memory of some other version. Only declarations are
+    read; lockfiles and transitive graphs are out of scope on purpose.
+    """
+    dependencies = []
+    central_versions = None
+    for manifest in manifests[:25]:
+        path = manifest["path"]
+        filename = Path(path).name
+        text = read_text_safely(root / path)
+        if not text:
+            continue
+
+        if filename == "package.json":
+            entries = parse_json_dependencies(text, ("dependencies", "devDependencies"))
+        elif filename == "composer.json":
+            entries = parse_json_dependencies(text, ("require", "require-dev"))
+        elif filename == "pyproject.toml":
+            entries = parse_pyproject_dependencies(text)
+        elif filename == "Cargo.toml":
+            entries = parse_toml_table_dependencies(
+                text, {"dependencies", "dev-dependencies", "build-dependencies"}
+            )
+        elif filename in DEPENDENCY_LINE_PARSERS:
+            entries = parse_line_dependencies(text, DEPENDENCY_LINE_PARSERS[filename])
+        elif Path(path).suffix.lower() in {".csproj", ".fsproj", ".vbproj"}:
+            if central_versions is None:
+                central_versions = central_package_versions(root)
+            entries = [
+                {
+                    "name": name,
+                    "version": version or central_versions.get(name.lower(), ""),
+                }
+                for name, version in CSPROJ_PACKAGE_PATTERN.findall(text)
+            ]
+        else:
+            continue
+
+        for entry in entries:
+            entry["manifest"] = path
+        dependencies.extend(entries)
+        if len(dependencies) >= MAX_DEPENDENCIES:
+            break
+
+    seen = set()
+    unique = []
+    for entry in dependencies[:MAX_DEPENDENCIES]:
+        key = (entry["name"].lower(), entry["manifest"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(entry)
+    return unique
+
+
 def find_test_locations(files) -> dict:
     directories: set = set()
     test_file_count = 0
@@ -457,6 +653,7 @@ def build_context(root: Path) -> dict:
         "frameworks": frameworks,
         "test_runners": test_runners,
         "tests": tests,
+        "dependencies": parse_dependencies(root, manifests),
         "suggested_verify_commands": verify_commands[:8],
         "source_roots": find_source_roots(root),
         "layer_candidates": infer_layers(files),
@@ -485,6 +682,19 @@ def render_summary(context: dict) -> str:
         f"  Source roots     : {', '.join(context['source_roots']) or 'repository root'}",
         f"  Quality tools    : {', '.join(context['quality_tools']) or 'none detected'}",
     ]
+
+    dependencies = context["dependencies"]
+    if dependencies:
+        versioned = [d for d in dependencies if d["version"]]
+        preview = ", ".join(
+            f"{d['name']} {d['version']}".strip() for d in dependencies[:5]
+        )
+        lines.append(
+            f"  Dependencies     : {len(dependencies)} declared"
+            f" ({len(versioned)} with versions): {preview}..."
+        )
+        lines.append("    Verify API usage against these versions, not memory;")
+        lines.append("    the full list is in context.json.")
 
     verify = context["suggested_verify_commands"]
     lines.append(f"  Verify with      : {verify[0] if verify else 'unknown; ask the user'}")

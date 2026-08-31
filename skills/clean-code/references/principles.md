@@ -85,6 +85,13 @@ Never leave a comment that explains where the code came from, why your change is
 the next line does. That is a message to a reviewer, and it becomes noise the moment the change
 merges.
 
+**Size discipline.** A good comment is one to three lines. A comment that needs a paragraph is
+documentation living in the wrong place — the knowledge belongs in a better name, an extracted
+function, or a doc file the comment can point to. Never write banner or section-divider comments;
+structure is shown by structure. `scan_repo.py` flags runs of eight or more consecutive comment
+lines for exactly this reason (license headers at the top of a file are exempt — those are legal
+text, not commentary).
+
 ## Formatting And Layout
 
 The formatter owns whitespace. It does **not** own ordering, and ordering is where the design shows.

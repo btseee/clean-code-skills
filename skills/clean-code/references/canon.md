@@ -62,7 +62,14 @@ Names are the established vocabulary of the field. The operational readings are 
 
 | Named rule | Operationally | Detail |
 | --- | --- | --- |
+| **The three paradigm disciplines** | Structured programming disciplines direct transfer of control; OO disciplines indirect transfer of control; functional disciplines assignment. Each removes a capability | `architecture.md` |
+| **Falsifiability** | Tests show the presence of bugs, never their absence; correctness is failing to prove incorrectness | `architecture.md`, `tests.md` |
+| **The plugin argument** | A plugin depends on its host, so it cannot break the host. Point arrows so business rules are the host and every detail is a plugin | `architecture.md` |
 | **The Dependency Rule** | Source dependencies point only inward, toward higher-level policy. Inner code never names anything outer | `architecture.md` |
+| **The four supports** | Architecture must support the use cases and operation, maintenance, development, and deployment | `architecture.md` |
+| **Conway's law** | A system's structure mirrors the communication structure of the organization that builds it | `architecture.md` |
+| **The two values** | Behavior is urgent, structure is important; working-but-unchangeable is worth less than broken-but-changeable | `architecture.md` |
+| **Event sourcing** | Store the transactions, not the state; recompute by replay, and concurrent update disappears | `architecture.md`, `concurrency.md` |
 | **Level** | Distance from the inputs and outputs — not call order | `architecture.md` |
 | **SRP** | A module is responsible to one, and only one, **actor**. Not "does one thing" | `architecture.md` |
 | **OCP** | Open for extension, closed for modification. To protect A from B, make B depend on A | `architecture.md` |
@@ -77,7 +84,7 @@ Names are the established vocabulary of the field. The operational readings are 
 | **SAP** | A component should be as abstract as it is stable | `architecture.md` |
 | **Instability `I`** | `Fan-out / (Fan-in + Fan-out)`; 0 is maximally stable | `architecture.md` |
 | **Abstractness `A`** | Abstract types / total types in a component | `architecture.md` |
-| **Main Sequence, distance `D`** | `D = \|A + I - 1\|`; investigate above ~0.1 | `architecture.md` |
+| **Main Sequence, distance `D`** | `D = \|A + I - 1\|`; investigate components beyond one standard deviation of your design's mean `D` — the book's example plot uses `D = 0.1` as its control limit | `architecture.md` |
 | **Zone of Pain / Uselessness** | Stable-and-concrete; abstract-with-no-dependents | `architecture.md` |
 | **Entity** | Critical business rules and data that would exist without any software | `architecture.md` |
 | **Use case** | Application-specific rules orchestrating entities. Depends on entities; never the reverse | `architecture.md` |

@@ -14,6 +14,46 @@ function, variable, annotation, or data format.
 
 **The question to ask before every dependency: which direction does this line cross, and why?**
 
+## Why the rule is even possible: the three paradigms
+
+Each programming paradigm *removes* a capability rather than adding one, and each removal is what a
+discipline is:
+
+- **Structured programming imposes discipline on direct transfer of control.** Sequence, selection
+  and iteration are enough to build anything, and they make units small enough to falsify with a
+  test. That is also the honest limit of testing: **tests show the presence of bugs, never their
+  absence** — correctness is demonstrated by failing to prove incorrectness, which is why
+  decomposition into testable units is an architectural concern and not a style preference.
+- **Object orientation imposes discipline on indirect transfer of control.** Its architectural
+  payoff is not encapsulation or inheritance; it is that polymorphism gives **absolute control over
+  every source-code dependency in the system** — any dependency, anywhere, can be pointed the other
+  way. That is the entire mechanism behind the Dependency Rule: without it the rule would be an
+  aspiration, with it the rule is a choice.
+- **Functional programming imposes discipline on assignment.** See the state section below.
+
+**The plugin argument** is why inverted dependencies matter beyond tidiness. A plugin depends on its
+host, so nothing the plugin does can break the host, while the host can drop the plugin at will —
+a deliberately **asymmetric** relationship. Point the arrows so that the business rules are the
+host and the UI, the database and the framework are the plugins, and changes to those details
+*cannot* propagate into policy. Every boundary in this file is that argument applied somewhere.
+
+## State and mutability as an architectural choice
+
+Every race condition, deadlock, and concurrent-update defect traces to a mutable variable — there
+are no deadlocks without mutable locks. That makes mutability a placement decision, not an
+implementation detail:
+
+- **Segregate mutability.** Split the system into components that mutate and components that do
+  not, and push as much processing as possible into the immutable ones. Protect what must mutate
+  (transactions, actors, a transactional-memory discipline) and keep it small and named.
+- **Event sourcing** is the extreme of the same idea: store the transactions, not the state, and
+  recompute state by replaying them. Applications become create-and-read only, and the concurrent-
+  update problem disappears because nothing updates. Version control works exactly this way.
+
+The operational detail — locking discipline, the named execution models, how to test any of it — is
+in `concurrency.md`. This section exists because *where mutation lives* is decided at boundary-
+drawing time, long before any lock is written.
+
 ## Level, policy, and detail
 
 **Level is distance from the inputs and outputs.** The farther a policy sits from I/O, the higher
@@ -166,6 +206,9 @@ reading, "keep interfaces small", is a symptom of the real rule, which is about 
 - Before adding a dependency, look at what *it* depends on. Transitive baggage sets both the
   recompile blast radius and the failure blast radius: a fault in an unused feature of a
   dependency can still take you down.
+- Static typing makes the dependency visible at compile time; dynamic typing only removes the
+  recompilation symptom, not the coupling. ISP applies in Python and JavaScript exactly as much as
+  in Java — the baggage just fails later.
 
 **DIP — Dependency Inversion Principle.** The most flexible systems are those whose source
 dependencies refer only to abstractions, never to concretions.
@@ -198,10 +241,11 @@ that cannot be split.
   don't need.* This is ISP restated for components.
 
 These three pull against each other. REP and CCP are inclusive — they make components larger. CRP
-is exclusive — it makes them smaller. Over-weighting REP and CRP means one simple change touches
-too many components; over-weighting CCP and REP means too many needless releases. Early in a
-project, favour CCP: develop-ability matters more than reuse. Shift weight toward REP only once
-real external consumers exist.
+is exclusive — it makes them smaller. Each corner of the triangle has its cost: over-weighting REP
+and CRP means one simple change touches too many components; over-weighting CCP and REP means too
+many needless releases; over-weighting CCP and CRP abandons REP, and the components become
+impractical to reuse. Early in a project, favour CCP: develop-ability matters more than reuse.
+Shift weight toward REP only once real external consumers exist.
 
 ### Coupling: which components may depend on which
 
@@ -236,9 +280,12 @@ Useful when you need evidence rather than opinion about a component graph.
   but abstractions.
 - **The Main Sequence** is the line from `(I=1, A=0)` to `(I=0, A=1)`. The two endpoints are the
   most desirable positions: stable and abstract, or unstable and concrete.
-- **Distance `D = |A + I - 1|`**, ranging 0 to 1. `D = 0` sits exactly on the Main Sequence.
-  Investigate any component much above roughly `0.1`, or more than one standard deviation from the
-  mean `D` of your own design. A metric is a measurement against an arbitrary standard, not a verdict.
+- **Distance `D = |A + I - 1|`**, ranging 0 to 1. `D = 0` sits exactly on the Main Sequence. The
+  criterion is statistical: compute the mean and variance of `D` across your own components — a
+  conforming design keeps both near zero — and investigate anything more than one standard deviation
+  from that mean. The book's example plot draws its control limit at `D = 0.1`, which is an
+  illustration, not a universal threshold. A metric is a measurement against an arbitrary standard,
+  not a verdict.
 
 **Zone of Pain** is near `(I=0, A=0)`: stable and concrete, therefore rigid. A database schema is
 the archetype — highly depended upon, extremely concrete, and volatile. Volatility is effectively a
@@ -260,7 +307,14 @@ the author commits nothing to you. So use it, but do not couple to it. Never der
 use case from a framework base class — derive a proxy in an outer circle instead. Keep framework
 annotations off business objects. Confine dependency-injection framework usage to `main`; inject
 there, then pass dependencies onward normally. Before adopting any framework answer both questions:
-how do I use it, and how do I protect myself from it?
+how do I use it, and how do I protect myself from it? Some marriages are unavoidable — the standard
+library, the base platform — but even those should be a decision made once, on record, not a
+default.
+
+**Hardware and the operating system are details too.** Where code must touch a device or an OS
+facility, put a hardware-abstraction layer between them whose interface is named for what the
+*application* needs (`indicate_low_battery`), never for what the device offers (`led_on(5)`). The
+same inversion as every other boundary; it is what makes the business rules testable off-target.
 
 **The database is a detail.** The *data model* is architecturally significant; the database system
 is not. Never let rows, tables, result sets, or ORM row types travel beyond the data-access layer —
@@ -426,9 +480,19 @@ The goal of architecture is to **minimize the human effort required to build and
 system** — so the strategy is to leave as many options open as possible, for as long as possible. A
 good architect maximizes the number of decisions *not* made.
 
-Architecture has almost no bearing on whether the system works right now; its value is entirely in
-what happens next. Behavior is urgent but not always important; structure is important but never
-urgent, which is why it loses arguments it should win. The tell of a structural defect is a
+A good architecture must support four things: **the use cases and operation** of the system, its
+**maintenance**, its **development**, and its **deployment**. Operation is the one agents forget —
+throughput and scale legitimately shape the component structure, not just tidiness. Development is
+where **Conway's law** bites: a system's structure comes to mirror the communication structure of
+the organization that builds it, and its corollary is the SRP again — give each team components it
+can own without stepping on another team.
+
+**The two values.** Software has behavior (urgent, visible) and structure (important, invisible). A
+program that works today but cannot be changed is worth less than one that is broken but easy to
+change, because the second can be made to do anything and the first dies with its first new
+requirement. In the urgent/important grid, architecture occupies the top two cells and features
+never rise above the third — yet features win every undefended argument, which is why asserting the
+importance of structure is part of the job, not a nicety. The tell of a structural defect is a
 mismatch between *scope* and *shape*: the difficulty of a change should be proportional to its
 scope, never to its shape. When a small requirement forces a large diff, that is an architecture
 defect, and it should be named as one rather than absorbed silently.

@@ -2,7 +2,7 @@
 
 Instructions for Cline. These rules apply to every coding task in this workspace. In a project that installs this package, the managed block below is kept up to date by the installer; content outside the markers is never touched.
 
-<!-- clean-code-skills:begin v3.0.0 -->
+<!-- clean-code-skills:begin v3.1.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
@@ -46,7 +46,7 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 ### Quality Bars
 
 - Names reveal intent, use project vocabulary, and disclose side effects.
-- Functions do one thing at one abstraction level; comments explain why, never what or how.
+- Functions do one thing at one abstraction level; comments explain why, never what or how, and stay short — a paragraph of comment is a design smell.
 - Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values and reserve exceptions for genuine failures; keep secrets out of logs.
 - Tests are deterministic and behavior-focused. Never weaken, skip, or delete a failing test to get green, and never verify a business rule by driving the UI.
 - Verify that every API, function, option, and config key you reference actually exists in this codebase and its dependency versions — never trust memory.

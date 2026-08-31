@@ -219,6 +219,46 @@ def count_matches(lines, patterns) -> list:
     return hits
 
 
+# A line that is wholly a comment. The markers require a following space (or a doubled
+# marker) so that preprocessor directives (#include), decrement operators (--i) and
+# pointer dereferences (*ptr) are not mistaken for commentary. Python docstrings are
+# strings, not comments, so they never match.
+COMMENT_LINE_PATTERN = re.compile(r"^\s*(//|/\*|\*\s|\*$|#\s|##|#$|--\s|---)")
+COMMENT_BLOCK_RUN = 8
+LICENSE_HEADER_LINES = 15
+
+
+def find_comment_blocks(lines) -> list:
+    """Start lines of comment runs long enough to be essays rather than notes.
+
+    A comment that needs eight consecutive lines is documentation living in the wrong
+    place: the knowledge belongs in a name, an extraction, or a doc file. Runs that
+    begin inside the first few lines are exempt, because that is where license headers
+    legitimately live.
+    """
+    blocks = []
+    run_start = None
+    run_length = 0
+
+    def close_run():
+        if run_start is not None and run_length >= COMMENT_BLOCK_RUN \
+                and run_start > LICENSE_HEADER_LINES:
+            blocks.append(run_start)
+
+    for number, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped and COMMENT_LINE_PATTERN.match(line):
+            if run_start is None:
+                run_start = number
+                run_length = 0
+            run_length += 1
+        else:
+            close_run()
+            run_start = None
+    close_run()
+    return blocks
+
+
 def scan_file(path: Path, relative_path: str) -> dict | None:
     lines = read_lines(path)
     if lines is None:
@@ -241,6 +281,7 @@ def scan_file(path: Path, relative_path: str) -> dict | None:
             number for number, line in enumerate(lines, 1)
             if len(line) <= 1000 and looks_like_commented_code(line)
         ],
+        "comment_block_lines": find_comment_blocks(lines),
         "skipped_test_lines": count_matches(lines, SKIPPED_TEST_PATTERNS) if is_test else [],
     }
 
@@ -363,6 +404,7 @@ def build_findings(root: Path, only_changed: bool, limit: int) -> dict:
         "junk_drawers": find_junk_drawers(all_paths)[:limit],
         "debug_output": collect(live, "debug_lines", limit),
         "commented_out_code": collect(live, "commented_code_lines", limit),
+        "comment_blocks": collect(live, "comment_block_lines", limit),
         "todo_markers": collect(live, "todo_lines", limit),
         "skipped_tests": collect(live, "skipped_test_lines", limit),
         "long_lines": collect(live, "long_lines", limit),
@@ -416,6 +458,11 @@ def render_summary(findings: dict, limit: int) -> str:
     lines += render_section(
         "Commented-out code",
         findings["commented_out_code"],
+        lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
+    )
+    lines += render_section(
+        f"Comment blocks ({COMMENT_BLOCK_RUN}+ consecutive comment lines; knowledge that belongs in a name or a doc)",
+        findings["comment_blocks"],
         lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
     )
     lines += render_section(

@@ -34,8 +34,9 @@ entry, because the next session will trust it.
 **Append; do not rewrite.** `decisions.md` is a log. Supersede an entry with a new one that
 references it, rather than editing the past.
 
-**Ask before creating `.clean/`.** It is a new convention in someone's repository. Offer at the end
-of a session; do not silently add it.
+**Who creates `.clean/`.** The `audit` and `questions` workflows create and populate it as part of
+their job — that is what they are for, and the user invoking them is the consent. A plain coding
+session still does not silently introduce the convention: it offers at the end.
 
 **Default to untracked.** Add `.clean/` to the project's `.gitignore` unless the user wants the
 design intent committed. `architecture.md` is the one file usually worth committing, because it is a
