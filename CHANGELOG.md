@@ -3,6 +3,54 @@
 All notable changes to this project. Versions follow semver; the version in `VERSION` is the single
 source and the git tag must match it exactly.
 
+## 3.1.0
+
+Field-driven release: every change answers a failure observed using v3.0.0 on a real project.
+
+### Added
+
+- **Argument commands.** The skill routes its invocation argument: `/clean-code audit`,
+  `/clean-code new-project <description>`, `/clean-code clean-up`, `/clean-code questions` (Codex:
+  `$clean-code ...`, Codex App: `@clean-code ...`, Kimi Code: `/skill:clean-code ...`; plain
+  language works everywhere).
+- **The interview** (`references/questions.md`): `/clean-code questions` asks for purpose, actors,
+  layers, verify command, no-go zones and decoupling mode, and writes the answers into `.clean/`.
+- **Dependency awareness.** `detect_stack.py` now records every declared dependency **with its
+  version** into `context.json` — package.json, requirements.txt, pyproject, go.mod, Cargo.toml,
+  csproj (including .NET Central Package Management via Directory.Packages.props), composer.json,
+  Gemfile. `framework-map.md` gains the discipline: verify APIs against installed versions, follow
+  each package's intended usage, report stale majors, never upgrade silently.
+- **Comment-block detection.** `scan_repo.py` flags runs of eight or more consecutive comment
+  lines (license headers exempt); `principles.md` states the size discipline — a comment longer
+  than about three lines is knowledge in the wrong place.
+- Clean Architecture fidelity additions, text-verified against the source: the three paradigm
+  discipline statements and falsifiability, the plugin argument, state-and-mutability as an
+  architectural choice (segregation of mutability, event sourcing), the four things architecture
+  must support, Conway's law, the two values, the third cohesion-tension edge, ISP's
+  typing-dependence, the standard-library marriage exception, and the hardware-abstraction layer.
+
+### Changed
+
+- **The audit is now exhaustive by protocol** (`references/audit-report.md`): a full file inventory
+  becomes a coverage checklist in `.clean/ledger.md`; every file is reviewed and ticked; sweeps
+  repeat until a complete pass adds zero new findings (minimum two, cap four, honestly reported);
+  and the audit **fills `.clean/`** — context.json, architecture.md (ordering confirmed with the
+  user), decisions.md, ledger.md with a ready batch plan. `clean-up` consumes that ledger.
+- The cleanup campaign gains two mandated batches: **placement** (move misplaced files to their
+  intended directories and rewire completely) and **package idioms** (align usage with what the
+  installed dependency intends).
+- `memory-protocol.md`: the audit and questions workflows are the sanctioned creators of `.clean/`.
+- The managed block's comment rule now includes size: a paragraph of comment is a design smell.
+
+### Fixed
+
+- `canon.md` presented `D = 0.1` as the investigation threshold; the book's criterion is
+  statistical — one standard deviation from your design's own mean — with 0.1 only as the example
+  plot's control limit. Corrected in `canon.md` and `architecture.md`.
+- `smell-triage.md` folded volatility into the Zone of Pain definition; it is a separate axis.
+- Two dangling cross-references (`canon.md`, `concurrency.md` pointing at architecture.md for
+  mutability content it lacked) now resolve.
+
 ## 3.0.0
 
 The clean-architecture half, the machinery repairs that let the package build at all, and full

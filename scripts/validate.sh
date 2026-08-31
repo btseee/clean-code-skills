@@ -52,6 +52,7 @@ required_files=(
   "skills/clean-code/references/session-protocol.md"
   "skills/clean-code/references/new-project.md"
   "skills/clean-code/references/audit-report.md"
+  "skills/clean-code/references/questions.md"
   "skills/clean-code/references/memory-protocol.md"
   "skills/clean-code/references/host-matrix.md"
   "skills/clean-code/scripts/detect_stack.py"

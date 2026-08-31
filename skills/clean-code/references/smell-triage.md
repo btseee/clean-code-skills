@@ -45,7 +45,7 @@ shape every later change.
 | Framework as architecture | top-level structure named after the stack; business objects derived from framework base classes | name packages for the domain; wrap the framework at the edge with a proxy |
 | Shotgun surgery | one concept forces edits across many files | find the missing boundary |
 | Unstable dependency | a widely depended-on component depending on a volatile one | extract an abstract component between them |
-| Zone of pain | something stable, concrete, and volatile that much of the system depends on | put an abstraction in front of it |
+| Zone of pain | something stable and concrete that much of the system depends on — painful in proportion to how volatile it is | put an abstraction in front of it |
 | Structural test coupling | one test class per production class, mirroring methods | test behavior, not structure |
 | GUI-driven business tests | business rules verified by driving the UI | test through the use case; keep the UI humble |
 | Premature service split | a process or network boundary that separates behavior but shares a data record | draw the boundary inside the service instead, or collapse it |

@@ -49,6 +49,25 @@ Placement conventions differ by stack. Before creating a file, check what the ec
 
 In every case the specific project's existing layout overrides the ecosystem default.
 
+## Dependencies And Package Idioms
+
+`.clean/context.json` carries the project's declared dependencies **with their versions**
+(`detect_stack.py` collects them; by hand, read the manifests). Those versions are load-bearing:
+
+- **Verify every API you call against the installed version, never memory.** The commonest invented-
+  API failure is writing for the version you remember instead of the one in the lockfile.
+- **Follow the package's intention.** A library ships with an intended usage shape — its
+  configuration style, its extension points, its error model. Using it against that grain (hand-
+  rolling what it provides, bypassing its lifecycle, reaching into its internals) is a finding, the
+  same class as G24 ignoring conventions.
+- **Check currency, but only where you genuinely can.** If you have web access, compare the
+  installed major against the current one and *report* stale majors. Never guess at "latest" from
+  memory, and never upgrade silently — an upgrade changes behavior and is a `decisions.md` entry
+  for the user, not a drive-by.
+- **A new dependency is a cost**: it brings transitive baggage (ISP at package scale) and an
+  asymmetric commitment (see `architecture.md` on frameworks). Adding one is a decision worth
+  recording; duplicating three lines is often cheaper than importing three thousand.
+
 ## Adaptation Questions
 
 Before changing code in an unfamiliar stack, ask:

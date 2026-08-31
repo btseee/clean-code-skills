@@ -59,7 +59,8 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 | Concurrency | `references/concurrency.md` | Execution models, the four deadlock conditions, and seven tactics that catch a race |
 | Chapter and smell map | `references/chapter-map.md` | Per-chapter coverage, the smell IDs, and the cross-reference table |
 | Smell triage | `references/smell-triage.md` | Every smell with its usual response and the order to fix them in |
-| Workflows | `references/session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md` | One per situation: a normal session, a greenfield start, a cleanup campaign, a report |
+| Workflows | `references/session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md` | One per situation: a session, a greenfield start, a cleanup campaign, an exhaustive audit that fills `.clean/` |
+| Interview | `references/questions.md` | `/clean-code questions` — turns your answers into durable `.clean/` state |
 | Review checklist | `references/review-checklist.md` | Finding-first review scan including placement and responsibility |
 | Framework map | `references/framework-map.md` | Per-language idioms and file-placement conventions |
 | Worked examples | `references/examples.md` | Before-and-after cases in Python, TypeScript, Go and SQL, plus output templates |
@@ -167,16 +168,19 @@ Editor rules (Cursor, Windsurf, Cline, Copilot) are project-scoped by design and
 
 Once installed, agents pick the skill up on their own — the `description` is what every host matches against, so a request about naming, structure, tests, or where a file belongs activates it without being asked.
 
-The four workflows cover the situations that need a different approach:
+### The four commands
 
-| Workflow | Ask for it when |
+The skill takes arguments. In Claude Code that is `/clean-code <argument>`; Codex uses `$clean-code <argument>`, the Codex App `@clean-code`, Kimi Code `/skill:clean-code` — and plain language ("run the clean-code audit") works on every host.
+
+| Command | What happens |
 | --- | --- |
-| **Session** | default for any coding task in an existing project |
-| **Onboard** | you want an existing project assessed, cleaned up, or refactored |
-| **Bootstrap** | you are starting a project or a major new module |
-| **Audit** | you want a report or health check with no code changed |
+| `/clean-code audit` | Exhaustive audit: every file inventoried and reviewed, sweeps repeated until one adds zero new findings. Fills `.clean/` (context, architecture, decisions, ledger) and produces a findings-first report. Changes no code |
+| `/clean-code new-project <description>` | Greenfield protocol seeded with your description: requirements, actors, layers, standards, then vertical slices |
+| `/clean-code clean-up` | The cleanup campaign, consuming `.clean/ledger.md` in small verified batches — placement moves, package idioms, structure, boundaries. Runs `audit` first if no ledger exists |
+| `/clean-code questions` | Interviews you — purpose, layers, verify command, no-go zones — and writes the answers into `.clean/` |
+| *(no argument)* | The default session protocol for any coding task |
 
-Cleanup of a whole project is a distinct mode: baseline verification first, small behavior-preserving batches, a written ledger, and a checkpoint per batch (`references/project-refactor.md`). It never starts implicitly.
+Cleanup never starts implicitly: it consumes the ledger the audit built, with a contract you approve first (`references/project-refactor.md`).
 
 ### Prompt usage
 
@@ -346,7 +350,7 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 | Variable | Effect |
 | --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.0.0` |
+| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.1.0` |
 | `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
 | `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
 | `PYTHON_BIN` | Point the hook at a specific interpreter |

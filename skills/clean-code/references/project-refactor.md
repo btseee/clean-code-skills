@@ -18,6 +18,13 @@ If the user just said "clean it up", propose a contract with your recommended de
 
 ## Phase 1: Inventory And Baseline
 
+**When an audit already ran** (`.clean/ledger.md` holds a coverage checklist and a batch plan),
+consume it: verify the baseline still holds, confirm the contract at the top of the ledger with the
+user, and go straight to Phase 3. Re-inventorying what the audit inventoried is wasted motion — the
+whole point of the audit filling `.clean/` is that the campaign starts here.
+
+Otherwise:
+
 1. Map the project: layout, entry points, module boundaries, test locations, build and verification commands, formatter and linter configuration. `scripts/detect_stack.py --write` does this and caches the answers in `.clean/context.json`; otherwise establish the same facts by inspection.
 2. Run the full available verification: tests, build, typecheck, lint. Record the results verbatim.
 3. The recorded result is the **baseline**. A red baseline is not a blocker, but it must be written down — otherwise pre-existing failures get attributed to your refactor, or worse, your breakage hides among them.
@@ -40,10 +47,12 @@ Split the campaign into batches sized so that one batch fits comfortably in one 
 Order batches by risk and value:
 
 1. Safety first: dead code removal, obvious duplication with a single caller, formatting via the project's formatter. Low risk, shrinks the problem.
-2. Naming and readability: renames, explanatory variables, comment cleanup. Low risk with tooling support.
-3. Structure: extractions, responsibility splits, moving code to its proper module. Medium risk; needs tests.
-4. Boundaries and error handling: wrapping third-party APIs, normalizing failure paths. Higher risk; needs contract awareness.
-5. Architecture: re-layering, dependency direction fixes. Highest risk; only within the agreed depth.
+2. Naming and readability: renames, explanatory variables, comment cleanup — including shrinking comment blocks into names, extractions, or docs. Low risk with tooling support.
+3. **Placement**: move every file the audit marked as misplaced to its intended directory, and rewire completely — imports, exports, registrations, build config. One behavior-preserving batch (or one per module), verified before and after; a half-moved file is worse than an unmoved one. This batch exists because "the files never end up in the right folders" is what happens when placement is left to ride along with other edits.
+4. **Package idioms**: align usage with what each installed dependency intends, per the versions in `.clean/context.json` and `framework-map.md` — replace hand-rolled code with the facility the library already provides, fix APIs used against their documented shape. Version *upgrades* are not part of this batch; each one is a `decisions.md` entry for the user.
+5. Structure: extractions, responsibility splits. Medium risk; needs tests.
+6. Boundaries and error handling: wrapping third-party APIs, normalizing failure paths. Higher risk; needs contract awareness.
+7. Architecture: re-layering, dependency direction fixes. Highest risk; only within the agreed depth.
 
 Write the plan into the ledger before starting batch 1.
 

@@ -52,7 +52,9 @@ a removed dead branch — without widening the change.
 to catch and the cheapest to fix. Check that it is true duplication before merging it away.
 
 **13. Validate assumptions against the code.** Confirm every API, option, and config key you
-reference actually exists in this codebase and these dependency versions. Never trust memory.
+reference actually exists in this codebase and these dependency versions — the versions are in
+`.clean/context.json` under `dependencies`, or in the manifests directly. Never trust memory: the
+commonest invented API is one from a version you remember rather than the version installed.
 
 ## After
 

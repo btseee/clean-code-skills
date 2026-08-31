@@ -4,7 +4,7 @@ description: Use when writing, editing, reviewing, testing, or refactoring code 
 license: MIT
 compatibility: Works with no tooling. Optional scripts in scripts/ need Python 3.8+ and read-only filesystem access; they write only to .clean/ and never use the network.
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Clean Code And Clean Architecture
@@ -20,9 +20,8 @@ language, framework, runtime, and local style. Three agent-specific truths shape
    and written-down decisions are how your work survives you.
 2. Your most common failures are not syntax errors. They are code in the wrong place, duplicated
    knowledge, mixed responsibilities, invented APIs, and unverified claims of success.
-3. You are prone to a specific architectural failure: wiring the shortest path between two points.
-   That is how a controller ends up calling a repository directly and skipping the only
-   authorization check in the system.
+3. Your instinct is to wire the shortest path between two points — which is how a controller ends
+   up calling a repository directly, skipping the only authorization check in the system.
 
 ## When To Use
 
@@ -38,8 +37,7 @@ Use a lighter touch for trivial edits, but still avoid unrelated changes.
 You may have no memory of this project. Recover what you need from disk before deciding anything.
 
 1. Read `.clean/context.json` if it exists: language, frameworks, test command, layout.
-   If it is missing or stale, run `scripts/detect_stack.py --write`, or answer its questions by
-   inspection.
+   Missing or stale? Run `scripts/detect_stack.py --write`, or answer by inspection.
 2. Read `.clean/architecture.md` if it exists: the declared layers and which dependencies are
    allowed. This is the project's intended design, and it overrides your instincts.
 3. Read `.clean/decisions.md` and `.clean/ledger.md` if they exist: past decisions and any cleanup
@@ -48,8 +46,7 @@ You may have no memory of this project. Recover what you need from disk before d
 4. Read the project's own instructions — `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
    `ARCHITECTURE.md`, `README.md`. Project instructions outrank this skill.
 
-If none of these exist, work from the code itself and offer to create them at the end. See
-`references/memory-protocol.md`.
+If none exist, work from the code and offer to create them at the end (`references/memory-protocol.md`).
 
 ## Operating Loop
 
@@ -59,8 +56,7 @@ Before editing, identify the exact behavior or maintainability problem being sol
 that could change the implementation, the smallest useful scope, and the verification that will
 prove the change.
 
-Ask a question only when ambiguity changes the implementation. Otherwise state the assumption and
-proceed.
+Ask only when ambiguity changes the implementation; otherwise state the assumption and proceed.
 
 ### 2. Read Local Context
 
@@ -95,8 +91,8 @@ defer trivial in-scope cleanup with a TODO.
 
 Match verification to risk: a focused unit test or direct command for a small pure function; a
 reproducer test first for a bug fix; tests before and after for a refactor; an integration or
-contract check for an API or boundary change; a component or browser check for UI; a deterministic
-race-focused test for concurrency.
+contract check for an API or boundary change; a browser check for UI; a race-focused test for
+concurrency.
 
 If verification cannot be run, say exactly what was not run and what risk remains. Never claim
 success from memory of what the code should do.
@@ -126,7 +122,7 @@ decision, not an afterthought.
 ### Placement Rules
 
 - Resolve paths from the project root and its source layout, never from whatever directory happens
-  to be current. Confirm the target directory matches the project's convention before creating it.
+  to be current.
 - Never default to the repository root. Root-level files are for project-wide concerns only.
 - Put tests where the project keeps tests, mirroring its convention.
 - Place logic by responsibility, not by convenience: domain rules do not go in controllers, views,
@@ -227,17 +223,20 @@ Summary only. Full detail in `references/principles.md`.
 - **When rules conflict**, decide in this order: tests pass; no duplicated knowledge (**DRY**, and
   only for true duplication); intent is expressed; fewest elements.
 
-## Workflows
+## Commands
 
-Four named workflows. Follow the matching file rather than improvising; each one works with no
-tooling at all.
+<!-- argument-hint: [audit | new-project <description> | clean-up | questions] -->
 
-| Workflow | Use when | Follow |
+Invoked with an argument — `/clean-code audit`, `$clean-code audit`, `@clean-code audit`,
+`/skill:clean-code audit` — or asked in plain language. Both route identically.
+
+| Argument | Also triggered by | Follow |
 | --- | --- | --- |
-| **Session** | default for any coding task in an existing project | this file, plus `references/session-protocol.md` for the full loop and handoff |
-| **Onboard** | asked to assess, clean up, or refactor an existing project | `references/project-refactor.md` |
-| **Bootstrap** | starting a new project or a new major module | `references/new-project.md` |
-| **Audit** | asked for a report, review, or health check without changing code | `references/audit-report.md` |
+| `audit` | "audit this project" | `references/audit-report.md` — every inventoried file reviewed, sweeps repeated until one adds zero new findings, `.clean/` populated; changes no code |
+| `new-project <description>` | "start a project" | `references/new-project.md`, seeded with the description |
+| `clean-up` | "clean this up" | `references/project-refactor.md`, consuming `.clean/ledger.md`. No ledger yet? Run `audit` first and say so |
+| `questions` | "interview me" | `references/questions.md` — asks what it needs, writes the answers into `.clean/` |
+| (none) | any coding task | this file plus `references/session-protocol.md` |
 
 ## Tools
 
@@ -248,7 +247,7 @@ your host blocks shell execution. Script output is evidence for your judgement, 
 | Script | Answers |
 | --- | --- |
 | `detect_stack.py` | what language, framework, test command, and layout is this? |
-| `scan_repo.py` | where are the oversized files, sibling variants, junk drawers, debug output, skipped tests, and untested areas? |
+| `scan_repo.py` | oversized files, sibling variants, junk drawers, debug output, comment blocks, skipped tests? |
 | `check_boundaries.py` | does the code obey the declared dependency direction? |
 
 ## Scope Modes
@@ -309,11 +308,10 @@ Cite IDs from `references/chapter-map.md` (G17, N7, T5...) so findings stay unam
 ## Framework And Language Adaptation
 
 Before applying a rule, adapt it to the ecosystem. Read `references/framework-map.md` when working
-in an unfamiliar language or stack. Clean code should look idiomatic to a senior maintainer of that
-stack, and the project's existing layout always overrides the ecosystem default.
-
-Examples: in Go, small interfaces at consumers beat deep hierarchies. In Rust, encode invariants in
-types and ownership rather than defensive runtime checks.
+in an unfamiliar language or stack — it also carries the dependency discipline: verify every API
+against the installed versions in `.clean/context.json`, and follow each package's intended usage.
+Clean code should look idiomatic to a senior maintainer of that stack, and the project's existing
+layout always overrides the ecosystem default.
 
 ## Anti-Loopholes
 
@@ -363,7 +361,8 @@ Before saying the work is complete, confirm:
 - `project-refactor.md` — campaign protocol for whole-project or module-wide cleanup.
 - `new-project.md` — greenfield protocol: architecture and standards before code.
 - `session-protocol.md` — per-session loop, context recovery, and clean handoff.
-- `audit-report.md` — how to produce a cleaning and architecture report.
+- `audit-report.md` — the exhaustive audit: inventory, convergence, filling `.clean/`.
+- `questions.md` — the interview that turns your answers into `.clean/` state.
 - `review-checklist.md` — finding-first checklist for reviews and diff review.
 - `chapter-map.md` — code-level chapter map and the full smell catalogue with IDs.
 - `architecture-map.md` — architectural topic map, from question to governing rule.

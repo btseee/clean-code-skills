@@ -4,7 +4,7 @@ Clean-code operating instructions for Claude Code. In a project that installs th
 
 Use the `clean-code` skill when writing, editing, reviewing, or refactoring code. If the skill is not loadable by name, read it from `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, or `skills/clean-code/SKILL.md`. Keep the process light for trivial typo fixes; use the full loop for any non-trivial change.
 
-<!-- clean-code-skills:begin v3.0.0 -->
+<!-- clean-code-skills:begin v3.1.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
@@ -48,7 +48,7 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 ### Quality Bars
 
 - Names reveal intent, use project vocabulary, and disclose side effects.
-- Functions do one thing at one abstraction level; comments explain why, never what or how.
+- Functions do one thing at one abstraction level; comments explain why, never what or how, and stay short — a paragraph of comment is a design smell.
 - Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values and reserve exceptions for genuine failures; keep secrets out of logs.
 - Tests are deterministic and behavior-focused. Never weaken, skip, or delete a failing test to get green, and never verify a business rule by driving the UI.
 - Verify that every API, function, option, and config key you reference actually exists in this codebase and its dependency versions — never trust memory.
