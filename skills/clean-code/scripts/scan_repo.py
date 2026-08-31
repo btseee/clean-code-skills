@@ -162,13 +162,18 @@ def iter_code_files(root: Path):
 
 
 def changed_files(root: Path):
-    """Files that differ from HEAD, so a hook can scan only the current change."""
+    """Files that differ from HEAD, so a hook can scan only the current change.
+
+    Returns (files, git_ok). git_ok is False when no git query succeeded — an
+    empty file list then means "could not ask git", not "nothing changed".
+    """
     commands = (
         ["git", "diff", "--name-only", "--diff-filter=ACMR", "HEAD"],
         ["git", "diff", "--name-only", "--diff-filter=ACMR", "--cached"],
         ["git", "ls-files", "--others", "--exclude-standard"],
     )
     names: set = set()
+    git_ok = False
     for command in commands:
         try:
             completed = subprocess.run(
@@ -177,12 +182,15 @@ def changed_files(root: Path):
         except (OSError, subprocess.SubprocessError):
             continue
         if completed.returncode == 0:
+            git_ok = True
             names.update(line.strip() for line in completed.stdout.splitlines() if line.strip())
 
+    files = []
     for name in sorted(names):
         path = root / name
         if path.suffix.lower() in CODE_EXTENSIONS and path.is_file():
-            yield path, name
+            files.append((path, name))
+    return files, git_ok
 
 
 def is_test_path(relative_path: str) -> bool:
@@ -349,8 +357,13 @@ def measure_test_coverage_by_area(results) -> list:
     ]
 
 
-def collect(results, key, limit):
-    """Files with the most hits for one line-level check."""
+def collect(results, key):
+    """Files with the most hits for one line-level check, worst first, uncapped.
+
+    The JSON output must stay complete: the audit protocol compares two runs to
+    decide convergence, and a truncated list turns "entry 16 became visible"
+    into a phantom new finding. Only the human summary applies --top.
+    """
     found = [
         {"file": result["relative_path"], "count": len(result[key]),
          "first_lines": result[key][:5]}
@@ -358,11 +371,15 @@ def collect(results, key, limit):
         if not result["generated"] and result.get(key)
     ]
     found.sort(key=lambda item: (-item["count"], item["file"]))
-    return found[:limit]
+    return found
 
 
-def build_findings(root: Path, only_changed: bool, limit: int) -> dict:
-    source = changed_files(root) if only_changed else iter_code_files(root)
+def build_findings(root: Path, only_changed: bool) -> dict:
+    git_ok = True
+    if only_changed:
+        source, git_ok = changed_files(root)
+    else:
+        source = iter_code_files(root)
     results = [
         scanned for scanned in (
             scan_file(path, relative_path) for path, relative_path in source
@@ -381,7 +398,7 @@ def build_findings(root: Path, only_changed: bool, limit: int) -> dict:
         key=lambda item: -item["lines"],
     )
 
-    return {
+    findings = {
         "schema_version": 1,
         "generated_by": "clean-code skill / scan_repo.py",
         "root": str(root),
@@ -396,28 +413,38 @@ def build_findings(root: Path, only_changed: bool, limit: int) -> dict:
             "test_files": sum(1 for result in live if result["is_test"]),
             "total_lines": sum(result["line_count"] for result in live),
         },
-        "large_files": large_files[:limit],
+        "large_files": large_files,
         "very_large_files": [
             item for item in large_files if item["lines"] >= VERY_LARGE_FILE_LINES
-        ][:limit],
-        "sibling_variants": find_sibling_variants(all_paths)[:limit],
-        "junk_drawers": find_junk_drawers(all_paths)[:limit],
-        "debug_output": collect(live, "debug_lines", limit),
-        "commented_out_code": collect(live, "commented_code_lines", limit),
-        "comment_blocks": collect(live, "comment_block_lines", limit),
-        "todo_markers": collect(live, "todo_lines", limit),
-        "skipped_tests": collect(live, "skipped_test_lines", limit),
-        "long_lines": collect(live, "long_lines", limit),
-        "areas_by_test_presence": measure_test_coverage_by_area(results)[:limit],
+        ],
+        "sibling_variants": find_sibling_variants(all_paths),
+        "junk_drawers": find_junk_drawers(all_paths),
+        "debug_output": collect(live, "debug_lines"),
+        "commented_out_code": collect(live, "commented_code_lines"),
+        "comment_blocks": collect(live, "comment_block_lines"),
+        "todo_markers": collect(live, "todo_lines"),
+        "skipped_tests": collect(live, "skipped_test_lines"),
+        "long_lines": collect(live, "long_lines"),
+        "areas_by_test_presence": measure_test_coverage_by_area(results),
     }
+    if only_changed and not git_ok:
+        findings["scope_note"] = (
+            "git data was unavailable, so --changed scanned nothing; an empty "
+            "result here is not evidence of a clean change"
+        )
+    return findings
 
 
-def render_section(title: str, items, formatter, empty: str = "none") -> list:
+def render_section(title: str, items, formatter, empty: str = "none",
+                   limit: int = None) -> list:
     lines = ["", f"  {title}"]
     if not items:
         lines.append(f"    {empty}")
         return lines
-    lines.extend(f"    {formatter(item)}" for item in items)
+    shown = items if limit is None else items[:limit]
+    lines.extend(f"    {formatter(item)}" for item in shown)
+    if limit is not None and len(items) > limit:
+        lines.append(f"    ... and {len(items) - limit} more (--json has the full list)")
     return lines
 
 
@@ -434,9 +461,10 @@ def render_summary(findings: dict, limit: int) -> str:
 
     lines += render_section(
         f"Largest files (>= {LARGE_FILE_LINES} lines)",
-        findings["large_files"][:limit],
+        findings["large_files"],
         lambda item: f"{item['lines']:>6} lines  {item['file']}"
                      f"{'  [test]' if item['is_test'] else ''}",
+        limit=limit,
     )
     lines += render_section(
         "Sibling-variant filenames (edit the original instead)",
@@ -444,36 +472,43 @@ def render_summary(findings: dict, limit: int) -> str:
         lambda item: f"{', '.join(item['variants'])}"
                      f"  (original {'exists' if item['original_exists'] else 'missing'}"
                      f": {item['suspected_original']})",
+        limit=limit,
     )
     lines += render_section(
         "Junk-drawer directories (name the domain concept instead)",
         findings["junk_drawers"],
         lambda item: f"{item['file_count']:>4} files  {item['directory']}",
+        limit=limit,
     )
     lines += render_section(
         "Debug output left in production code",
         findings["debug_output"],
         lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
+        limit=limit,
     )
     lines += render_section(
         "Commented-out code",
         findings["commented_out_code"],
         lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
+        limit=limit,
     )
     lines += render_section(
         f"Comment blocks ({COMMENT_BLOCK_RUN}+ consecutive comment lines; knowledge that belongs in a name or a doc)",
         findings["comment_blocks"],
         lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
+        limit=limit,
     )
     lines += render_section(
         "Skipped or ignored tests",
         findings["skipped_tests"],
         lambda item: f"{item['count']:>4}x  {item['file']}  (line {item['first_lines'][0]})",
+        limit=limit,
     )
     lines += render_section(
         "TODO / FIXME / HACK markers",
         findings["todo_markers"],
         lambda item: f"{item['count']:>4}x  {item['file']}",
+        limit=limit,
     )
 
     areas = findings["areas_by_test_presence"]
@@ -493,6 +528,7 @@ def render_summary(findings: dict, limit: int) -> str:
             untested,
             lambda item: f"{item['production']:>4} files  {item['area']}",
             empty="none",
+            limit=limit,
         )
     else:
         lines += render_section(
@@ -500,8 +536,11 @@ def render_summary(findings: dict, limit: int) -> str:
             untested,
             lambda item: f"{item['production']:>4} files  {item['area']}",
             empty="none: every area with production code has test files somewhere",
+            limit=limit,
         )
 
+    if findings.get("scope_note"):
+        lines += ["", "  WARNING: " + findings["scope_note"]]
     lines.append("")
     lines.append("  " + findings["reminder"])
     return "\n".join(lines)
@@ -516,7 +555,8 @@ def parse_arguments(argv) -> argparse.Namespace:
     parser.add_argument("--changed", action="store_true",
                         help="scan only files changed against HEAD")
     parser.add_argument("--top", type=int, default=15,
-                        help="how many entries to show per list (default: 15)")
+                        help="how many entries to show per list in the human summary "
+                             "(default: 15); --json is always complete")
     return parser.parse_args(argv)
 
 
@@ -529,7 +569,10 @@ def main(argv=None) -> int:
         return 2
 
     limit = max(1, min(arguments.top, 200))
-    findings = build_findings(root, arguments.changed, limit)
+    findings = build_findings(root, arguments.changed)
+
+    if findings.get("scope_note"):
+        print(f"warning: {findings['scope_note']}", file=sys.stderr)
 
     if arguments.json:
         print(json.dumps(findings, indent=2, ensure_ascii=False))

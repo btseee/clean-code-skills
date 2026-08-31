@@ -68,9 +68,12 @@ undocumented exception is a defect; a documented one is a decision.>
 
 ## How to check
 
+From the project root, with the skill installed at `.claude/skills/clean-code` (substitute your
+install location — `.agents/skills/clean-code`, `.github/skills/clean-code`, ...):
+
 ```sh
-python <skill>/scripts/check_boundaries.py          # dependency direction
-python <skill>/scripts/scan_repo.py                 # measurable smells
+python .claude/skills/clean-code/scripts/check_boundaries.py    # dependency direction
+python .claude/skills/clean-code/scripts/scan_repo.py           # measurable smells
 ```
 
 Both are optional accelerators. The rules above hold whether or not anything runs them.

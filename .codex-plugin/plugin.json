@@ -1,7 +1,7 @@
 {
   "name": "clean-code-skills",
-  "version": "3.1.0",
-  "description": "Codex-ready clean-code skill and instructions for maintainable, verifiable agent-written code: naming, placement, single responsibility, boundaries, errors, tests, and whole-project refactoring across languages and frameworks.",
+  "version": "3.1.1",
+  "description": "Codex-ready clean-code and clean-architecture skill for maintainable, verifiable agent-written code: naming, placement, single responsibility, the Dependency Rule and SOLID, errors, tests, and the audit / new-project / clean-up / questions workflows across languages and frameworks.",
   "author": {
     "name": "Battseren Badral",
     "email": "bbattseren88@gmail.com",
@@ -13,8 +13,12 @@
     "agents",
     "skills",
     "clean-code",
+    "clean-architecture",
+    "dependency-rule",
+    "solid",
     "code-review",
     "refactoring",
+    "audit",
     "testing",
     "single-responsibility",
     "file-placement"
@@ -22,8 +26,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Clean Code Skills",
-    "shortDescription": "Language-agnostic clean-code guidance for AI coding agents.",
-    "longDescription": "Reusable clean-code skill and project instructions covering naming, functions, file and code placement, single responsibility, modules, tests, error handling, boundaries, concurrency, security, agent failure modes, and verified surgical or whole-project refactoring for agent-written code.",
+    "shortDescription": "Clean code and clean architecture guidance for AI coding agents.",
+    "longDescription": "Reusable clean-code and clean-architecture skill covering naming, functions, file and code placement, single responsibility, the Dependency Rule, SOLID and component principles, tests, error handling, boundaries, concurrency, security, agent failure modes, and the audit, new-project, clean-up, and questions workflows with durable .clean/ project memory.",
     "developerName": "Battseren Badral",
     "developerEmail": "bbattseren88@gmail.com",
     "developerUrl": "https://github.com/btseee",

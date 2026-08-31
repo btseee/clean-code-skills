@@ -153,7 +153,7 @@ LAYER_HINTS = {
     "domain": "domain", "entities": "domain", "entity": "domain", "model": "domain",
     "models": "domain", "core": "domain", "business": "domain",
     "usecases": "application", "use_cases": "application", "application": "application",
-    "app": "application", "services": "application", "handlers": "application",
+    "services": "application", "handlers": "application",
     "commands": "application", "queries": "application", "features": "application",
     "adapters": "adapter", "controllers": "adapter", "api": "adapter",
     "presentation": "adapter", "ui": "adapter", "views": "adapter", "web": "adapter",
@@ -732,10 +732,34 @@ def parse_arguments(argv) -> argparse.Namespace:
     parser.add_argument("--root", default=".", help="project directory (default: .)")
     parser.add_argument("--json", action="store_true", help="print JSON instead of a summary")
     parser.add_argument("--write", action="store_true",
-                        help="save the result to <root>/.clean/context.json")
+                        help="save the result to <root>/.clean/context.json, merging with an "
+                             "existing file (its 'confirmed' object and unknown keys survive)")
     parser.add_argument("--output", default=None,
-                        help="write the JSON to this path instead of the default")
+                        help="write the JSON to this path instead of the default; unlike "
+                             "--root-relative defaults, this path resolves from the current "
+                             "directory")
     return parser.parse_args(argv)
+
+
+def merge_with_existing(destination: Path, context: dict) -> dict:
+    """Overlay fresh detection onto an existing context file.
+
+    Detector-owned keys are replaced; everything else — the interview's
+    "confirmed" object and any keys a future schema may add — survives.
+    """
+    if not destination.is_file():
+        return context
+    try:
+        existing = json.loads(destination.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"warning: existing {destination} could not be parsed ({error}); "
+              "replacing it", file=sys.stderr)
+        return context
+    if not isinstance(existing, dict):
+        print(f"warning: existing {destination} is not a JSON object; replacing it",
+              file=sys.stderr)
+        return context
+    return {**existing, **context}
 
 
 def main(argv=None) -> int:
@@ -747,6 +771,12 @@ def main(argv=None) -> int:
         return 2
 
     context = build_context(root)
+
+    destination = None
+    if arguments.write or arguments.output:
+        destination = Path(arguments.output) if arguments.output else root / ".clean" / "context.json"
+        context = merge_with_existing(destination, context)
+
     payload = json.dumps(context, indent=2, ensure_ascii=False)
 
     if arguments.json:
@@ -754,8 +784,7 @@ def main(argv=None) -> int:
     else:
         print(render_summary(context))
 
-    if arguments.write or arguments.output:
-        destination = Path(arguments.output) if arguments.output else root / ".clean" / "context.json"
+    if destination is not None:
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(payload + "\n", encoding="utf-8")

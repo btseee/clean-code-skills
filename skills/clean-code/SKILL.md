@@ -3,8 +3,9 @@ name: clean-code
 description: Use when writing, editing, reviewing, testing, or refactoring code in any language or framework; when creating files or deciding where code belongs; when designing or changing module boundaries, layers, and dependencies; when starting a new project; or when auditing or cleaning up an existing one. Covers naming, functions, comments, error handling, tests, concurrency, security, code placement, single responsibility, code smells, SOLID, the dependency rule, component boundaries, layering, testability, architectural drift, and verified surgical or whole-project refactoring.
 license: MIT
 compatibility: Works with no tooling. Optional scripts in scripts/ need Python 3.8+ and read-only filesystem access; they write only to .clean/ and never use the network.
+argument-hint: "[audit | new-project <description> | clean-up | questions]"
 metadata:
-  version: "3.1.0"
+  version: "3.1.1"
 ---
 
 # Clean Code And Clean Architecture
@@ -13,8 +14,8 @@ Clean code makes intent, behavior, boundaries, and failure modes easy for the ne
 understand and safely change. Clean architecture keeps the cost of a change proportional to its
 scope instead of its shape.
 
-Written for AI coding agents of any vendor, and language-agnostic: adapt every rule to the project's
-language, framework, runtime, and local style. Three agent-specific truths shape everything below:
+Written for AI coding agents of any vendor, language-agnostic: adapt every rule to the project's
+language, framework, runtime, and style. Three agent-specific truths shape everything below:
 
 1. You read faster than humans but forget context between sessions. Structure, names, placement,
    and written-down decisions are how your work survives you.
@@ -30,14 +31,16 @@ infrastructure as code, UI, services, libraries. Specifically whenever you are a
 file or directory, add behavior to an existing unit, decide where logic belongs, add a dependency,
 cross a boundary, introduce a layer, start a project, or clean one up.
 
-Use a lighter touch for trivial edits, but still avoid unrelated changes.
+Use a lighter touch for trivial edits, still avoiding unrelated changes.
 
 ## Start Here: Load Project Context
 
-You may have no memory of this project. Recover what you need from disk before deciding anything.
+You may have no memory of this project. Recover it from disk before deciding anything.
+This file's folder is the skill root; `scripts/` and `references/` resolve from it.
 
 1. Read `.clean/context.json` if it exists: language, frameworks, test command, layout.
-   Missing or stale? Run `scripts/detect_stack.py --write`, or answer by inspection.
+   Missing? Run `scripts/detect_stack.py` (no `--write`) or inspect; only `audit` and
+   `questions` create `.clean/`.
 2. Read `.clean/architecture.md` if it exists: the declared layers and which dependencies are
    allowed. This is the project's intended design, and it overrides your instincts.
 3. Read `.clean/decisions.md` and `.clean/ledger.md` if they exist: past decisions and any cleanup
@@ -46,7 +49,7 @@ You may have no memory of this project. Recover what you need from disk before d
 4. Read the project's own instructions — `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
    `ARCHITECTURE.md`, `README.md`. Project instructions outrank this skill.
 
-If none exist, work from the code and offer to create them at the end (`references/memory-protocol.md`).
+If none exist, work from the code; offer to persist at the end (`references/memory-protocol.md`).
 
 ## Operating Loop
 
@@ -225,24 +228,22 @@ Summary only. Full detail in `references/principles.md`.
 
 ## Commands
 
-<!-- argument-hint: [audit | new-project <description> | clean-up | questions] -->
-
 Invoked with an argument — `/clean-code audit`, `$clean-code audit`, `@clean-code audit`,
-`/skill:clean-code audit` — or asked in plain language. Both route identically.
+`/skill:clean-code audit` — or in plain language; both route identically.
 
 | Argument | Also triggered by | Follow |
 | --- | --- | --- |
-| `audit` | "audit this project" | `references/audit-report.md` — every inventoried file reviewed, sweeps repeated until one adds zero new findings, `.clean/` populated; changes no code |
+| `audit` | "audit this project" | `references/audit-report.md` — every inventoried file reviewed, sweeps repeated until one adds zero new findings, `.clean/` populated; changes no production code |
 | `new-project <description>` | "start a project" | `references/new-project.md`, seeded with the description |
-| `clean-up` | "clean this up" | `references/project-refactor.md`, consuming `.clean/ledger.md`. No ledger yet? Run `audit` first and say so |
+| `clean-up` | "clean this up" | `references/project-refactor.md`, consuming `.clean/ledger.md`. No ledger yet? Propose the audit with its file count; wait for consent |
 | `questions` | "interview me" | `references/questions.md` — asks what it needs, writes the answers into `.clean/` |
 | (none) | any coding task | this file plus `references/session-protocol.md` |
 
 ## Tools
 
-Optional accelerators in `scripts/`, standard-library Python only, no network. Where a workflow step
-names a script it also names the manual equivalent, so do that instead when Python is unavailable or
-your host blocks shell execution. Script output is evidence for your judgement, never a verdict.
+Optional accelerators in `scripts/`, standard-library Python only, no network. Each workflow step
+naming a script also names the manual equivalent; use that when Python is unavailable. Script
+output is evidence for your judgement, never a verdict.
 
 | Script | Answers |
 | --- | --- |

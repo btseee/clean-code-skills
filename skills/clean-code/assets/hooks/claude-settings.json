@@ -1,5 +1,5 @@
 {
-  "//": "clean-code-skills hooks for Claude Code. Merge these entries into .claude/settings.json (or settings.local.json) rather than replacing the file. Adjust the skill path if you installed elsewhere. Every hook here is optional: the skill's prose protocol covers the same ground when hooks are unavailable, and no hook blocks an edit.",
+  "//": "clean-code-skills hooks for Claude Code. Merge these entries into .claude/settings.json (or settings.local.json) rather than replacing the file. The PostToolUse hook probes the usual project and global install locations and the usual Python names, so it works unchanged for any profile. Every hook here is optional: the skill's prose protocol covers the same ground when hooks are unavailable, and no hook blocks an edit.",
   "//sessionStart": "Prints the project's declared stack and layering at session start. This is the highest-value hook available, because it removes the chance that an agent simply forgets to read .clean/ before deciding anything.",
   "//postToolUse": "After an edit or write, re-checks dependency direction so a wrong-way import is caught in the same turn that introduced it, not at review time.",
   "hooks": {
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f .clean/architecture.md ]; then python3 .claude/skills/clean-code/scripts/check_boundaries.py --root . || true; fi"
+            "command": "if [ -f .clean/architecture.md ]; then d=\"\"; for c in .claude/skills/clean-code .agents/skills/clean-code .github/skills/clean-code .grok/skills/clean-code skills/clean-code \"$HOME/.claude/skills/clean-code\" \"$HOME/.agents/skills/clean-code\" \"$HOME/.grok/skills/clean-code\" \"$HOME/.gemini/config/skills/clean-code\"; do if [ -d \"$c/scripts\" ]; then d=\"$c\"; break; fi; done; p=\"\"; for i in python3 python py; do if command -v \"$i\" >/dev/null 2>&1; then p=\"$i\"; break; fi; done; if [ -n \"$d\" ] && [ -n \"$p\" ]; then \"$p\" \"$d/scripts/check_boundaries.py\" --root . || true; fi; fi"
           }
         ]
       }

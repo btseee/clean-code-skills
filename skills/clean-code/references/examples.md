@@ -1,6 +1,6 @@
 # Worked Examples
 
-Concrete before-and-after cases, and two output templates. These are illustrative, not language
+Concrete before-and-after cases, and three output templates. These are illustrative, not language
 mandates — the lesson transfers, the syntax does not.
 
 ## Do not abstract for requirements that do not exist

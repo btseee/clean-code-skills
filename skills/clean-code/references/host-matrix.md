@@ -11,11 +11,9 @@ to the prose step when it is not.
 
 ## Skill discovery paths
 
-Where each host looks for skills. Project-scoped roots are relative to the repository.
-
-Where each host looks. Project roots are relative to the repository. Every path below was taken
-from the vendor's own documentation; where a vendor documents no path, the row says so rather than
-guessing.
+Where each host looks for skills. Project-scoped roots are relative to the repository. Every path
+below was taken from the vendor's own documentation; where a vendor documents no path, the row says
+so rather than guessing.
 
 | Host | Personal | Project |
 | --- | --- | --- |
@@ -36,8 +34,10 @@ guessing.
 | pi | `~/.pi/agent/skills`, `~/.agents/skills` | `.pi/skills`, `.agents/skills` |
 
 **`.agents/skills` is the shared root, read project-side by every host above except Claude Code,
-Grok Build CLI, and the Codex App.** That is why `scripts/install.sh` writes the whole skill there
-under the `agents` profile, rather than only dropping an instruction block.
+Grok Build CLI, and the Codex App.** That is why the repository's installer
+(`scripts/install.sh` at github.com/btseee/clean-code-skills — not shipped inside this skill
+folder) writes the whole skill there under the `agents` profile, rather than only dropping an
+instruction block.
 
 Three exceptions worth knowing, because a generic installer gets them wrong:
 
@@ -93,8 +93,8 @@ differs is the explicit form, and it differs more than most documentation admits
 | Codex CLI and IDE extension | `$clean-code`, or `/skills` to browse |
 | Codex App | `@clean-code` |
 | Kimi Code | `/skill:clean-code`, and it accepts arguments after the name |
-| Grok Build CLI, Devin CLI, Hermes Agent, Copilot CLI | `/clean-code` |
-| Hermes Agent | also stacks: `/skill-one /skill-two <instruction>` |
+| Grok Build CLI, Devin CLI, Copilot CLI | `/clean-code` |
+| Hermes Agent | `/clean-code`; stacks as `/skill-one /skill-two <instruction>` |
 | Gemini CLI | no user syntax — the model calls an `activate_skill` tool and asks you to approve |
 | OpenCode | no user syntax — the agent calls a native `skill` tool |
 | Cursor, Antigravity, Factory Droid, pi | no documented syntax; name the skill in plain language |
@@ -121,7 +121,7 @@ session-start context print and a post-edit scan. Optionally expose the four wor
 `.claude/commands/`.
 
 **Codex CLI, Copilot, Gemini CLI, Cursor, Amp, OpenCode, Factory Droid, Devin CLI, Kimi Code,
-Antigravity, pi:** the `agents` profile of `scripts/install.sh` installs the whole skill into
+Antigravity, pi:** the `agents` profile of the repository's installer installs the whole skill into
 `.agents/skills/clean-code`, which every one of these reads project-side. Add the pre-commit hook and
 you are done.
 
@@ -131,9 +131,9 @@ you are done.
 `~/.gemini/config/skills`. Its project side needs nothing beyond the `agents` profile.
 
 **Codex App:** nothing to install on disk. Upload the skill in-product, from Plugins → Skills, or use
-the `clean-code.zip` release asset.
+the `clean-code.zip` asset from the repository's releases (github.com/btseee/clean-code-skills).
 
-The managed instruction block that `scripts/install.sh` writes into `AGENTS.md`, `CLAUDE.md`,
+The managed instruction block that the repository's installer writes into `AGENTS.md`, `CLAUDE.md`,
 `GEMINI.md`, `.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`, and the Copilot instruction files
 keeps the non-negotiable rules visible even when the skill itself is not loaded — which is the
 fallback for any host not listed here.

@@ -1,18 +1,34 @@
 # Cleanup Ledger
 
 <!--
-Copy to .clean/ledger.md when a campaign starts. See references/project-refactor.md.
+Copy to .clean/ledger.md when an audit or a campaign starts. See references/audit-report.md
+and references/project-refactor.md.
 
-This is the file that makes a multi-session cleanup survivable. Keep it current DURING the
-campaign, not at the end: an accurate ledger with an interrupted campaign is a good
+This is the file that makes a multi-session audit or cleanup survivable. Keep it current
+DURING the work, not at the end: an accurate ledger with an interrupted campaign is a good
 outcome; a finished campaign with a stale ledger is not.
 
 Re-read this file at the start of every session and before every batch.
 -->
 
-**Campaign**: <what is being cleaned up>
+**Campaign**: <what is being audited or cleaned up>
 **Started**: <date>   **Last updated**: <date>
-**Status**: <planning | in progress | paused | closed>
+**Status**: <auditing | planning | in progress | paused | closed>
+
+## Audit Coverage
+
+Written by the audit (references/audit-report.md); absent when a campaign starts without one.
+A file never ticked was never audited, whatever the summary claims.
+
+- **Inventory**: <N> tracked files (`git ls-files` — the audit's one denominator)
+- **Reviewed**: <N>   **Sweeps**: <M>   **New findings per sweep**: <a, b, c>
+- The audit closes only when a complete sweep adds zero new findings (minimum two, cap four).
+
+Checklist, grouped by directory — tick a file only after it was actually read:
+
+- [ ] <dir>/<file>
+- [ ] <dir>/<file> <!-- generated, skipped -- a decision, not an omission -->
+- [ ] ...
 
 ## Contract
 
@@ -42,7 +58,7 @@ One batch = one intent. Never mix a mechanical sweep with structural edits in th
 - [ ] 2. <module or smell family> - <what changes> - commit: <sha>
 - [ ] 3. ...
 
-## Found but not fixed
+## Found But Not Fixed
 
 Bugs and risks discovered while refactoring. Logged, not fixed, because a refactor batch must not
 change behavior.

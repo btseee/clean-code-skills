@@ -37,14 +37,16 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 
 ### What an agent using this does
 
-1. Load project context from `.clean/` and the project's own instruction files before deciding anything.
+1. Load project context from `.clean/` and the project's own instruction files before deciding anything. The `audit` and `questions` commands are what *create* `.clean/`; a plain session reads it and offers to persist at the end.
 2. Frame the change: behavior, assumptions, smallest scope, and the check that proves it.
 3. Read local context and search for existing implementations before writing anything new.
 4. Put code and files where the project's conventions say they belong — and wire new files in completely.
 5. Keep one job per unit; route behavior to the module that owns the responsibility.
 6. Point every new dependency inward, and keep details — database, web, framework, ORM types — out of business rules.
-7. Edit surgically; never regenerate whole files when a targeted edit will do.
-8. Verify with real commands and report honestly what ran and what did not.
+7. Verify every API call against the dependency versions recorded in `.clean/context.json` — never against memory of a version that may not be installed.
+8. Keep comments at one to three lines, explaining why — a paragraph of comment is knowledge in the wrong place.
+9. Edit surgically; never regenerate whole files when a targeted edit will do.
+10. Verify with real commands and report honestly what ran and what did not.
 
 ### What ships
 
@@ -155,14 +157,15 @@ you invoke a skill explicitly, is in `references/host-matrix.md`.
 Global mode writes into the home-directory config that CLI agents read everywhere:
 
 ```bash
-bash scripts/install.sh --global all      # ~/.claude, ~/.codex, ~/.config/opencode, ~/.gemini
+bash scripts/install.sh --global all      # ~/.claude, ~/.codex, ~/.config/opencode, ~/.gemini,
+                                          # ~/.agents/skills, ~/.grok/skills, ~/.gemini/config/skills
 ```
 
 ```powershell
 pwsh scripts/install.ps1 -Global all
 ```
 
-Editor rules (Cursor, Windsurf, Cline, Copilot) are project-scoped by design and are skipped in global mode.
+Editor rules (Cursor, Windsurf, Cline, Copilot) and the bare `skill` profile are project-scoped by design and are skipped in global mode.
 
 ## Usage
 
@@ -170,13 +173,13 @@ Once installed, agents pick the skill up on their own — the `description` is w
 
 ### The four commands
 
-The skill takes arguments. In Claude Code that is `/clean-code <argument>`; Codex uses `$clean-code <argument>`, the Codex App `@clean-code`, Kimi Code `/skill:clean-code` — and plain language ("run the clean-code audit") works on every host.
+The skill takes arguments — `/clean-code <argument>` in Claude Code, with the full per-host forms listed under **Forcing it** below. Plain language ("run the clean-code audit") works on every host.
 
 | Command | What happens |
 | --- | --- |
 | `/clean-code audit` | Exhaustive audit: every file inventoried and reviewed, sweeps repeated until one adds zero new findings. Fills `.clean/` (context, architecture, decisions, ledger) and produces a findings-first report. Changes no code |
 | `/clean-code new-project <description>` | Greenfield protocol seeded with your description: requirements, actors, layers, standards, then vertical slices |
-| `/clean-code clean-up` | The cleanup campaign, consuming `.clean/ledger.md` in small verified batches — placement moves, package idioms, structure, boundaries. Runs `audit` first if no ledger exists |
+| `/clean-code clean-up` | The cleanup campaign, consuming `.clean/ledger.md` in small verified batches — placement moves, package idioms, structure, boundaries. No ledger? It proposes the audit, names the project's file count, and waits for your consent |
 | `/clean-code questions` | Interviews you — purpose, layers, verify command, no-go zones — and writes the answers into `.clean/` |
 | *(no argument)* | The default session protocol for any coding task |
 
@@ -315,20 +318,20 @@ bash scripts/validate.sh
 pwsh scripts/validate.ps1
 ```
 
-Both check required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, `--detect`, global mode, and clean uninstall. CI runs both plus markdownlint on every push and pull request.
+Both check required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs both validators plus markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
 
 ## Configuration
 
 ### Project state: the `.clean/` directory
 
-The mechanism that lets a memoryless session resume. Templates are in `skills/clean-code/assets/templates/`, and `.clean/` is gitignored by default — `architecture.md` is the one file usually worth committing, because it is a shared decision that drives a check in CI.
+The mechanism that lets a memoryless session resume. Templates are in `skills/clean-code/assets/templates/`, and the protocol has the agent add `.clean/` to `.gitignore` — `architecture.md` is the one file usually worth committing, because it is a shared decision that drives a check in CI. The `audit` and `questions` commands create and populate the directory; a plain session reads it and offers to persist at the end.
 
 | File | Holds | Written by |
 | --- | --- | --- |
-| `context.json` | detected stack, frameworks, test command, layout | `detect_stack.py --write`, or by hand |
-| `architecture.md` | declared layers and allowed dependencies | you, with the agent's help |
+| `context.json` | detected stack, frameworks, test command, layout, dependencies with versions, plus the interview's `confirmed` answers | `detect_stack.py --write` (merges — `confirmed` survives) and the `questions` interview |
+| `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow, ordering confirmed with you |
 | `decisions.md` | decisions and their reasoning, append-only | any session that made a real choice |
-| `ledger.md` | state of a cleanup campaign in progress | campaign mode only |
+| `ledger.md` | the audit's coverage checklist and findings, then campaign state | the `audit` first, campaign sessions after |
 
 Declare layers innermost first, in a fenced block the tools can read:
 
@@ -350,7 +353,7 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 | Variable | Effect |
 | --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.1.0` |
+| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.1.1` |
 | `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
 | `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
 | `PYTHON_BIN` | Point the hook at a specific interpreter |
@@ -359,11 +362,11 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 `claude`, `agents`, `codex`, `opencode`, `jules`, `gemini`, `cursor`, `copilot`, `windsurf`, `cline`, `grok`, `antigravity`, `skill`, `all`. Pass any combination; `--detect` picks the ones already present.
 
-`agents` is the one that matters most: it writes the `AGENTS.md` block **and** installs the full skill into `.agents/skills/clean-code/`, the shared root that eleven of the supported hosts read. `codex`, `opencode` and `jules` are aliases for it.
+`agents` is the one that matters most: it writes the `AGENTS.md` block **and** installs the full skill into `.agents/skills/clean-code/`, the shared root that twelve of the supported hosts read project-side. `codex`, `opencode` and `jules` are aliases for it (Jules reads `AGENTS.md` and the shared root; it is not separately verified, hence the alias rather than a row of its own).
 
 ### Hooks
 
-`skills/clean-code/assets/hooks/pre-commit` is portable and needs no host support. `claude-settings.json` adds a session-start context print and a post-edit boundary check for Claude Code — merge it into `.claude/settings.json` rather than replacing the file. Neither hook blocks an edit; only the pre-commit hook blocks a commit, and only on a dependency-rule violation.
+`skills/clean-code/assets/hooks/pre-commit` is portable and needs no host support. `claude-settings.json` adds a session-start context print and a post-edit boundary check for Claude Code — merge it into `.claude/settings.json` rather than replacing the file. Neither hook blocks an edit; only the pre-commit hook blocks a commit, and only when the declared architecture is violated — or cannot be checked at all, because the declaration matches no files. The hook finds the skill in any of the project or global install locations and probes for `python3`, `python`, or `py`.
 
 ## Examples
 
@@ -398,14 +401,27 @@ Project context (inferred; confirm before relying on it)
   Ecosystems       : .NET solution, C#/.NET
   Frameworks       : ASP.NET Core
   Test runners     : MSTest
+  Test files       : 74
+  Source roots     : src
+  Quality tools    : EditorConfig
+  Dependencies     : 13 declared (13 with versions): Dapper 2.1.35, Serilog 4.0.1, ...
+    Verify API usage against these versions, not memory;
+    the full list is in context.json.
   Verify with      : dotnet test
+
+  Layer candidates (conventional names found in paths):
+    domain         Core (31)
+    infrastructure Persistence (18)
+    Direction of dependencies is NOT verified here. Declare the
+    intended layering in .clean/architecture.md, then run
+    check_boundaries.py to test whether the code obeys it.
 ```
 
 ### Ask for a report instead of changes
 
 > Audit this project for clean code and architecture.
 
-Produces a findings-first report with a verdict, the recorded test baseline, findings by severity with file and line, an architecture assessment, metrics, and a recommended sequence — and changes no code. See `references/audit-report.md`.
+Produces a findings-first report with a coverage line (files inventoried / reviewed / sweeps to convergence), a verdict, the recorded test baseline, findings by severity with file and line, an architecture assessment, a dependency review against installed versions, placement move candidates, and a recommended sequence — while filling `.clean/` and changing no production code. See `references/audit-report.md`.
 
 ### Report completion honestly
 

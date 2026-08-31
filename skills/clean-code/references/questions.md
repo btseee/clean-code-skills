@@ -36,11 +36,22 @@ question the project's files already answer unambiguously — say what was found
 | Answers | Land in |
 | --- | --- |
 | Layers, ordering, allowed exceptions | `.clean/architecture.md` — the fenced `clean-architecture` block plus the prose around it |
-| Purpose, actors, verify command, load-bearing dependencies | `.clean/context.json` — **merged into** the detected data, never clobbering it |
+| Purpose, actors, verify command, load-bearing dependencies, anything else confirmed by a person | `.clean/context.json` — the reserved top-level `confirmed` object |
 | Every choice with a why: layering, exceptions, no-go zones, decoupling mode | `.clean/decisions.md` — one dated entry per decision |
 
-Use `assets/templates/` for any file that does not exist yet. Merging into `context.json` means:
-read it, update the answered fields, keep everything the detector wrote.
+Use `assets/templates/` for any file that does not exist yet. The `confirmed` object is the
+interview's home in `context.json` (schema in `memory-protocol.md`):
+
+```json
+"confirmed": {
+  "purpose": "...", "actors": ["..."], "verify_command": "...",
+  "load_bearing_dependencies": ["..."], "notes": "..."
+}
+```
+
+Read the file, write the answers under `confirmed`, keep every key the detector wrote. The
+detector honors the same contract from its side: `detect_stack.py --write` refreshes only its own
+keys and preserves `confirmed`, so the interview and a later audit never destroy each other.
 
 ## Rules
 

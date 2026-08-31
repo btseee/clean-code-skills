@@ -16,6 +16,10 @@ Agree with the user before touching code:
 
 If the user just said "clean it up", propose a contract with your recommended depth and breadth and let them confirm or adjust. Do not start editing while the contract is open.
 
+The contract is negotiated once. When an audit already drafted it at the top of `.clean/ledger.md`,
+this phase is a confirmation — read the draft back, take amendments — not a renegotiation from a
+blank page.
+
 ## Phase 1: Inventory And Baseline
 
 **When an audit already ran** (`.clean/ledger.md` holds a coverage checklist and a batch plan),
@@ -23,7 +27,9 @@ consume it: verify the baseline still holds, confirm the contract at the top of 
 user, and go straight to Phase 3. Re-inventorying what the audit inventoried is wasted motion — the
 whole point of the audit filling `.clean/` is that the campaign starts here.
 
-Otherwise:
+**When there is no ledger**, propose running the audit first and say what it costs — name the
+project's file count. Two typed words must not launch hours of unasked work, so wait for consent.
+The inventory below is the leaner fallback for when the user prefers to skip the full audit:
 
 1. Map the project: layout, entry points, module boundaries, test locations, build and verification commands, formatter and linter configuration. `scripts/detect_stack.py --write` does this and caches the answers in `.clean/context.json`; otherwise establish the same facts by inspection.
 2. Run the full available verification: tests, build, typecheck, lint. Record the results verbatim.
@@ -89,6 +95,9 @@ The ledger is a plain markdown file that survives context loss and session ends.
 ```markdown
 # Cleanup Ledger: <project> — <date>
 
+## Audit Coverage
+(present when the audit created the ledger: the per-file checklist and the convergence line)
+
 ## Contract
 depth / breadth / behavior policy / checkpoint style / no-go zones
 
@@ -100,7 +109,7 @@ command outputs, pass/fail counts, pre-existing failures
 - [ ] 2. Rename `mgr` -> `subscriptionScheduler` across src/
 ...
 
-## Found, Not Fixed
+## Found But Not Fixed
 - src/billing/invoice.ts:88 rounding bug when currency=JPY (behavior change — needs user decision)
 
 ## Deferred

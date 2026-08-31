@@ -1,9 +1,10 @@
 # Audit Protocol
 
-For "audit this project", `/clean-code audit`, "how clean is this codebase", or as the mandatory
-first half of a cleanup. The audit does two things: it produces a **report**, and it populates
-**`.clean/`** so that the cleanup — this session or any later one — starts from durable state
-instead of from memory. It changes no production code.
+For "audit this project", `/clean-code audit`, "how clean is this codebase", or as the first half
+of a cleanup. The audit does two things: it delivers a **report** in the conversation, and it
+populates **`.clean/`** — the ledger, not the report, is what lives on disk — so that the cleanup,
+this session or any later one, starts from durable state instead of from memory. It changes no
+production code.
 
 **An audit is complete only when every inventoried file has been reviewed and a full sweep adds
 zero new findings.** Anything less is a partial audit, and partial audits are why projects need
@@ -12,25 +13,36 @@ auditing three times. The criterion is checkable, so check it before claiming co
 ## Phase A — Inventory: establish the denominator
 
 1. Enumerate every tracked file: `git ls-files` (fall back to a full directory walk excluding
-   dependency and build directories when there is no git).
+   dependency and build directories when there is no git). **This count is the audit's one
+   denominator.** Script totals (`files_scanned`, code-file counts) cover code files only — useful
+   subsets, never the denominator.
 2. Record the total count and the list, grouped by directory, into `.clean/ledger.md` as a
    **coverage checklist** — one tick-box per file (batch trivially small files per directory, but
-   list them). Use `assets/templates/ledger.md` as the frame if the file does not exist.
+   list them). Use `assets/templates/ledger.md` as the frame if `.clean/ledger.md` does not exist
+   yet.
 3. Nothing below counts as done until the ticked set equals this inventory. A file never ticked was
    never audited, whatever the summary claims.
+
+**Scale.** Up to ~500 files, tick per file. From ~500 to ~2,000, keep the checklist per directory
+and tick per file only inside directories that produce findings — agree that shape with the user
+before starting. Beyond ~2,000, propose splitting into module-scoped audits, each with its own
+inventory and its own convergence. Convergence always applies within the agreed scope; what never
+changes is that scope is agreed out loud, not silently sampled.
 
 ## Phase B — Evidence: run the measurements
 
 - `scripts/detect_stack.py --write` — stack, frameworks, test command, layout, **dependencies with
-  versions**, saved to `.clean/context.json`. Manual equivalent: derive the same facts by reading
-  the manifests, and write them into `context.json` by hand — it is only a cache of what the project
-  already says.
+  versions**, saved to `.clean/context.json`. The write merges: detector-owned keys are refreshed,
+  and an existing `confirmed` object (the interview's answers) survives untouched. Manual
+  equivalent: derive the same facts by reading the manifests, and write them into `context.json` by
+  hand — it is only a cache of what the project already says.
 - `scripts/scan_repo.py --json` — oversized files, sibling variants, junk drawers, debug output,
-  commented-out code, comment blocks, skipped tests. Manual equivalent: targeted searches for each.
+  commented-out code, comment blocks, skipped tests. The JSON is always complete; `--top` caps only
+  the human summary. Manual equivalent: targeted searches for each.
 - Run the project's own verification and record the result **verbatim** — this is the baseline, and
   a red baseline must be written down, not worked around.
-- `scripts/check_boundaries.py` once a layering is declared (Phase D). Manual equivalent: read the
-  imports of the innermost modules.
+- `scripts/check_boundaries.py` — a Phase D step (it needs a declared layering), listed here only
+  so the evidence list is complete. Manual equivalent: read the imports of the innermost modules.
 
 Script output is evidence for judgement, never a verdict.
 
@@ -70,7 +82,9 @@ not an omission.
 
 After the first full pass, sweep again: re-run the scripts, re-check the ledger against the
 inventory, and re-examine every file the first pass flagged plus every file *adjacent* to a finding
-(same directory, same responsibility, callers and callees). New findings go in the ledger.
+(same directory, same responsibility, callers and callees). New findings go in the ledger. Compare
+sweeps on the full `--json` output, never on the `--top`-capped summaries — a capped list turns
+"entry 16 became visible" into a phantom new finding.
 
 - **The audit closes only when a complete sweep adds zero new findings.**
 - Minimum two full sweeps, always. If sweep N found anything new, sweep N+1 is mandatory.
@@ -80,8 +94,8 @@ inventory, and re-examine every file the first pass flagged plus every file *adj
 
 ## Phase F — Report
 
-Findings first, ordered by consequence. Same structure as before, plus the coverage line at the
-top of the verdict.
+Findings first, ordered by consequence. Delivered in the conversation; write it to a file only if
+the user asks. The structure:
 
 ```markdown
 # Clean Code And Architecture Audit: <project>

@@ -4,7 +4,7 @@ These instructions guide GitHub Copilot Chat, Copilot code review, and the Copil
 
 When `.github/skills/clean-code/SKILL.md` is present, treat it as the canonical detailed guidance and use this file as the repository-wide baseline.
 
-<!-- clean-code-skills:begin v3.1.0 -->
+<!-- clean-code-skills:begin v3.1.1 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
