@@ -302,7 +302,8 @@ Before applying a rule, adapt it to the ecosystem. Read `references/framework-ma
 in an unfamiliar language or stack — it also carries the dependency discipline: verify every API
 against the installed versions in `.clean/context.json`, and follow each package's intended usage.
 Clean code should look idiomatic to a senior maintainer of that stack, and the project's existing
-layout always overrides the ecosystem default.
+layout always overrides the ecosystem default. Stack extensions (`skills/clean-typescript`,
+`skills/clean-react`) add checks on top of this skill and never override it.
 
 ## Anti-Loopholes
 

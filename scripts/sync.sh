@@ -22,7 +22,9 @@ stamp() {
 
 # 1. Stamp the version everywhere it appears.
 stamp "s/^${BEGIN_MARKER} v.* -->$/${BEGIN_MARKER} v$VERSION -->/" "$TEMPLATE"
-stamp "s/^  version: \".*\"$/  version: \"$VERSION\"/" "$ROOT_DIR/skills/clean-code/SKILL.md"
+for skill in "$ROOT_DIR"/skills/*/SKILL.md; do
+  stamp "s/^  version: \".*\"$/  version: \"$VERSION\"/" "$skill"
+done
 for manifest in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json gemini-extension.json; do
   stamp "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/g" "$ROOT_DIR/$manifest"
 done

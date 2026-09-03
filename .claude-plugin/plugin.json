@@ -25,6 +25,8 @@
     "file-placement"
   ],
   "skills": [
-    "./skills/clean-code"
+    "./skills/clean-code",
+    "./skills/clean-typescript",
+    "./skills/clean-react"
   ]
 }

@@ -321,6 +321,17 @@ On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exer
 
 The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes the bundled scripts against fixtures (including a boundary check that must fail, then pass) on every push and pull request.
 
+## Stack Extensions
+
+`clean-code` is the authoritative, language-agnostic skill. Stack-specific skills live beside it and add checks the universal rules cannot state; they never relax one. Two ship as proofs of concept:
+
+| Skill | Adds | IDs |
+| --- | --- | --- |
+| `skills/clean-typescript` | unsafe `any` propagation, oversized public surface, domain types coupled to transport or persistence, unchecked narrowing, duplicate DTO/domain models | `TS1`-`TS5` |
+| `skills/clean-react` | effect misuse, derived-state duplication, state ownership, component responsibility, server/client boundary leakage, business logic in presentation | `R1`-`R6` |
+
+Each declares `metadata.extends: clean-code` in its front matter, follows the same Agent Skills contract, and is registered in the Claude Code plugin manifest. The installer profiles copy only `clean-code` for now; to use an extension elsewhere, copy its folder next to `clean-code` in the host's skill root. The folder layout is the extension point for `clean-python`, `clean-go`, `clean-flutter`, and `clean-rust` later.
+
 ## Configuration
 
 ### Project state: the `.clean/` directory

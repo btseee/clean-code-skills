@@ -38,6 +38,8 @@ required_files=(
   "templates/agent-block.md"
   "templates/hosts.tsv"
   "skills/clean-code/SKILL.md"
+  "skills/clean-typescript/SKILL.md"
+  "skills/clean-react/SKILL.md"
   "skills/clean-code/references/chapter-map.md"
   "skills/clean-code/references/framework-map.md"
   "skills/clean-code/references/review-checklist.md"
@@ -97,6 +99,19 @@ grep -q '^license: MIT$' "$skill_file" || fail "SKILL.md needs MIT license field
 sed -n '2,12p' "$skill_file" | grep -q '^---$' || fail "SKILL.md front matter must close near the top"
 pass "skill front matter is valid"
 
+# Stack extensions: same front-matter contract, named after their folder, declaring what they extend.
+for extension in "$ROOT_DIR"/skills/*/SKILL.md; do
+  [[ "$extension" == "$skill_file" ]] && continue
+  extension_name="$(basename "$(dirname "$extension")")"
+  [[ "$(sed -n '1p' "$extension")" == "---" ]] || fail "$extension_name/SKILL.md must start with front matter"
+  grep -q "^name: $extension_name$" "$extension" || fail "$extension_name/SKILL.md name must be $extension_name"
+  grep -q '^description: ' "$extension" || fail "$extension_name/SKILL.md needs description"
+  grep -q '^license: MIT$' "$extension" || fail "$extension_name/SKILL.md needs MIT license field"
+  grep -q '^  extends: clean-code$' "$extension" || fail "$extension_name/SKILL.md must declare metadata.extends: clean-code"
+  grep -q "\"./skills/$extension_name\"" "$ROOT_DIR/.claude-plugin/plugin.json" || fail "$extension_name is not registered in .claude-plugin/plugin.json"
+done
+pass "stack extensions declare their contract and are registered"
+
 # --- agent smells are complete and indexed -------------------------------------
 
 agent_smells="$ROOT_DIR/skills/clean-code/references/agent-smells.md"
@@ -128,8 +143,10 @@ template_version="$(sed -n "s/^<!-- clean-code-skills:begin v\(.*\) -->$/\1/p" "
 file_version="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 [[ "$file_version" == "$template_version" ]] || fail "VERSION file ($file_version) != template version ($template_version)"
 
-skill_version="$(sed -n 's/^  version: "\(.*\)"$/\1/p' "$skill_file")"
-[[ "$skill_version" == "$template_version" ]] || fail "SKILL.md metadata version ($skill_version) != template version ($template_version)"
+for versioned_skill in "$ROOT_DIR"/skills/*/SKILL.md; do
+  skill_version="$(sed -n 's/^  version: "\(.*\)"$/\1/p' "$versioned_skill")"
+  [[ "$skill_version" == "$template_version" ]] || fail "${versioned_skill#$ROOT_DIR/} metadata version ($skill_version) != template version ($template_version)"
+done
 
 for manifest in ".claude-plugin/plugin.json" ".codex-plugin/plugin.json" "gemini-extension.json"; do
   grep -q "\"version\": \"$template_version\"" "$ROOT_DIR/$manifest" || fail "$manifest version != $template_version"
@@ -318,14 +335,14 @@ pass "global install, detect, and uninstall work"
 # The Agent Skills spec recommends keeping SKILL.md under 500 lines and roughly 5,000
 # tokens, because hosts load the whole body on activation. Depth belongs in references/,
 # which load on demand.
-skill_file="$ROOT_DIR/skills/clean-code/SKILL.md"
-skill_lines="$(wc -l < "$skill_file" | tr -d '[:space:]')"
-skill_words="$(wc -w < "$skill_file" | tr -d '[:space:]')"
-skill_tokens=$(( skill_words * 4 / 3 ))
-
-[[ "$skill_lines" -le 500 ]] || fail "SKILL.md is $skill_lines lines; keep it under 500 and move depth into references/"
-[[ "$skill_tokens" -le 5000 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 5000 and move depth into references/"
-pass "SKILL.md is within budget ($skill_lines lines, ~$skill_tokens tokens)"
+for budgeted_skill in "$ROOT_DIR"/skills/*/SKILL.md; do
+  skill_lines="$(wc -l < "$budgeted_skill" | tr -d '[:space:]')"
+  skill_words="$(wc -w < "$budgeted_skill" | tr -d '[:space:]')"
+  skill_tokens=$(( skill_words * 4 / 3 ))
+  [[ "$skill_lines" -le 500 ]] || fail "${budgeted_skill#$ROOT_DIR/} is $skill_lines lines; keep it under 500 and move depth into references/"
+  [[ "$skill_tokens" -le 5000 ]] || fail "${budgeted_skill#$ROOT_DIR/} is ~$skill_tokens tokens; keep it under 5000 and move depth into references/"
+  pass "${budgeted_skill#$ROOT_DIR/} is within budget ($skill_lines lines, ~$skill_tokens tokens)"
+done
 
 # --- skill scripts ------------------------------------------------------------------
 
