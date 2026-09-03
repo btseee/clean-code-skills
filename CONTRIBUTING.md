@@ -33,10 +33,11 @@ workflow compares them and fails otherwise.
 ## Skill Rules
 
 - `skills/clean-code/SKILL.md` must keep valid Agent Skills front matter.
-- The `name` must match the folder: `clean-code`.
+- The `name` must match the folder: `clean-code`, and a stack extension's must match its folder and
+  declare `metadata.extends: clean-code`.
 - The description should tell agents when to load the skill.
-- Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: both validators
-  fail it above 500 lines or roughly 5,000 tokens, because hosts load the whole body on activation.
+- Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: the validator
+  fails it above 500 lines or roughly 5,000 tokens, because hosts load the whole body on activation.
 - Bundled Python in `skills/clean-code/scripts/` must use only the standard library, and every
   workflow step that names a script must also name the manual equivalent — the skill has to work
   with no tooling at all.
@@ -58,16 +59,17 @@ bash -n scripts/install.sh
 bash -n scripts/validate.sh
 ```
 
-CI runs both validators, markdownlint, and a `skill-tools` job that executes the three bundled
-Python scripts against a fixture — including a boundary check that must fail and then pass — so a
-change to `skills/clean-code/scripts/` needs those scripts to keep working end to end.
+CI runs `validate.sh` on Linux and Windows (Git Bash), `validate.ps1` for `install.ps1`, markdownlint,
+the eval fixture check, and a `skill-tools` job that executes the bundled Python scripts against
+fixtures — including a boundary check that must fail and then pass — so a change to
+`skills/clean-code/scripts/` needs those scripts to keep working end to end.
 
 ## Pull Request Checklist
 
 - The change has one clear purpose.
 - Agent-facing files stay consistent (block sync passes).
 - Versions were bumped together when the block changed.
-- `SKILL.md` stays under its budget (500 lines / ~5,000 tokens; both validators fail above it).
+- Every `skills/*/SKILL.md` stays under its budget (500 lines / ~5,000 tokens; the validator fails above it).
 - Examples are original and minimal.
 - Plugin JSON remains valid.
 - Validation passes on at least one platform, ideally both.
