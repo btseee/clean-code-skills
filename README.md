@@ -333,6 +333,9 @@ The mechanism that lets a memoryless session resume. Templates are in `skills/cl
 | `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow, ordering confirmed with you |
 | `decisions.md` | decisions and their reasoning, append-only | any session that made a real choice |
 | `ledger.md` | the audit's coverage checklist and findings, then campaign state | the `audit` first, campaign sessions after |
+| `commands.json` *(optional)* | the install, test, lint, typecheck, and build commands you trust; outranks anything detected | the `questions` interview, or you |
+| `dependencies.json` *(optional)* | the few framework and SDK versions an agent must verify APIs against; not the lockfile | the interview or the audit, from the lockfile |
+| `conventions.json` *(optional)* | source root, test convention, module style, file and type naming, placement | the interview or the audit |
 
 Declare layers innermost first, in a fenced block the tools can read:
 

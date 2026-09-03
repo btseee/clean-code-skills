@@ -66,6 +66,9 @@ required_files=(
   "skills/clean-code/assets/templates/architecture.md"
   "skills/clean-code/assets/templates/decisions.md"
   "skills/clean-code/assets/templates/ledger.md"
+  "skills/clean-code/assets/templates/commands.json"
+  "skills/clean-code/assets/templates/dependencies.json"
+  "skills/clean-code/assets/templates/conventions.json"
   "skills/clean-code/assets/hooks/pre-commit"
   "skills/clean-code/assets/hooks/claude-settings.json"
   "scripts/install.sh"
@@ -194,6 +197,10 @@ if [[ -n "$PYTHON" ]]; then
   "$PYTHON" -m json.tool "$ROOT_DIR/.codex-plugin/plugin.json" >/dev/null
   "$PYTHON" -m json.tool "$ROOT_DIR/gemini-extension.json" >/dev/null
   "$PYTHON" -m json.tool "$ROOT_DIR/.markdownlint.json" >/dev/null
+  "$PYTHON" -m json.tool "$ROOT_DIR/skills/clean-code/assets/hooks/claude-settings.json" >/dev/null
+  for template in commands dependencies conventions; do
+    "$PYTHON" -m json.tool "$ROOT_DIR/skills/clean-code/assets/templates/$template.json" >/dev/null
+  done
   pass "JSON files parse"
 else
   printf 'WARN: python unavailable; skipped JSON parse check\n' >&2

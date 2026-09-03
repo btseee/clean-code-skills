@@ -1,0 +1,8 @@
+{
+  "//": "Copy to .clean/commands.json. The commands a person trusts, one per purpose. These outrank suggested_verify_commands in context.json and anything a README claims. Omit keys the project has no command for; never invent one.",
+  "install": "yarn install --frozen-lockfile",
+  "test": "yarn test",
+  "lint": "yarn lint",
+  "typecheck": "yarn tsc --noEmit",
+  "build": "yarn build"
+}

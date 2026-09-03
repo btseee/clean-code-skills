@@ -1,0 +1,16 @@
+{
+  "//": "Copy to .clean/conventions.json. Layout and naming facts the code shows but an agent will not infer reliably from one file. Fill only what the project actually settles; delete the rest. Free-form string values; the keys below are the common ones.",
+  "sourceRoot": "src",
+  "testConvention": "co-located | tests-dir | mirrored-dir",
+  "moduleStyle": "feature-based | layer-based",
+  "naming": {
+    "files": "kebab-case",
+    "components": "PascalCase",
+    "tests": "<name>.test.ts"
+  },
+  "placement": {
+    "domainRules": "src/<feature>/domain",
+    "httpHandlers": "src/<feature>/api"
+  },
+  "notes": "anything else a new file must respect"
+}

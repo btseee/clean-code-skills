@@ -9,7 +9,8 @@ the next session — yours or another agent's — can pick up where you stopped.
 ## Before
 
 **1. Load context.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`,
-and `.clean/ledger.md` if they exist, then the project's own instructions (`AGENTS.md`,
+`.clean/ledger.md`, and the optional `commands.json`, `dependencies.json`, and `conventions.json`
+if they exist (precedence in `memory-protocol.md`), then the project's own instructions (`AGENTS.md`,
 `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`). Project instructions outrank this skill. If
 `.clean/` is absent, run `scripts/detect_stack.py` or derive the same facts by inspection: primary
 language, frameworks, test command, source and test layout.

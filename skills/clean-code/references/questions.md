@@ -23,13 +23,17 @@ question the project's files already answer unambiguously — say what was found
    the folders, the mental model wins and the mismatch goes in the ledger.
 3. **Which dependencies are load-bearing?** Show the detected list with versions; ask which are
    deliberate choices worth defending and which are incidental.
-4. **What command proves a change?** The real one they trust, not the one the README claims.
+4. **What commands do you trust?** Install, test, lint, typecheck, build: the real ones, not the
+   README's. Offer the detected `suggested_verify_commands` as the default.
 5. **No-go zones?** Generated code, vendored trees, another person's in-flight work, anything
    off-limits.
 6. **Deliberate exceptions?** Places the rules are knowingly bent, and why — an undocumented
    exception reads as a defect forever.
 7. **Decoupling mode?** One address space, separately deployable units, or services — and what
    would justify moving.
+8. **Where do files go, and what are they called?** Source root, whether tests sit beside code or
+   in a tests tree, feature-based or layer-based modules, file and type naming. Offer what the
+   detected `source_roots` and `tests` show as the default; skip what the layout already settles.
 
 ## What gets written
 
@@ -38,6 +42,9 @@ question the project's files already answer unambiguously — say what was found
 | Layers, ordering, allowed exceptions | `.clean/architecture.md` — the fenced `clean-architecture` block plus the prose around it |
 | Purpose, actors, verify command, load-bearing dependencies, anything else confirmed by a person | `.clean/context.json` — the reserved top-level `confirmed` object |
 | Every choice with a why: layering, exceptions, no-go zones, decoupling mode | `.clean/decisions.md` — one dated entry per decision |
+| Trusted install, test, lint, typecheck, build commands | `.clean/commands.json` |
+| Load-bearing dependencies with their installed versions | `.clean/dependencies.json` — the confirmed few, not the lockfile |
+| Source root, test convention, module style, naming, placement | `.clean/conventions.json` — only the keys the project settles |
 
 Use `assets/templates/` for any file that does not exist yet. The `confirmed` object is the
 interview's home in `context.json` (schema in `memory-protocol.md`):

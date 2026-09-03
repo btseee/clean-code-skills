@@ -76,7 +76,11 @@ not an omission.
    `check_boundaries.py` and add its violations to the ledger.
 3. `decisions.md` — initial entries: the verify command, the layering choice and why, declared
    no-go zones, and any deliberate exception discovered during the read pass.
-4. `ledger.md` — convert the findings into the prioritized batch plan of
+4. `commands.json`, `dependencies.json`, `conventions.json` — optional, from `assets/templates/`:
+   the verify commands you actually ran, the framework and SDK versions from the lockfile that the
+   read pass had to check APIs against, and the layout and naming conventions the read pass
+   observed. Write only what the code settled; leave the rest to the `questions` interview.
+5. `ledger.md` — convert the findings into the prioritized batch plan of
    `project-refactor.md`, with a proposed campaign contract (depth, breadth, behavior policy,
    checkpoint style) at the top, ready for the user to approve when they ask for the cleanup.
 

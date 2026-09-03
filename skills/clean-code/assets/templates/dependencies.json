@@ -1,0 +1,6 @@
+{
+  "//": "Copy to .clean/dependencies.json. Only the packages an agent must not guess about: frameworks, SDKs, anything whose API changed across versions. Values are the installed version or range as the lockfile has it. This is not the lockfile; a dozen entries is plenty. Where it disagrees with context.json's detected dependencies, this file wins because a person confirmed it.",
+  "react": "19.1.0",
+  "typescript": "5.6.x",
+  "stripe": "14.x"
+}

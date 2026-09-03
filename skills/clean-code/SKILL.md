@@ -38,8 +38,9 @@ Use a lighter touch for trivial edits, still avoiding unrelated changes.
 You may have no memory of this project. Recover it from disk before deciding anything.
 This file's folder is the skill root; `scripts/` and `references/` resolve from it.
 
-1. Read `.clean/context.json` if it exists: language, frameworks, test command, layout.
-   Missing? Run `scripts/detect_stack.py` (no `--write`) or inspect; only `audit` and
+1. Read `.clean/context.json` if it exists: language, frameworks, test command, layout; and the
+   optional `commands.json`, `dependencies.json`, `conventions.json`, which outrank it where they
+   overlap. Missing? Run `scripts/detect_stack.py` (no `--write`) or inspect; only `audit` and
    `questions` create `.clean/`.
 2. Read `.clean/architecture.md` if it exists: the declared layers and which dependencies are
    allowed. This is the project's intended design, and it overrides your instincts.

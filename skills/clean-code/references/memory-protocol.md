@@ -13,10 +13,19 @@ Everything lives in a `.clean/` directory at the project root. Templates are in
 | `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow — ordering confirmed with the user — or a human | every session; enforced by `check_boundaries.py` |
 | `decisions.md` | decisions made and why, append-only | any session that made a real choice | before proposing a design change |
 | `ledger.md` | the audit's coverage checklist and findings, then cleanup-campaign state | the `audit` workflow first; campaign sessions keep it current | before starting or resuming an audit or campaign |
+| `commands.json` *(optional)* | the trusted install, test, lint, typecheck, and build commands | the `questions` interview, or a human | before running any check |
+| `dependencies.json` *(optional)* | the few package versions an agent must verify APIs against | the `questions` interview or the audit, from the lockfile; or a human | before using any API of those packages |
+| `conventions.json` *(optional)* | source root, test convention, module style, naming, placement | the `questions` interview or the audit; or a human | before creating or placing a file |
+
+The three optional files exist because `context.json` is mostly *detected* and therefore mostly
+*guessed*. They hold the small set of facts a person has confirmed and an agent would otherwise
+re-derive wrongly: which command to trust, which versions matter, where files go. A `.clean/`
+directory without them is still complete; nothing requires them, and every reader falls back to
+`context.json` when they are absent.
 
 ## Rules
 
-**Read before deciding.** All four files, at the start of the session, before touching code. A
+**Read before deciding.** All of `.clean/` that exists, at the start of the session, before touching code. A
 recorded decision is settled: do not re-open it because you would have chosen differently. If it now
 looks wrong, say so and let the user decide.
 
@@ -81,6 +90,21 @@ facts detection cannot infer:
 ```
 
 `confirmed` outranks the detected keys when they disagree, because a person said so.
+
+### `commands.json`, `dependencies.json`, `conventions.json`
+
+Flat JSON, one fact per key, templates in `assets/templates/`. Precedence when files disagree:
+
+| Question | Answer from | Falls back to |
+| --- | --- | --- |
+| Which command proves a change? | `commands.json` | `context.json` `confirmed.verify_command`, then `suggested_verify_commands` |
+| Which version of X is installed? | `dependencies.json` | `context.json` `dependencies`, then the lockfile itself |
+| Where does a new file go; how is it named? | `conventions.json` | `context.json` `source_roots` and `tests`, then the two or three most similar existing files |
+
+Rules: the file that a person confirmed wins; a detected value never overwrites a confirmed one;
+an absent file is not an error. `dependencies.json` lists only packages whose API an agent has to
+verify (frameworks, SDKs, anything with breaking majors), never the whole lockfile. Every key in
+`conventions.json` is optional; delete what the project does not settle rather than guessing.
 
 ### `decisions.md`
 

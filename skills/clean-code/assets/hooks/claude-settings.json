@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f .clean/context.json ]; then echo '--- project context (.clean/context.json) ---'; cat .clean/context.json; fi; if [ -f .clean/architecture.md ]; then echo '--- declared layering (.clean/architecture.md) ---'; sed -n '/```clean-architecture/,/```/p' .clean/architecture.md; fi; if [ -f .clean/ledger.md ]; then echo '--- cleanup campaign in progress: read .clean/ledger.md before starting ---'; fi"
+            "command": "if [ -f .clean/context.json ]; then echo '--- project context (.clean/context.json) ---'; cat .clean/context.json; fi; for f in commands dependencies conventions; do if [ -f .clean/$f.json ]; then printf -- '--- %s (.clean/%s.json) ---\n' $f $f; cat .clean/$f.json; fi; done; if [ -f .clean/architecture.md ]; then echo '--- declared layering (.clean/architecture.md) ---'; sed -n '/```clean-architecture/,/```/p' .clean/architecture.md; fi; if [ -f .clean/ledger.md ]; then echo '--- cleanup campaign in progress: read .clean/ledger.md before starting ---'; fi"
           }
         ]
       }
