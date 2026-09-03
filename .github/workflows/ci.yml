@@ -17,6 +17,10 @@ jobs:
           python-version: '3.x'
       - name: Run validator
         run: bash scripts/validate.sh
+      - name: sync.sh is a no-op on a synced tree
+        run: |
+          bash scripts/sync.sh
+          git diff --exit-code
 
   validate-windows:
     name: Validate (Windows)

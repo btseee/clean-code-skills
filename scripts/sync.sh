@@ -8,39 +8,31 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=install-lib.sh
 source "$ROOT_DIR/scripts/install-lib.sh"
-TEMPLATE="$ROOT_DIR/templates/agent-block.md"
+TARGET_DIR="$ROOT_DIR"
 
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 [[ -n "$VERSION" ]] || { printf 'ERROR: VERSION file is empty\n' >&2; exit 1; }
 
+# sed -i differs between GNU and BSD, so rewrite through a temp file instead.
+stamp() {
+  local tmp
+  tmp="$(mktemp)"
+  sed "$1" "$2" > "$tmp" && mv "$tmp" "$2"
+}
+
 # 1. Stamp the version everywhere it appears.
-sed -i "s/^<!-- clean-code-skills:begin v.* -->$/<!-- clean-code-skills:begin v$VERSION -->/" "$TEMPLATE"
-sed -i "s/^  version: \".*\"$/  version: \"$VERSION\"/" "$ROOT_DIR/skills/clean-code/SKILL.md"
+stamp "s/^${BEGIN_MARKER} v.* -->$/${BEGIN_MARKER} v$VERSION -->/" "$TEMPLATE"
+stamp "s/^  version: \".*\"$/  version: \"$VERSION\"/" "$ROOT_DIR/skills/clean-code/SKILL.md"
 for manifest in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json gemini-extension.json; do
-  sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/g" "$ROOT_DIR/$manifest"
+  stamp "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/g" "$ROOT_DIR/$manifest"
 done
 printf 'STAMPED: version %s\n' "$VERSION"
 
-# 2. Mirror the managed block into every adapter file.
+# 2. Mirror the managed block into every adapter file, with the installer's own merge.
 # The adapter files are this repo's own copies of every project block and owned file.
 for adapter in $(host_paths project block owned); do
-  file="$ROOT_DIR/$adapter"
-  [[ -f "$file" ]] || { printf 'ERROR: missing adapter %s\n' "$adapter" >&2; exit 1; }
-  grep -q '^<!-- clean-code-skills:begin' "$file" || { printf 'ERROR: %s has no managed block\n' "$adapter" >&2; exit 1; }
-
-  tmp="$(mktemp)"
-  awk -v tpl="$TEMPLATE" '
-    /^<!-- clean-code-skills:begin/ {
-      while ((getline line < tpl) > 0) print line
-      close(tpl)
-      skipping = 1
-      next
-    }
-    /^<!-- clean-code-skills:end -->$/ && skipping { skipping = 0; next }
-    !skipping { print }
-  ' "$file" > "$tmp"
-  mv "$tmp" "$file"
-  printf 'SYNCED: %s\n' "$adapter"
+  [[ -f "$ROOT_DIR/$adapter" ]] || { printf 'ERROR: missing adapter %s\n' "$adapter" >&2; exit 1; }
+  merge_block "$ROOT_DIR/$adapter"
 done
 
 printf 'Sync complete. Run bash scripts/validate.sh to confirm.\n'

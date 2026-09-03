@@ -4,9 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=install-lib.sh
 source "$ROOT_DIR/scripts/install-lib.sh"
-TEMPLATE="$ROOT_DIR/templates/agent-block.md"
-BEGIN_MARKER='<!-- clean-code-skills:begin'
-END_MARKER='<!-- clean-code-skills:end -->'
 TARGET_DIR="$(pwd)"
 FORCE=0
 UNINSTALL=0
@@ -112,9 +109,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -f "$TEMPLATE" ]] || { printf 'ERROR: missing %s\n' "$TEMPLATE" >&2; exit 1; }
-VERSION="$(sed -n "s/^<!-- clean-code-skills:begin v\(.*\) -->$/\1/p" "$TEMPLATE")"
-[[ -n "$VERSION" ]] || { printf 'ERROR: could not read version from template begin marker\n' >&2; exit 1; }
+VERSION="$(template_version)"
 
 if [[ "$GLOBAL" -eq 1 ]]; then
   TARGET_DIR="${CLEAN_CODE_HOME:-$HOME}"
@@ -126,15 +121,7 @@ fi
 [[ -d "$TARGET_DIR" ]] || { printf 'ERROR: target %s does not exist\n' "$TARGET_DIR" >&2; exit 1; }
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
-relpath() {
-  printf '%s' "${1#"$TARGET_DIR"/}"
-}
-
 # --- detection ---------------------------------------------------------------
-
-has_block() {
-  [[ -f "$1" ]] && grep -q "$BEGIN_MARKER" "$1"
-}
 
 scope() {
   if [[ "$GLOBAL" -eq 1 ]]; then printf 'global'; else printf 'project'; fi
@@ -167,90 +154,6 @@ fi
 if [[ ${#profiles[@]} -eq 0 ]]; then
   profiles=(all)
 fi
-
-# --- managed block in shared files ---------------------------------------
-
-merge_block() {
-  local dest="$1"
-  local begin_count end_count
-
-  mkdir -p "$(dirname "$dest")"
-
-  if [[ ! -e "$dest" ]]; then
-    cat "$TEMPLATE" > "$dest"
-    printf 'INSTALLED: %s (new file with managed block v%s)\n' "$(relpath "$dest")" "$VERSION"
-    return
-  fi
-
-  begin_count="$(grep -c "$BEGIN_MARKER" "$dest" || true)"
-  end_count="$(grep -cF "$END_MARKER" "$dest" || true)"
-
-  if [[ "$begin_count" -eq 0 && "$end_count" -eq 0 ]]; then
-    # Ensure the file ends with a newline, then append the block.
-    if [[ -s "$dest" && "$(tail -c 1 "$dest" | wc -l)" -eq 0 ]]; then
-      printf '\n' >> "$dest"
-    fi
-    printf '\n' >> "$dest"
-    cat "$TEMPLATE" >> "$dest"
-    printf 'UPDATED: %s (managed block v%s appended; existing content preserved)\n' "$(relpath "$dest")" "$VERSION"
-    return
-  fi
-
-  if [[ "$begin_count" -ne 1 || "$end_count" -ne 1 ]]; then
-    printf 'ERROR: %s has malformed clean-code-skills markers (begin=%s end=%s); fix manually\n' \
-      "$(relpath "$dest")" "$begin_count" "$end_count" >&2
-    exit 1
-  fi
-
-  local tmp
-  tmp="$(mktemp)"
-  awk -v tpl="$TEMPLATE" -v begin="$BEGIN_MARKER" -v end="$END_MARKER" '
-    index($0, begin) == 1 {
-      while ((getline line < tpl) > 0) print line
-      close(tpl)
-      skipping = 1
-      next
-    }
-    index($0, end) == 1 && skipping { skipping = 0; next }
-    !skipping { print }
-  ' "$dest" > "$tmp"
-  mv "$tmp" "$dest"
-  printf 'UPDATED: %s (managed block replaced with v%s)\n' "$(relpath "$dest")" "$VERSION"
-}
-
-remove_block() {
-  local dest="$1"
-  [[ -e "$dest" ]] || return 0
-  if ! grep -q "$BEGIN_MARKER" "$dest"; then
-    return 0
-  fi
-
-  local tmp
-  tmp="$(mktemp)"
-  awk -v begin="$BEGIN_MARKER" -v end="$END_MARKER" '
-    index($0, begin) == 1 { skipping = 1; next }
-    index($0, end) == 1 && skipping { skipping = 0; next }
-    !skipping { print }
-  ' "$dest" > "$tmp"
-
-  if [[ -z "$(tr -d '[:space:]' < "$tmp")" ]]; then
-    rm -f "$tmp" "$dest"
-    printf 'REMOVED: %s (file contained only the managed block)\n' "$(relpath "$dest")"
-  else
-    # merge_block inserts a blank separator line before an appended block. Removing the
-    # block must take that separator with it, or install-then-uninstall leaves the file
-    # one blank line longer each round trip instead of restoring it exactly.
-    trimmed="$(mktemp)"
-    awk '{ lines[NR] = $0 } END {
-      last = NR
-      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
-      for (i = 1; i <= last; i++) print lines[i]
-    }' "$tmp" > "$trimmed"
-    mv "$trimmed" "$dest"
-    rm -f "$tmp"
-    printf 'UPDATED: %s (managed block removed; your content kept)\n' "$(relpath "$dest")"
-  fi
-}
 
 block_target() {
   if [[ "$UNINSTALL" -eq 1 ]]; then
