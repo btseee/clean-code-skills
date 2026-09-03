@@ -8,7 +8,7 @@
 [![CI](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-Clean-code **and clean-architecture** discipline for AI coding agents — Claude Code, Antigravity, Codex App, Codex CLI, Cursor, Devin CLI, Factory Droid, Gemini CLI, GitHub Copilot, Grok Build CLI, Kimi Code, OpenCode, Pi, Hermes Agent, Amp, Windsurf, Cline, and any tool that reads Agent Skills or `AGENTS.md`.
+**Clean Code Skills is a code-quality and architecture control layer for AI coding agents.** It combines Clean Code, Clean Architecture, prevention of the failures specific to AI-generated code, persistent project context, risk-based verification, architecture checks, and review and audit workflows, delivered identically to Claude Code, Antigravity, Codex App, Codex CLI, Cursor, Devin CLI, Factory Droid, Gemini CLI, GitHub Copilot, Grok Build CLI, Kimi Code, OpenCode, Pi, Hermes Agent, Amp, Windsurf, Cline, and any tool that reads Agent Skills or `AGENTS.md`.
 
 ## Purpose
 
@@ -16,10 +16,24 @@ AI agents rarely fail at syntax. They fail by putting code in the wrong place, d
 
 This package addresses those failures specifically. One language-agnostic `clean-code` skill is the source of truth; thin adapters carry an identical, versioned rules block into every agent's instruction file, so all your tools enforce the same behavior instead of each having its own opinion.
 
+What it combines:
+
+| Layer | What it gives an agent |
+| --- | --- |
+| **Clean Code** | naming, functions, comments, errors, tests, concurrency, with the full smell catalogue and citable IDs |
+| **Clean Architecture** | the Dependency Rule, layers, boundaries, SOLID and component principles, and a machine-checkable layering declaration |
+| **Agent failure prevention** | ten agent smells (`A1`-`A10`): hallucinated APIs, unverified dependencies, context loss, scope creep, duplicate implementations, wrong-file gravity, phantom success, test weakening, speculative abstraction, silent architecture drift |
+| **Persistent project context** | `.clean/`: detected stack, declared layering, decisions, campaign ledger, plus optional trusted commands, load-bearing versions, and conventions |
+| **Risk-based verification** | LOW / MEDIUM / HIGH classification and what each level owes before a change is called done |
+| **Architecture checks** | `check_boundaries.py` for dependency direction and `architecture_report.py` for cycles, god modules, orphans, duplicate concepts, untested areas |
+| **Workflows** | `plan`, `review`, `audit`, `new-project`, `clean-up`, `questions`, and a ten-question self-check before any completion claim |
+
 Two things make it different from a style guide:
 
 - **It covers both scales.** Naming and function size matter, but so does which direction a dependency crosses a boundary — and only one of those gets worse over years.
 - **It assumes the agent has no memory of your project.** Durable context lives on disk in a `.clean/` directory, so a cold session reconstructs the stack, the declared layering, and past decisions instead of guessing.
+
+Nothing here claims a measured improvement. `evals/` is where such a claim would be earned, and it ships with scenarios and a protocol, not numbers.
 
 ## Capabilities
 
@@ -61,6 +75,8 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 | Concurrency | `references/concurrency.md` | Execution models, the four deadlock conditions, and seven tactics that catch a race |
 | Chapter and smell map | `references/chapter-map.md` | Per-chapter coverage, the smell IDs, and the cross-reference table |
 | Smell triage | `references/smell-triage.md` | Every smell with its usual response and the order to fix them in |
+| Agent smells | `references/agent-smells.md` | A1-A10: definition, why agents produce it, detection, preferred response, verification |
+| Plan and risk | `references/plan.md`, `references/risk-verification.md` | The pre-edit change plan; LOW / MEDIUM / HIGH and what each level owes |
 | Workflows | `references/session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md` | One per situation: a session, a greenfield start, a cleanup campaign, an exhaustive audit that fills `.clean/` |
 | Interview | `references/questions.md` | `/clean-code questions` — turns your answers into durable `.clean/` state |
 | Review checklist | `references/review-checklist.md` | Finding-first review scan including placement and responsibility |
@@ -372,7 +388,7 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 | Variable | Effect |
 | --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.2.0` |
+| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.3.0` |
 | `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
 | `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
 | `PYTHON_BIN` | Point the hook at a specific interpreter |

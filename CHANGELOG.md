@@ -3,6 +3,47 @@
 All notable changes to this project. Versions follow semver; the version in `VERSION` is the single
 source and the git tag must match it exactly.
 
+## 3.3.0
+
+Repositioning release: from a clean-code skill package to a code-quality and architecture control
+layer for AI coding agents. Everything the previous versions did still works the same way; this
+adds the parts that target failures unique to AI-generated code.
+
+### Added
+
+- **Agent smells A1-A10** (`references/agent-smells.md`): hallucinated API, unverified dependency,
+  context loss, scope creep, duplicate implementation, wrong-file gravity, phantom success, test
+  weakening, speculative abstraction, silent architecture drift. Each with definition, why agents
+  produce it, detection signals, a bad example, the preferred response, and verification. Indexed
+  in `SKILL.md`, cited beside the G/N/T IDs in the canon, smell triage, review checklist, session
+  protocol, audit, and chapter map.
+- **`/clean-code plan <task>`** (`references/plan.md`): inspects context, existing implementations,
+  installed APIs, and boundaries, then produces a change plan under fixed headings. Edits nothing.
+- **`/clean-code review`** (`references/review-checklist.md`): reviews the current change, not the
+  repository. Working tree diff, then staged, then named files, plus the tests and boundaries it
+  touches. Findings first with P0-P3 severity and smell IDs; nothing the formatter owns.
+- **Risk-based verification** (`references/risk-verification.md`): LOW / MEDIUM / HIGH from scope,
+  blast radius, uncertainty, and reversibility, and what each level owes before completion.
+- **Completion self-check**: ten questions in `SKILL.md`, tied to the agent smells, replacing the
+  completion checklist; the session protocol runs it before handoff.
+- **Optional `.clean/` files**: `commands.json`, `dependencies.json`, `conventions.json` with
+  templates, precedence over `context.json`, interview and audit steps that write them, and a
+  SessionStart hook that prints them. Existing `.clean/` directories keep working unchanged.
+- **`architecture_report.py`**: one-page report card. Dependency violations and untested areas are
+  measured; cycles are measured on resolved imports; god modules, unreferenced files, and duplicate
+  concepts are labelled heuristic; the score is for comparing runs of one project only.
+- **Stack extensions**: `skills/clean-typescript` (TS1-TS5) and `skills/clean-react` (R1-R6) as
+  proofs of concept, each declaring `metadata.extends: clean-code`, registered in the Claude Code
+  plugin manifest, validated and version-stamped with the core skill.
+- **`evals/`**: six planted-flaw scenarios with task prompts, pass/fail definitions, a recording
+  protocol, and a CI-run fixture check. No results ship.
+
+### Changed
+
+- The managed block names the agent smells, the risk levels, the optional `.clean/` files, and the
+  `plan` and `review` commands.
+- `.gitignore` ignores only the root `.clean/`, so eval fixtures can carry a layering.
+
 ## 3.2.0
 
 Deepening release, driven by an architecture review of the repository's own hot spots: the

@@ -4,7 +4,7 @@ description: Use when writing, reviewing, or refactoring React components, hooks
 license: MIT
 compatibility: Works with no tooling. Reads package.json to learn the React version and framework (Next.js, Remix, Vite) when present; never writes.
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
   extends: clean-code
 ---
 

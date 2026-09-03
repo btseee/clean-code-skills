@@ -4,14 +4,14 @@ These instructions guide GitHub Copilot Chat, Copilot code review, and the Copil
 
 When `.github/skills/clean-code/SKILL.md` is present, treat it as the canonical detailed guidance and use this file as the repository-wide baseline.
 
-<!-- clean-code-skills:begin v3.2.0 -->
+<!-- clean-code-skills:begin v3.3.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
 
-**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Its `references/` folder holds the depth: `architecture.md`, `principles.md`, `smell-triage.md`, `session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md`.
+**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Its `references/` folder holds the depth: `architecture.md`, `principles.md`, `agent-smells.md`, `risk-verification.md`, `smell-triage.md`, `session-protocol.md`, `plan.md`, `new-project.md`, `project-refactor.md`, `audit-report.md`.
 
-**Load project context first.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, and `.clean/ledger.md` if they exist, then the project's own instruction files. A recorded decision is settled. A declared architecture outranks your instincts. Project instructions outrank this block.
+**Load project context first.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, and the optional `.clean/commands.json`, `dependencies.json`, and `conventions.json` if they exist, then the project's own instruction files. Trusted commands and confirmed versions outrank anything detected or remembered. A recorded decision is settled. A declared architecture outranks your instincts. Project instructions outrank this block.
 
 ### Work Loop
 
@@ -19,7 +19,7 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 2. Read first: nearby code, naming, tests, error style, framework idioms. Search for an existing implementation before writing anything new.
 3. Place: decide which unit owns the responsibility and which side of which boundary it sits on.
 4. Edit surgically: smallest diff that solves the task; targeted edits over whole-file regeneration; remove what your change orphaned; no unrelated changes.
-5. Verify: run the narrowest meaningful check, then broader checks as risk demands. Never claim success without evidence.
+5. Verify: classify the risk (LOW / MEDIUM / HIGH) and run what that level owes, narrowest check first. Never claim success without evidence.
 6. Review the diff: dead code, duplication, mixed responsibilities, wrong-way dependencies, swallowed errors, wrong-place files, missing tests.
 
 ### Dependency Direction
@@ -55,11 +55,16 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 - Deduplicate only true duplication: copies that must always change together. Copies that change at different rates for different reasons are not duplicates.
 - Match local style everywhere; the project's formatter and linter own formatting.
 
+### Agent Smells
+
+Check your own diff for the ten failures specific to AI-generated code, cited by ID: A1 hallucinated API, A2 unverified dependency, A3 context loss, A4 scope creep, A5 duplicate implementation, A6 wrong-file gravity, A7 phantom success, A8 test weakening, A9 speculative abstraction, A10 silent architecture drift. Before claiming completion, answer the skill's ten-question self-check; a yes to any of the first nine is a finding to fix or report.
+
 ### Scope And Honesty
 
 - Default mode is surgical: unrelated smells are reported, not silently fixed.
 - Whole-project or module-wide cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`: baseline verification first, small behavior-preserving batches, a written ledger, a checkpoint per batch.
-- Report honestly on completion: what was verified with what command, what was not run, and what risk remains. Never present a stub or placeholder as finished work.
+- Report honestly on completion: the risk level, what was verified with what command, what was not run, and what risk remains. Never present a stub or placeholder as finished work.
+- For a non-trivial change, plan before editing (`plan`) and review the diff before handing off (`review`); both change no code.
 - Record decisions worth keeping in `.clean/decisions.md` so the next session inherits the reasoning.
 
 ### Keeping These Rules Current

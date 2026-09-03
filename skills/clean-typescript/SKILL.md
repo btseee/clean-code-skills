@@ -4,7 +4,7 @@ description: Use when writing, reviewing, or refactoring TypeScript, alongside t
 license: MIT
 compatibility: Works with no tooling. Reads tsconfig.json and package.json when present; never writes.
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
   extends: clean-code
 ---
 
