@@ -82,6 +82,8 @@ required_files=(
   "scripts/sync.sh"
   "scripts/validate.sh"
   "scripts/validate.ps1"
+  "evals/README.md"
+  "evals/check_fixtures.sh"
 )
 
 for file in "${required_files[@]}"; do
@@ -229,6 +231,7 @@ bash -n "$ROOT_DIR/scripts/install-lib.sh"
 bash -n "$ROOT_DIR/scripts/remote-install.sh"
 bash -n "$ROOT_DIR/scripts/sync.sh"
 bash -n "$ROOT_DIR/scripts/validate.sh"
+bash -n "$ROOT_DIR/evals/check_fixtures.sh"
 pass "shell scripts parse"
 
 # --- installer behavior -----------------------------------------------------------

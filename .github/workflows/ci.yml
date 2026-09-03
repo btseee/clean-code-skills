@@ -144,6 +144,8 @@ jobs:
           EOF
       - name: architecture_report runs on this repository
         run: python skills/clean-code/scripts/architecture_report.py --root . --json > /dev/null
+      - name: eval fixtures still contain their planted flaws
+        run: bash evals/check_fixtures.sh
       - name: detect_stack --write merges instead of clobbering
         run: |
           fixture="$(mktemp -d)"

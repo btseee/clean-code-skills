@@ -23,8 +23,8 @@ books/
 agent/
 .serena/
 
-# Working state written by the clean-code skill itself.
-.clean/
+# Working state written by the clean-code skill itself (root only; eval fixtures carry their own).
+/.clean/
 
 # =============================================================================
 # Build and release output

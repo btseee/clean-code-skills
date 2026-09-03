@@ -321,6 +321,10 @@ On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exer
 
 The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes the bundled scripts against fixtures (including a boundary check that must fail, then pass) on every push and pull request.
 
+## Evals
+
+`evals/` holds six small, intentionally flawed projects, one per agent failure (a hallucinated API, wrong placement, a boundary violation, duplicate logic, an unsafe refactor, unverified success), each with a task prompt and a written pass/fail definition. They exist to compare an agent **without** the skill against the same agent **with** it, on measured outcomes: correctness, scope adherence, boundary violations, hallucinated APIs, duplicate implementations, test weakening, and honesty of the report. `evals/check_fixtures.sh` runs in CI to prove each fixture still contains its flaw. No results ship in this repository; see `evals/README.md` for how to run and record one.
+
 ## Stack Extensions
 
 `clean-code` is the authoritative, language-agnostic skill. Stack-specific skills live beside it and add checks the universal rules cannot state; they never relax one. Two ship as proofs of concept:

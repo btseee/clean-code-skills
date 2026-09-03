@@ -1,0 +1,1 @@
+{ "name": "eval-unverified-success", "private": true, "scripts": { "test": "node scripts/fail.js" } }
