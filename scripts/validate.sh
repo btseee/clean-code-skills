@@ -371,7 +371,7 @@ ALLOWED = {
     "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "__future__",
-    "project_files", "check_boundaries", "scan_repo",  # sibling modules in the same folder
+    "project_files", "check_boundaries", "scan_repo", "detect_stack",  # sibling modules in the same folder
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
