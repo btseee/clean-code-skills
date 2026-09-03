@@ -308,7 +308,7 @@ import sys
 
 ALLOWED = {
     "argparse", "ast", "collections", "dataclasses", "difflib", "fnmatch",
-    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "re",
+    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "__future__",
 }

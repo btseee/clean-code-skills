@@ -84,6 +84,36 @@ jobs:
             echo "expected exit 2 for a declaration matching no files, got $code" >&2
             exit 1
           fi
+      - name: check_boundaries places imports the same way for paths and module names
+        run: |
+          python - <<'EOF'
+          import sys
+          sys.path.insert(0, "skills/clean-code/scripts")
+          import check_boundaries as cb
+          layering = cb.parse_layering(
+              "```clean-architecture\nlayer domain = src/domain/**\n"
+              "layer infra = src/infra/**\nallow domain -> *\n```"
+          )
+          files = {"src/domain/order.py", "src/domain/order.ts", "src/infra/db.py", "src/infra/db.ts"}
+          exists = files.__contains__
+          cases = [
+              ("src/domain/order.py", "..infra.db", "infra"),      # python relative, resolves
+              ("src/domain/order.py", "..missing.thing", None),    # unresolved, no token: unknown
+              ("src/domain/order.py", "app.infra.db", "infra"),    # absolute, by namespace token
+              ("src/domain/order.py", "json", None),               # stdlib
+              ("src/domain/order.ts", "../infra/db", "infra"),     # path relative, resolves
+              ("src/domain/order.ts", "./order", "domain"),        # same layer
+              ("src/domain/order.ts", "../../../etc", None),       # escapes root
+              ("src/domain/order.ts", "react", None),              # third party
+          ]
+          for source, module, want in cases:
+              got = layering.layer_of_import(module, source, exists)
+              assert got == want, f"{source} imports {module}: want {want}, got {got}"
+          assert layering.permits("infra", "domain"), "inward is always allowed"
+          assert layering.permits("domain", "infra"), "allow domain -> * must permit outward"
+          plain = cb.parse_layering("```clean-architecture\nlayer domain = src/domain/**\nlayer infra = src/infra/**\n```")
+          assert not plain.permits("domain", "infra"), "outward is a violation by default"
+          EOF
       - name: detect_stack --write merges instead of clobbering
         run: |
           fixture="$(mktemp -d)"
