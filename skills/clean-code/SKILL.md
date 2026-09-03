@@ -254,6 +254,7 @@ output is evidence for your judgement, never a verdict.
 | `detect_stack.py` | what language, framework, test command, and layout is this? |
 | `scan_repo.py` | oversized files, sibling variants, junk drawers, debug output, comment blocks, skipped tests? |
 | `check_boundaries.py` | does the code obey the declared dependency direction? |
+| `architecture_report.py` | one report card: violations, cycles, god modules, orphans, duplicate concepts, untested areas; heuristics labelled |
 
 ## Scope Modes
 
@@ -262,19 +263,10 @@ Unrelated smells are reported, not fixed.
 
 **Campaign mode (explicit request only).** When the user asks for a project-wide or module-wide
 cleanup, the cleanup is the task — but it still needs structure or it degrades into an unreviewable
-rewrite. Follow `references/project-refactor.md`. In short:
-
-1. Inventory and baseline first: map the code, run the full verification suite, record what passes
-   before touching anything.
-2. Propose a prioritized plan batched by module or by smell; get agreement on order and depth.
-3. Refactor in small verified batches — one module or one smell family at a time, behavior-
-   preserving, tests green after each batch, one commit or checkpoint per batch.
-4. Never mix behavior changes into a refactor batch; park discovered bugs in the ledger instead of
-   silently fixing them.
-5. Keep a written ledger of done, remaining, and found-but-deferred so progress survives context
-   loss and session boundaries.
-6. Stop and report rather than push through when the baseline is red, tests are missing for a risky
-   area, or a batch balloons.
+rewrite. Follow `references/project-refactor.md`: inventory and baseline first; a prioritized plan
+batched by module or smell, agreed before editing; small behavior-preserving batches with tests
+green and a checkpoint after each; bugs parked in the ledger, never silently fixed; a written ledger
+of done, remaining, and deferred; stop and report when the baseline is red or a batch balloons.
 
 ## Agent Smells
 

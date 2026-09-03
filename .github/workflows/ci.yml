@@ -121,6 +121,29 @@ jobs:
           plain = cb.parse_layering("```clean-architecture\nlayer domain = src/domain/**\nlayer infra = src/infra/**\n```")
           assert not plain.permits("domain", "infra"), "outward is a violation by default"
           EOF
+      - name: architecture_report counts each planted flaw once
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/.clean" "$fixture/src/domain" "$fixture/src/infra" "$fixture/src/billing" "$fixture/src/orders" "$fixture/tests"
+          printf '```clean-architecture\nlayer domain = src/domain/**\nlayer infra  = src/infra/**\n```\n' > "$fixture/.clean/architecture.md"
+          printf "import { Db } from '../infra/db';\nexport const Order = 1;\n" > "$fixture/src/domain/order.ts"   # violation + cycle
+          printf "import { Order } from '../domain/order';\nexport const Db = 1;\n" > "$fixture/src/infra/db.ts"
+          printf "export const orphan = 1;\n" > "$fixture/src/infra/orphan.ts"                                        # unreferenced
+          printf "export const money = 1;\n" > "$fixture/src/billing/money.ts"                                        # duplicate concept
+          printf "import { money } from '../billing/money';\nexport const money2 = 1;\n" > "$fixture/src/orders/money.ts"
+          printf "import { Order } from '../src/domain/order';\n" > "$fixture/tests/order.test.ts"                    # covers domain only
+          python skills/clean-code/scripts/architecture_report.py --root "$fixture" > /dev/null
+          python skills/clean-code/scripts/architecture_report.py --root "$fixture" --json | python - <<'EOF'
+          import json, sys
+          m = json.load(sys.stdin)["metrics"]
+          got = {k: v["count"] for k, v in m.items()}
+          want = {"dependency_violations": 1, "circular_dependencies": 1, "possible_god_modules": 0,
+                  "unreferenced_files": 2, "duplicate_concepts": 1, "untested_areas": 1}
+          assert got == want, f"want {want}, got {got}"
+          assert m["untested_areas"]["items"][0]["area"] == "infra", m["untested_areas"]["items"]
+          EOF
+      - name: architecture_report runs on this repository
+        run: python skills/clean-code/scripts/architecture_report.py --root . --json > /dev/null
       - name: detect_stack --write merges instead of clobbering
         run: |
           fixture="$(mktemp -d)"

@@ -39,6 +39,10 @@ changes is that scope is agreed out loud, not silently sampled.
 - `scripts/scan_repo.py --json` — oversized files, sibling variants, junk drawers, debug output,
   commented-out code, comment blocks, skipped tests. The JSON is always complete; `--top` caps only
   the human summary. Manual equivalent: targeted searches for each.
+- `scripts/architecture_report.py` — one page: dependency violations (once layers are declared),
+  import cycles, possible god modules, unreferenced files, duplicate concepts, untested areas, and a
+  heuristic score for comparing this audit with the next. Manual equivalent: none that is cheap;
+  without Python, skip the score and read imports by hand in Phase C.
 - Run the project's own verification and record the result **verbatim** — this is the baseline, and
   a red baseline must be written down, not worked around.
 - `scripts/check_boundaries.py` — a Phase D step (it needs a declared layering), listed here only

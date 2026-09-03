@@ -68,7 +68,7 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 | Worked examples | `references/examples.md` | Before-and-after cases in Python, TypeScript, Go and SQL, plus output templates |
 | Memory protocol | `references/memory-protocol.md` | What to persist in `.clean/` so a memoryless session can resume |
 | Host matrix | `references/host-matrix.md` | Per-host skill paths, capabilities, and portable substitutes |
-| Tools | `skills/clean-code/scripts/*.py` | `detect_stack.py`, `scan_repo.py`, `check_boundaries.py` |
+| Tools | `skills/clean-code/scripts/*.py` | `detect_stack.py`, `scan_repo.py`, `check_boundaries.py`, `architecture_report.py` |
 | Templates and hooks | `skills/clean-code/assets/` | `.clean/` templates, a portable git pre-commit hook, Claude Code hook settings |
 | Managed rules block | `templates/agent-block.md` | The single text inserted into every agent's instruction file |
 | Host table | `templates/hosts.tsv` | Every profile, scope, and path the installers, sync, and validator know; a new host is one row |
@@ -319,7 +319,7 @@ bash scripts/validate.sh
 
 On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`, so the two installers stay in step.
 
-The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
+The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes the bundled scripts against fixtures (including a boundary check that must fail, then pass) on every push and pull request.
 
 ## Configuration
 
