@@ -6,6 +6,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=install-lib.sh
+source "$ROOT_DIR/scripts/install-lib.sh"
 TEMPLATE="$ROOT_DIR/templates/agent-block.md"
 
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
@@ -20,18 +22,8 @@ done
 printf 'STAMPED: version %s\n' "$VERSION"
 
 # 2. Mirror the managed block into every adapter file.
-adapters=(
-  "CLAUDE.md"
-  "AGENTS.md"
-  "GEMINI.md"
-  ".github/copilot-instructions.md"
-  ".github/instructions/clean-code.instructions.md"
-  ".cursor/rules/clean-code.mdc"
-  ".windsurf/rules/clean-code.md"
-  ".clinerules/clean-code.md"
-)
-
-for adapter in "${adapters[@]}"; do
+# The adapter files are this repo's own copies of every project block and owned file.
+for adapter in $(host_paths project block owned); do
   file="$ROOT_DIR/$adapter"
   [[ -f "$file" ]] || { printf 'ERROR: missing adapter %s\n' "$adapter" >&2; exit 1; }
   grep -q '^<!-- clean-code-skills:begin' "$file" || { printf 'ERROR: %s has no managed block\n' "$adapter" >&2; exit 1; }

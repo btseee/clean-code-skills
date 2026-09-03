@@ -1,0 +1,60 @@
+# Every host the installer knows, one fact per row. Read by install.sh, install.ps1,
+# sync.sh, and validate.sh; nothing else carries a host path.
+#
+# scope    project (--target DIR) or global (--global, paths under $HOME)
+# profile  the name a user passes to the installer
+# kind     block   = shared file that receives the managed block (user content kept)
+#          owned   = dedicated file this package owns and replaces
+#          skill   = folder that receives a copy of skills/clean-code
+#          include = apply another profile of the same scope (aliases and bundles)
+# path     relative to the target; owned files are copied from the same path in this repo
+# detect   1 when the presence of this path means the profile is installed (--detect)
+#
+# .agents/skills is the shared cross-agent skill root: Codex CLI, GitHub Copilot, Gemini CLI,
+# and Amp all read it. Grok Build CLI reads AGENTS.md but keeps its own root, .grok/skills.
+# Antigravity uses the shared project root and a personal root under the Gemini config dir.
+#
+# scope	profile	kind	path	detect
+project	all	include	claude	0
+project	all	include	agents	0
+project	all	include	gemini	0
+project	all	include	cursor	0
+project	all	include	copilot	0
+project	all	include	windsurf	0
+project	all	include	cline	0
+project	all	include	grok	0
+project	all	include	skill	0
+project	claude	block	CLAUDE.md	1
+project	claude	skill	.claude/skills/clean-code	1
+project	agents	block	AGENTS.md	1
+project	agents	skill	.agents/skills/clean-code	1
+project	codex	include	agents	0
+project	opencode	include	agents	0
+project	jules	include	agents	0
+project	gemini	block	GEMINI.md	1
+project	cursor	owned	.cursor/rules/clean-code.mdc	1
+project	copilot	block	.github/copilot-instructions.md	1
+project	copilot	owned	.github/instructions/clean-code.instructions.md	0
+project	copilot	skill	.github/skills/clean-code	1
+project	windsurf	owned	.windsurf/rules/clean-code.md	1
+project	cline	owned	.clinerules/clean-code.md	1
+project	grok	block	AGENTS.md	0
+project	grok	skill	.grok/skills/clean-code	1
+project	antigravity	skill	.agents/skills/clean-code	0
+project	skill	skill	skills/clean-code	1
+global	all	include	claude	0
+global	all	include	agents	0
+global	all	include	gemini	0
+global	all	include	grok	0
+global	all	include	antigravity	0
+global	claude	block	.claude/CLAUDE.md	1
+global	claude	skill	.claude/skills/clean-code	1
+global	codex	block	.codex/AGENTS.md	1
+global	opencode	block	.config/opencode/AGENTS.md	1
+global	agents	include	codex	0
+global	agents	include	opencode	0
+global	agents	skill	.agents/skills/clean-code	1
+global	jules	include	agents	0
+global	gemini	block	.gemini/GEMINI.md	1
+global	grok	skill	.grok/skills/clean-code	1
+global	antigravity	skill	.gemini/config/skills/clean-code	1

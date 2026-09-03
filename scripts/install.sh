@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=install-lib.sh
+source "$ROOT_DIR/scripts/install-lib.sh"
 TEMPLATE="$ROOT_DIR/templates/agent-block.md"
 BEGIN_MARKER='<!-- clean-code-skills:begin'
 END_MARKER='<!-- clean-code-skills:end -->'
@@ -134,27 +136,21 @@ has_block() {
   [[ -f "$1" ]] && grep -q "$BEGIN_MARKER" "$1"
 }
 
+scope() {
+  if [[ "$GLOBAL" -eq 1 ]]; then printf 'global'; else printf 'project'; fi
+}
+
+# A profile is installed when any of its detect-flagged paths is present:
+# a shared file carrying the block, an owned file, or a skill folder.
 detect_profiles() {
-  local found=()
-  if [[ "$GLOBAL" -eq 1 ]]; then
-    { has_block "$TARGET_DIR/.claude/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    { has_block "$TARGET_DIR/.codex/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(codex)
-    has_block "$TARGET_DIR/.config/opencode/AGENTS.md" && found+=(opencode)
-    has_block "$TARGET_DIR/.gemini/GEMINI.md" && found+=(gemini)
-    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
-    [[ -d "$TARGET_DIR/.gemini/config/skills/clean-code" ]] && found+=(antigravity)
-  else
-    { has_block "$TARGET_DIR/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    { has_block "$TARGET_DIR/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(agents)
-    has_block "$TARGET_DIR/GEMINI.md" && found+=(gemini)
-    [[ -f "$TARGET_DIR/.cursor/rules/clean-code.mdc" ]] && found+=(cursor)
-    { has_block "$TARGET_DIR/.github/copilot-instructions.md" || [[ -d "$TARGET_DIR/.github/skills/clean-code" ]]; } && found+=(copilot)
-    [[ -f "$TARGET_DIR/.windsurf/rules/clean-code.md" ]] && found+=(windsurf)
-    [[ -f "$TARGET_DIR/.clinerules/clean-code.md" ]] && found+=(cline)
-    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
-    [[ -d "$TARGET_DIR/skills/clean-code" ]] && found+=(skill)
-  fi
-  printf '%s\n' "${found[@]:-}"
+  local profile kind path
+  while IFS=$'\t' read -r profile kind path; do
+    case "$kind" in
+      block) has_block "$TARGET_DIR/$path" && printf '%s\n' "$profile" ;;
+      owned) [[ -f "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
+      skill) [[ -d "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
+    esac
+  done < <(host_detect "$(scope)") | awk '!seen[$0]++'
 }
 
 if [[ "$DETECT" -eq 1 ]]; then
@@ -327,128 +323,33 @@ owned_file_target() {
   fi
 }
 
-skip_in_global() {
-  printf 'SKIP: %s is project-scoped; run without --global for a specific project.\n' "$1"
-}
-
 # --- profiles --------------------------------------------------------------
 
-apply_global_profile() {
-  case "$1" in
-    all)
-      apply_global_profile claude
-      apply_global_profile agents
-      apply_global_profile gemini
-      apply_global_profile grok
-      apply_global_profile antigravity
-      ;;
-    claude)
-      block_target "$TARGET_DIR/.claude/CLAUDE.md"
-      skill_target "$TARGET_DIR/.claude/skills/clean-code"
-      ;;
-    agents)
-      apply_global_profile codex
-      apply_global_profile opencode
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    codex)
-      block_target "$TARGET_DIR/.codex/AGENTS.md"
-      ;;
-    opencode)
-      block_target "$TARGET_DIR/.config/opencode/AGENTS.md"
-      ;;
-    jules)
-      apply_global_profile agents
-      ;;
-    gemini)
-      block_target "$TARGET_DIR/.gemini/GEMINI.md"
-      ;;
-    grok)
-      skill_target "$TARGET_DIR/.grok/skills/clean-code"
-      ;;
-    antigravity)
-      # Antigravity's personal skill root is the Gemini config dir, not ~/.agents/skills.
-      skill_target "$TARGET_DIR/.gemini/config/skills/clean-code"
-      ;;
-    cursor|copilot|windsurf|cline|skill)
-      skip_in_global "$1"
-      ;;
-    *)
-      printf 'Unknown profile: %s\n\n' "$1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
-}
-
-apply_project_profile() {
-  case "$1" in
-    all)
-      apply_project_profile claude
-      apply_project_profile agents
-      apply_project_profile gemini
-      apply_project_profile cursor
-      apply_project_profile copilot
-      apply_project_profile windsurf
-      apply_project_profile cline
-      apply_project_profile grok
-      apply_project_profile skill
-      ;;
-    claude)
-      block_target "$TARGET_DIR/CLAUDE.md"
-      skill_target "$TARGET_DIR/.claude/skills/clean-code"
-      ;;
-    agents|codex|opencode|jules)
-      block_target "$TARGET_DIR/AGENTS.md"
-      # .agents/skills is the shared cross-agent skill root: Codex CLI, GitHub Copilot,
-      # Gemini CLI and Amp all read it, so installing here makes the skill itself
-      # discoverable rather than only the instruction block.
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    gemini)
-      block_target "$TARGET_DIR/GEMINI.md"
-      ;;
-    cursor)
-      owned_file_target "$ROOT_DIR/.cursor/rules/clean-code.mdc" "$TARGET_DIR/.cursor/rules/clean-code.mdc"
-      ;;
-    copilot)
-      block_target "$TARGET_DIR/.github/copilot-instructions.md"
-      owned_file_target "$ROOT_DIR/.github/instructions/clean-code.instructions.md" "$TARGET_DIR/.github/instructions/clean-code.instructions.md"
-      skill_target "$TARGET_DIR/.github/skills/clean-code"
-      ;;
-    windsurf)
-      owned_file_target "$ROOT_DIR/.windsurf/rules/clean-code.md" "$TARGET_DIR/.windsurf/rules/clean-code.md"
-      ;;
-    cline)
-      owned_file_target "$ROOT_DIR/.clinerules/clean-code.md" "$TARGET_DIR/.clinerules/clean-code.md"
-      ;;
-    grok)
-      # Grok Build CLI reads AGENTS.md, but its project skill root is .grok/skills,
-      # not the shared .agents/skills root.
-      block_target "$TARGET_DIR/AGENTS.md"
-      skill_target "$TARGET_DIR/.grok/skills/clean-code"
-      ;;
-    antigravity)
-      # Antigravity defaults to the shared project root; only its personal root differs.
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    skill)
-      skill_target "$TARGET_DIR/skills/clean-code"
-      ;;
-    *)
-      printf 'Unknown profile: %s\n\n' "$1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
+apply_profile() {
+  local profile="$1" rows kind path _
+  rows="$(host_rows "$(scope)" "$profile")"
+  if [[ -z "$rows" ]]; then
+    if [[ -n "$(host_rows project "$profile")$(host_rows global "$profile")" ]]; then
+      printf 'SKIP: %s is project-scoped; run without --global for a specific project.\n' "$profile"
+      return
+    fi
+    printf 'Unknown profile: %s\n\n' "$profile" >&2
+    usage >&2
+    exit 1
+  fi
+  while IFS=$'\t' read -r kind path _; do
+    case "$kind" in
+      include) apply_profile "$path" ;;
+      block) block_target "$TARGET_DIR/$path" ;;
+      owned) owned_file_target "$ROOT_DIR/$path" "$TARGET_DIR/$path" ;;
+      skill) skill_target "$TARGET_DIR/$path" ;;
+      *) printf 'ERROR: unknown kind %s in %s\n' "$kind" "$HOSTS" >&2; exit 1 ;;
+    esac
+  done <<< "$rows"
 }
 
 for profile in "${profiles[@]}"; do
-  if [[ "$GLOBAL" -eq 1 ]]; then
-    apply_global_profile "$profile"
-  else
-    apply_project_profile "$profile"
-  fi
+  apply_profile "$profile"
 done
 
 if [[ "$UNINSTALL" -eq 1 ]]; then
