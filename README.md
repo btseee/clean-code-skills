@@ -74,7 +74,7 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 | Adapters | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/`, `.cursor/`, `.windsurf/`, `.clinerules/` | Per-client carriers of the same block |
 | Manifests | `.claude-plugin/`, `.codex-plugin/`, `gemini-extension.json` | Native packaging for Claude Code, Codex-style registries, Gemini CLI |
 | Installers | `scripts/install.{sh,ps1}`, `scripts/remote-install.{sh,ps1}` | Local and no-clone install, update, global mode, uninstall |
-| Validators and CI | `scripts/validate.{sh,ps1}`, `.github/workflows/` | Repo integrity, block and version sync, installer behavior on Linux and Windows |
+| Validators and CI | `scripts/validate.sh`, `scripts/validate.ps1`, `.github/workflows/` | Repo integrity, block and version sync, installer behavior on Linux and Windows |
 
 `references/` paths above are relative to `skills/clean-code/`.
 
@@ -314,11 +314,9 @@ For contributors, and after any change to the rules block:
 bash scripts/validate.sh
 ```
 
-```powershell
-pwsh scripts/validate.ps1
-```
+On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`, so the two installers stay in step.
 
-Both check required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs both validators plus markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
+The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
 
 ## Configuration
 

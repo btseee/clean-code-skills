@@ -48,11 +48,7 @@ Run before reporting completion:
 bash scripts/validate.sh
 ```
 
-On Windows:
-
-```powershell
-pwsh scripts/validate.ps1
-```
+On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`.
 
 If you change shell or PowerShell scripts, also run:
 

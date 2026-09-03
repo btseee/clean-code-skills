@@ -73,5 +73,5 @@ When editing clean-code-skills itself:
 
 - The managed block above is the canonical text in `templates/agent-block.md`, and the version lives in `VERSION`. After changing either, run `bash scripts/sync.sh` — it stamps the version everywhere and mirrors the block into all eight adapter files. Never hand-edit the block inside an adapter; validators fail on drift.
 - Never commit book or course text. Study material such as `clean-code.md` / `clean-code.pdf` is gitignored and must stay untracked; everything in this repo is original synthesis.
-- Run `bash scripts/validate.sh` (or `pwsh scripts/validate.ps1` on Windows) before reporting completion.
+- Run `bash scripts/validate.sh` (from Git Bash on Windows) before reporting completion. `pwsh scripts/validate.ps1` only exercises `install.ps1`.
 - Releases: tag `v$(cat VERSION)`; the release workflow publishes `clean-code.zip` for Claude Desktop / claude.ai upload.
