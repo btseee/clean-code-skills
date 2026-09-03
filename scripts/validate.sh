@@ -94,25 +94,20 @@ pass "required files exist"
 # --- skill front matter ------------------------------------------------------
 
 skill_file="$ROOT_DIR/skills/clean-code/SKILL.md"
-[[ "$(sed -n '1p' "$skill_file")" == "---" ]] || fail "SKILL.md must start with front matter"
-grep -q '^name: clean-code$' "$skill_file" || fail "SKILL.md name must be clean-code"
-grep -q '^description: ' "$skill_file" || fail "SKILL.md needs description"
-grep -q '^license: MIT$' "$skill_file" || fail "SKILL.md needs MIT license field"
-sed -n '2,12p' "$skill_file" | grep -q '^---$' || fail "SKILL.md front matter must close near the top"
-pass "skill front matter is valid"
-
-# Stack extensions: same front-matter contract, named after their folder, declaring what they extend.
-for extension in "$ROOT_DIR"/skills/*/SKILL.md; do
-  [[ "$extension" == "$skill_file" ]] && continue
-  extension_name="$(basename "$(dirname "$extension")")"
-  [[ "$(sed -n '1p' "$extension")" == "---" ]] || fail "$extension_name/SKILL.md must start with front matter"
-  grep -q "^name: $extension_name$" "$extension" || fail "$extension_name/SKILL.md name must be $extension_name"
-  grep -q '^description: ' "$extension" || fail "$extension_name/SKILL.md needs description"
-  grep -q '^license: MIT$' "$extension" || fail "$extension_name/SKILL.md needs MIT license field"
-  grep -q '^  extends: clean-code$' "$extension" || fail "$extension_name/SKILL.md must declare metadata.extends: clean-code"
-  grep -q "\"./skills/$extension_name\"" "$ROOT_DIR/.claude-plugin/plugin.json" || fail "$extension_name is not registered in .claude-plugin/plugin.json"
+for any_skill in "$ROOT_DIR"/skills/*/SKILL.md; do
+  skill_name="$(basename "$(dirname "$any_skill")")"
+  [[ "$(sed -n '1p' "$any_skill")" == "---" ]] || fail "$skill_name/SKILL.md must start with front matter"
+  grep -q "^name: $skill_name$" "$any_skill" || fail "$skill_name/SKILL.md name must be $skill_name"
+  grep -q '^description: ' "$any_skill" || fail "$skill_name/SKILL.md needs description"
+  grep -q '^license: MIT$' "$any_skill" || fail "$skill_name/SKILL.md needs MIT license field"
+  sed -n '2,12p' "$any_skill" | grep -q '^---$' || fail "$skill_name/SKILL.md front matter must close near the top"
+  # Stack extensions declare what they extend and are registered in the plugin manifest.
+  if [[ "$any_skill" != "$skill_file" ]]; then
+    grep -q '^  extends: clean-code$' "$any_skill" || fail "$skill_name/SKILL.md must declare metadata.extends: clean-code"
+    grep -q "\"./skills/$skill_name\"" "$ROOT_DIR/.claude-plugin/plugin.json" || fail "$skill_name is not registered in .claude-plugin/plugin.json"
+  fi
 done
-pass "stack extensions declare their contract and are registered"
+pass "skill front matter is valid; extensions declare their contract and are registered"
 
 # --- agent smells are complete and indexed -------------------------------------
 

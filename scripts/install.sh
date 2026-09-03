@@ -111,7 +111,9 @@ done
 
 VERSION="$(template_version)"
 
+SCOPE=project
 if [[ "$GLOBAL" -eq 1 ]]; then
+  SCOPE=global
   TARGET_DIR="${CLEAN_CODE_HOME:-$HOME}"
 fi
 
@@ -123,10 +125,6 @@ TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
 # --- detection ---------------------------------------------------------------
 
-scope() {
-  if [[ "$GLOBAL" -eq 1 ]]; then printf 'global'; else printf 'project'; fi
-}
-
 # A profile is installed when any of its detect-flagged paths is present:
 # a shared file carrying the block, an owned file, or a skill folder.
 detect_profiles() {
@@ -137,7 +135,7 @@ detect_profiles() {
       owned) [[ -f "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
       skill) [[ -d "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
     esac
-  done < <(host_detect "$(scope)") | awk '!seen[$0]++'
+  done < <(host_detect "$SCOPE") | awk '!seen[$0]++'
 }
 
 if [[ "$DETECT" -eq 1 ]]; then
@@ -230,7 +228,7 @@ owned_file_target() {
 
 apply_profile() {
   local profile="$1" rows kind path _
-  rows="$(host_rows "$(scope)" "$profile")"
+  rows="$(host_rows "$SCOPE" "$profile")"
   if [[ -z "$rows" ]]; then
     if [[ -n "$(host_rows project "$profile")$(host_rows global "$profile")" ]]; then
       printf 'SKIP: %s is project-scoped; run without --global for a specific project.\n' "$profile"

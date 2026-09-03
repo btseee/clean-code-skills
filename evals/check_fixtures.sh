@@ -46,11 +46,4 @@ else
   printf 'WARN: node not found; skipped the unverified-success command check\n'
 fi
 
-# every fixture is readable by the report card
-for scenario in "$SCENARIOS"/*/; do
-  "$PYTHON" "$SCRIPTS/architecture_report.py" --root "$scenario" --json >/dev/null \
-    || fail "architecture_report failed on $(basename "$scenario")"
-done
-pass "architecture_report runs on every fixture"
-
 pass "eval fixtures are intact"

@@ -35,6 +35,7 @@ from pathlib import Path
 import check_boundaries as cb
 import project_files
 import scan_repo
+from detect_stack import SOURCE_DIR_NAMES
 
 GOD_MODULE_LINES = 400
 GOD_MODULE_FAN_OUT = 15
@@ -98,58 +99,37 @@ def build_import_graph(root: Path, files, source_roots) -> dict:
 
 
 def strongly_connected_components(graph: dict) -> list:
-    """Tarjan's algorithm, iterative. Returns components with more than one file."""
-    index = {}
-    lowlink = {}
-    on_stack = set()
-    stack = []
-    components = []
-    counter = 0
+    """Tarjan's algorithm. Returns components with more than one file."""
+    sys.setrecursionlimit(max(sys.getrecursionlimit(), len(graph) + 100))
+    index: dict = {}
+    lowlink: dict = {}
+    stack: list = []
+    components: list = []
+
+    def visit(node):
+        index[node] = lowlink[node] = len(index)
+        stack.append(node)
+        for succ in graph[node]:
+            if succ not in index:
+                visit(succ)
+                lowlink[node] = min(lowlink[node], lowlink[succ])
+            elif succ in stack:
+                lowlink[node] = min(lowlink[node], index[succ])
+        if lowlink[node] == index[node]:
+            component = stack[stack.index(node):]
+            del stack[stack.index(node):]
+            if len(component) > 1:
+                components.append(sorted(component))
 
     for start in graph:
-        if start in index:
-            continue
-        work = [(start, iter(graph[start]))]
-        index[start] = lowlink[start] = counter
-        counter += 1
-        stack.append(start)
-        on_stack.add(start)
-        while work:
-            node, successors = work[-1]
-            advanced = False
-            for succ in successors:
-                if succ not in index:
-                    index[succ] = lowlink[succ] = counter
-                    counter += 1
-                    stack.append(succ)
-                    on_stack.add(succ)
-                    work.append((succ, iter(graph[succ])))
-                    advanced = True
-                    break
-                if succ in on_stack:
-                    lowlink[node] = min(lowlink[node], index[succ])
-            if advanced:
-                continue
-            work.pop()
-            if work:
-                parent = work[-1][0]
-                lowlink[parent] = min(lowlink[parent], lowlink[node])
-            if lowlink[node] == index[node]:
-                component = []
-                while True:
-                    member = stack.pop()
-                    on_stack.discard(member)
-                    component.append(member)
-                    if member == node:
-                        break
-                if len(component) > 1:
-                    components.append(sorted(component))
+        if start not in index:
+            visit(start)
     return sorted(components)
 
 
 def line_count(root: Path, relative: str) -> int:
     text = project_files.read_text(root / relative)
-    return 0 if text is None else text.count("\n") + (1 if text and not text.endswith("\n") else 0)
+    return 0 if text is None else len(text.splitlines())
 
 
 def top_area(relative: str) -> str:
@@ -252,7 +232,7 @@ def find_untested_areas(files, layering, graph) -> list:
         if project_files.is_test_path(relative):
             tested.update(a for a in map(area_of, targets) if a is not None)
     return [
-        {"area": area, "production": count, "tests_touching": 0}
+        {"area": area, "production": count}
         for area, count in sorted(production.items())
         if area not in tested
     ]
@@ -261,25 +241,16 @@ def find_untested_areas(files, layering, graph) -> list:
 def build_report(root: Path, config: str | None) -> dict:
     walk = project_files.walk(root, cb.COMPILED_IMPORT_PATTERNS)
     files = walk.paths
-    source_roots = sorted(
-        {p.split("/")[0] for p in files if "/" in p and p.split("/")[0].lower() in {"src", "lib", "app", "source", "sources", "pkg", "internal"}}
-    )
+    source_roots = sorted({p.split("/")[0] for p in files if "/" in p and p.split("/")[0].lower() in SOURCE_DIR_NAMES})
 
-    layering = None
-    boundary = None
-    layering_note = "no clean-architecture declaration found; violations not measurable"
+    layering = boundary = None
     try:
         config_path = cb.find_config(root, config)
         layering = cb.parse_layering(config_path.read_text(encoding="utf-8", errors="replace"))
         boundary = cb.check_project(root, layering)
-        try:
-            layering_note = f"declared in {config_path.relative_to(root).as_posix()}"
-        except ValueError:
-            layering_note = f"declared in {config_path}"
-        if not boundary["files_by_layer"]:
-            layering_note += " (globs matched no files)"
+        layering_note = f"declared in {config_path}" + ("" if boundary["files_by_layer"] else " (globs matched no files)")
     except (cb.ConfigError, OSError) as error:
-        layering_note = f"{layering_note} ({str(error).split('. ')[0]})"
+        layering_note = f"none found; violations not measurable ({error})"
 
     graph = build_import_graph(root, files, source_roots)
     cycles = strongly_connected_components(graph)
@@ -333,47 +304,36 @@ def build_report(root: Path, config: str | None) -> dict:
     }
 
 
+SECTIONS = (
+    ("Dependency violations", "dependency_violations",
+     lambda v: f"{v['file']}:{v['line']} {v['from_layer']} -> {v['to_layer']} (imports {v['import']})"),
+    ("Circular dependencies", "circular_dependencies", lambda c: " <-> ".join(c)),
+    ("Possible god modules", "possible_god_modules",
+     lambda g: f"{g['file']} ({g['lines']} lines, fan-out {g['fan_out']}, reaches {', '.join(g['areas_reached']) or 'own area'})"),
+    ("Unreferenced files", "unreferenced_files", str),
+    ("Duplicate concepts", "duplicate_concepts", lambda d: f"{d['concept']}: {', '.join(d['files'])}"),
+    ("Untested areas", "untested_areas", lambda u: f"{u['area']} ({u['production']} production files, no test lies in or imports it)"),
+)
+
+
 def render(report: dict) -> str:
     m = report["metrics"]
-    def row(label, metric):
-        count = metric["count"]
-        shown = "n/a" if count is None else str(count)
-        return f"  {label:<26}{shown:>5}   ({metric['kind']})"
-    lines = [
-        "Architecture report card",
-        "",
-        f"  {'Architecture score':<26}{report['score']['value']:>3}/100   (heuristic; compare runs of this project only)",
-        row("Dependency violations", m["dependency_violations"]),
-        row("Circular dependencies", m["circular_dependencies"]),
-        row("Possible god modules", m["possible_god_modules"]),
-        row("Unreferenced files", m["unreferenced_files"]),
-        row("Duplicate concepts", m["duplicate_concepts"]),
-        row("Untested areas", m["untested_areas"]),
-        "",
-        f"  Files considered: {report['files_considered']}; resolved import edges: {report['resolved_import_edges']}"
-        + ("; SCAN TRUNCATED at the file cap" if report["scan_truncated"] else ""),
-        f"  Layering: {m['dependency_violations']['note']}",
-        "",
-    ]
-    def section(title, items, fmt):
-        if not items:
-            return
-        lines.append(f"  {title}:")
-        for item in items[:10]:
-            lines.append(f"    - {fmt(item)}")
-        if len(items) > 10:
-            lines.append(f"    ... and {len(items) - 10} more (see --json)")
-        lines.append("")
-    section("Dependency violations", m["dependency_violations"]["items"],
-            lambda v: f"{v['file']}:{v['line']} {v['from_layer']} -> {v['to_layer']} (imports {v['import']})")
-    section("Cycles", m["circular_dependencies"]["items"], lambda c: " <-> ".join(c))
-    section("Possible god modules", m["possible_god_modules"]["items"],
-            lambda g: f"{g['file']} ({g['lines']} lines, fan-out {g['fan_out']}, reaches {', '.join(g['areas_reached']) or 'own area'})")
-    section("Unreferenced files", m["unreferenced_files"]["items"], str)
-    section("Duplicate concepts", m["duplicate_concepts"]["items"],
-            lambda d: f"{d['concept']}: {', '.join(d['files'])}")
-    section("Untested areas", m["untested_areas"]["items"],
-            lambda u: f"{u['area']} ({u['production']} production files, no test lies in or imports it)")
+    lines = ["Architecture report card", "",
+             f"  {'Architecture score':<26}{report['score']['value']:>3}/100   (heuristic; compare runs of this project only)"]
+    for label, key, _ in SECTIONS:
+        count = m[key]["count"]
+        lines.append(f"  {label:<26}{'n/a' if count is None else count:>5}   ({m[key]['kind']})")
+    lines += ["", f"  Files considered: {report['files_considered']}; resolved import edges: {report['resolved_import_edges']}"
+              + ("; SCAN TRUNCATED at the file cap" if report["scan_truncated"] else ""),
+              f"  Layering: {m['dependency_violations']['note']}", ""]
+    for label, key, fmt in SECTIONS:
+        items = m[key]["items"]
+        if items:
+            lines.append(f"  {label}:")
+            lines += [f"    - {fmt(item)}" for item in items[:10]]
+            if len(items) > 10:
+                lines.append(f"    ... and {len(items) - 10} more (see --json)")
+            lines.append("")
     lines.append("  Rules: " + "; ".join(f"{k.replace('_', ' ')} = {v['rule']}" for k, v in m.items()))
     return "\n".join(lines)
 

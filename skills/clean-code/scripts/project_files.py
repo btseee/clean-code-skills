@@ -69,10 +69,7 @@ def walk(root: Path, suffixes=None) -> Walk:
                 continue
             if len(paths) >= MAX_FILES_SCANNED:
                 return Walk(paths, True)
-            try:
-                paths.append(path.relative_to(root).as_posix())
-            except ValueError:
-                continue
+            paths.append(path.relative_to(root).as_posix())
     return Walk(paths, False)
 
 
