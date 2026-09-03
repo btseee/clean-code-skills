@@ -59,7 +59,9 @@ For every file, judge at least:
 - **Dependencies** — anything imported against the grain (details in policy, wrong-way layer
   imports, a package used against its documented intent for the installed version in
   `context.json`)?
-- **Smells** — anything from `smell-triage.md`, cited by ID.
+- **Smells** — anything from `smell-triage.md`, cited by ID; the A group in `agent-smells.md`
+  (sibling variants, duplicate implementations, speculative abstractions, drift) tends to cluster
+  in code an agent wrote, so look for it where the history says one did.
 - **Tests** — is this file's behavior verifiable, and does anything here explain a coverage gap?
 
 Small files are read in batches; generated files are ticked as "generated, skipped" — a decision,

@@ -7,8 +7,8 @@ decides *whether* to act; this file says *what* the usual action is.
 risk, or your own work introduced it. Otherwise report it separately without touching it. In
 campaign mode, log it in the ledger and handle it in its batch.
 
-Cite smell IDs from `chapter-map.md` (G17, N7, T5...) so findings stay unambiguous and
-cross-referenceable.
+Cite smell IDs from `chapter-map.md` (G17, N7, T5...) and `agent-smells.md` (A1-A10) so findings stay
+unambiguous and cross-referenceable.
 
 ## Code-level smells
 
@@ -51,12 +51,31 @@ shape every later change.
 | Premature service split | a process or network boundary that separates behavior but shares a data record | draw the boundary inside the service instead, or collapse it |
 | Accidental deduplication | one helper serving two actors, or two change rates | split it back apart; owners differ, so the code should too |
 
+## Agent smells
+
+The A group (`agent-smells.md`) is different in kind: these are usually smells in *your own diff*,
+so the scope gate almost always says fix now.
+
+| ID | Smell | Look For | Usual Response |
+| --- | --- | --- | --- |
+| A1 | Hallucinated API | a symbol, option, or flag absent from the installed version | open the installed package and confirm; use what exists |
+| A2 | Unverified dependency | a manifest change nobody asked for; a package for what stdlib does | remove it, or state the reason and let the package manager pin it |
+| A3 | Context loss | a change contradicting `.clean/decisions.md` or `architecture.md` | re-read `.clean/`; say so if a decision looks wrong |
+| A4 | Scope creep | hunks that do not trace to the request | revert them or split into a separate change |
+| A5 | Duplicate implementation | a new helper resembling an existing one; a `_v2` file | extend the owner; delete the copy |
+| A6 | Wrong-file gravity | a root-level file; logic in the open file rather than its owner | move it to where similar artifacts live |
+| A7 | Phantom success | "should work"; a stub delivered as done | run the check and quote it; state what is unfinished |
+| A8 | Test weakening | loosened assertion, new skip, deleted failing test | restore the test; fix the code or report the conflict |
+| A9 | Speculative abstraction | interface with one implementation; factory for one product | inline it until a second consumer exists |
+| A10 | Silent architecture drift | inner code naming an outer module; a skipped layer | route through the owning layer; invert the dependency |
+
 ## Priority when several apply
 
 Order the work by risk, not by how easy the fix looks:
 
 1. Anything that can produce wrong behavior or a security hole — a skipped authorization layer, a
-   broad catch hiding failures, a substitutability violation resolved with a type check.
+   broad catch hiding failures, a substitutability violation resolved with a type check, a
+   hallucinated API (A1), or a claim of success nothing ran (A7).
 2. Anything that blocks verification — untestable by design, structural test coupling, missing tests
    for the area you are changing.
 3. Wrong-way dependencies and cycles, which make every later change more expensive.

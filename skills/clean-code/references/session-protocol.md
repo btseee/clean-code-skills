@@ -34,12 +34,12 @@ before editing.
 
 ## During
 
-**7. Prefer what exists.** Extend the current owner of a concern rather than creating a new home for
+**7. Prefer what exists (A5, A9).** Extend the current owner of a concern rather than creating a new home for
 it. A new dependency, layer, or file needs a reason you can state.
 
 **8. Make small changes.** One intent per edit. Targeted edits, not whole-file regeneration.
 
-**9. Keep the change focused.** Every changed line traces to the request or to cleanup the request
+**9. Keep the change focused (A4).** Every changed line traces to the request or to cleanup the request
 caused. Report unrelated smells; do not fix them silently.
 
 **10. Stay consistent.** Match local naming, error style, test style, and framework idiom, even where
@@ -51,7 +51,7 @@ a removed dead branch — without widening the change.
 **12. Remove the duplication you just created.** Copy-paste inside your own diff is the easiest kind
 to catch and the cheapest to fix. Check that it is true duplication before merging it away.
 
-**13. Validate assumptions against the code.** Confirm every API, option, and config key you
+**13. Validate assumptions against the code (A1, A2).** Confirm every API, option, and config key you
 reference actually exists in this codebase and these dependency versions — the versions are in
 `.clean/context.json` under `dependencies`, or in the manifests directly. Never trust memory: the
 commonest invented API is one from a version you remember rather than the version installed.
@@ -64,7 +64,7 @@ the project's real command, from `.clean/context.json` or the project's own docs
 **15. Review the impact.** Who calls what you changed? What did you orphan? Is anything now
 unreferenced, half-wired, or newly duplicated?
 
-**16. Verify architecture compliance.** Did every dependency you added point inward? Did any detail
+**16. Verify architecture compliance (A10).** Did every dependency you added point inward? Did any detail
 — an ORM type, a framework annotation, an HTTP object, a raw row — leak into a policy module? Run
 `scripts/check_boundaries.py` when the project declares layers, or check the imports you added by
 hand.
@@ -90,9 +90,9 @@ persist them.
 
 These are not negotiable, and they matter more than any style rule in this skill.
 
-- Never claim a check passed without running it. "This should work" is not a result.
+- Never claim a check passed without running it. "This should work" is not a result (A7).
 - Name what you skipped. An honest gap is useful; a silent one is a defect.
-- Never weaken, skip, or delete a failing test to make a suite green. A failing test is information.
+- Never weaken, skip, or delete a failing test to make a suite green. A failing test is information (A8).
 - Never present a stub, a placeholder, or a hardcoded demo value as finished work.
 - If you could not do what was asked, say that plainly rather than delivering something adjacent.
 

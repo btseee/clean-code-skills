@@ -56,6 +56,7 @@ required_files=(
   "skills/clean-code/references/questions.md"
   "skills/clean-code/references/memory-protocol.md"
   "skills/clean-code/references/host-matrix.md"
+  "skills/clean-code/references/agent-smells.md"
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
@@ -89,6 +90,15 @@ grep -q '^description: ' "$skill_file" || fail "SKILL.md needs description"
 grep -q '^license: MIT$' "$skill_file" || fail "SKILL.md needs MIT license field"
 sed -n '2,12p' "$skill_file" | grep -q '^---$' || fail "SKILL.md front matter must close near the top"
 pass "skill front matter is valid"
+
+# --- agent smells are complete and indexed -------------------------------------
+
+agent_smells="$ROOT_DIR/skills/clean-code/references/agent-smells.md"
+for id in A1 A2 A3 A4 A5 A6 A7 A8 A9 A10; do
+  grep -q "^## $id - " "$agent_smells" || fail "agent-smells.md is missing the $id entry"
+  grep -q "^| $id | " "$skill_file" || fail "SKILL.md agent-smells table is missing $id"
+done
+pass "agent smells A1-A10 are defined and indexed"
 
 # --- versions stay in sync ----------------------------------------------------
 

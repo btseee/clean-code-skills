@@ -1,6 +1,6 @@
 # Clean-Code Review Checklist
 
-Use this for code reviews and final diff reviews. Findings should be specific, behavior-grounded, and ordered by severity. Cite smell IDs from `chapter-map.md` (G17, N7, T5...) when they apply, so findings stay unambiguous and cross-referenceable.
+Use this for code reviews and final diff reviews. Findings should be specific, behavior-grounded, and ordered by severity. Cite smell IDs from `chapter-map.md` (G17, N7, T5...) and `agent-smells.md` (A1-A10) when they apply, so findings stay unambiguous and cross-referenceable.
 
 ## Correctness
 
@@ -62,6 +62,18 @@ Use this for code reviews and final diff reviews. Findings should be specific, b
 - Is shared mutable state controlled?
 - Are lifecycles, cancellation, cleanup, ordering, and idempotency clear?
 - Could retries, duplicate events, or parallel calls corrupt state?
+
+## Agent Smells
+
+- Does every API, option, and flag the change uses exist in the installed version (A1)?
+- Was any dependency added, bumped, or assumed without a stated reason (A2)?
+- Does the change contradict a recorded decision or the declared layering (A3, A10)?
+- Do all changed hunks trace to the request (A4)?
+- Does anything new duplicate an existing helper, type, or file (A5)?
+- Is every new file and unit where its responsibility lives (A6)?
+- Is every claim of passing verification backed by a quoted run; is anything a stub (A7)?
+- Was any test loosened, skipped, or deleted to get green (A8)?
+- Does every new interface, factory, or configuration point have a current consumer (A9)?
 
 ## Review Output Format
 

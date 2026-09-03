@@ -9,6 +9,7 @@ This is an agent-oriented synthesis of the full clean-code source structure: 17 
 - For refactoring, scan chapters 3, 5, 10, 12, 14, 16, and 17. For whole-project cleanup, follow `project-refactor.md` and use this map inside each batch.
 - For concurrent code, scan chapter 13 and Appendix A.
 - For tests, scan chapter 9 and the tests smell group in chapter 17.
+- For code an agent wrote, add the A group in `agent-smells.md`; those failures are not in the source text.
 - For "where does this code or file belong" questions, combine chapter 10 (cohesion), G6, G17, G24, and the Where Code Lives section of the skill.
 
 ## Chapter 1: Clean Code

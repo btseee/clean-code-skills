@@ -272,30 +272,23 @@ rewrite. Follow `references/project-refactor.md`. In short:
 6. Stop and report rather than push through when the baseline is red, tests are missing for a risky
    area, or a batch balloons.
 
-## Agent Failure Modes
+## Agent Smells
 
-The failure patterns most specific to AI-generated code. Check yourself against them before
-completion.
+The failure patterns specific to AI-generated code, each with an ID you cite like `G17` or `T5`.
+Full definitions, detection signals, and verification in `references/agent-smells.md`.
 
-| Failure | Counter-behavior |
-| --- | --- |
-| Invented API: calling functions, methods, options, or config keys that do not exist | Verify against the actual codebase, dependency versions, and lockfile — not memory |
-| Reinvented helper: writing logic that already exists in the project or its libraries | Search for existing implementations before writing; extend rather than duplicate |
-| Wrong-place file: new files at the repo root, in the current directory, or outside conventions | Follow the Placement Procedure; mirror similar artifacts |
-| Sibling-variant file: `service_v2.py`, `utils_new.ts`, `final_component.tsx` | Edit the original; version control keeps history |
-| Nearest-file gravity: logic added to whatever file was open, growing god files | Route behavior to the unit that owns the responsibility |
-| Shortest-path wiring: injecting a repository into a controller because it is fewer steps | Go through the layer that owns the rule; the skipped layer may hold the only authorization check |
-| Detail leaking inward: an ORM type, framework annotation, or HTTP object in a business rule | Keep the name of every outer-circle thing out of inner-circle code |
-| Framework as architecture: structure named after the stack, business objects derived from framework classes | Name packages after the domain; wrap the framework at the edge |
-| Regeneration loss: rewriting a whole file and silently dropping error handling, comments, or edge cases | Make targeted edits; when a rewrite is necessary, diff it against the original before finishing |
-| Patch-without-understanding: changing code whose behavior you have not traced | Read callers, tests, and data flow first |
-| Premature abstraction: a layer, boundary, or service introduced for a need nobody has yet | Leave the option open instead; build the boundary at the inflection point |
-| Eager deduplication: merging two similar blocks owned by different actors or changing at different rates | Confirm it is true duplication first; accidental duplication is harder to unmerge than to leave |
-| Placeholder as done: stubs, `pass`, "in a real implementation...", hardcoded demo values | Ship working code or state plainly what is unfinished |
-| Test-blessing: weakening assertions or skipping tests until the suite passes | Fix the code or report the conflict; never bury the signal |
-| Unwired artifact: a new file, route, or migration that nothing references | Complete registration and imports; prove reachability |
-| Scope creep: drive-by renames, reformatting, dependency bumps | Trace every changed line back to the request |
-| False completion: "this should work now" without running anything | Run the verification, quote the result, name what was not run |
+| ID | Smell | Counter-behavior |
+| --- | --- | --- |
+| A1 | Hallucinated API | Verify every API, option, and flag against the installed version, never memory |
+| A2 | Unverified dependency | Search the project and installed packages first; a new package needs a stated reason |
+| A3 | Context loss | Read `.clean/` and project instructions before deciding; a recorded decision is settled |
+| A4 | Scope creep | Every changed line traces to the request; report unrelated smells instead |
+| A5 | Duplicate implementation | Search before writing; extend the owner; never create a sibling variant |
+| A6 | Wrong-file gravity | Route behavior to the unit that owns it; mirror where similar files live |
+| A7 | Phantom success | Run the check, quote the result, name what did not run; no stubs as done |
+| A8 | Test weakening | Fix the code or report the conflict; never loosen, skip, or delete to get green |
+| A9 | Speculative abstraction | Build the concrete thing; abstract when a second consumer exists |
+| A10 | Silent architecture drift | Every new dependency points inward; go through the layer that owns the rule |
 
 ## Smell Triage
 
@@ -304,7 +297,8 @@ the requested change, creates immediate risk, or was introduced by your work. Ot
 separately. In campaign mode, log it in the ledger and handle it in its batch.
 
 `references/smell-triage.md` lists every smell with its usual response and the order to fix them in.
-Cite IDs from `references/chapter-map.md` (G17, N7, T5...) so findings stay unambiguous.
+Cite IDs from `references/chapter-map.md` (G17, N7, T5...) and `references/agent-smells.md` (A1-A10) so
+findings stay unambiguous.
 
 ## Framework And Language Adaptation
 
@@ -358,6 +352,7 @@ Before saying the work is complete, confirm:
 - `tests.md` — the Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, test failure modes.
 - `concurrency.md` — execution models, deadlock conditions, and how to actually catch a race.
 - `examples.md` — worked before-and-after cases and output templates.
+- `agent-smells.md` — A1-A10: the failures specific to AI-generated code, with detection and verification.
 - `smell-triage.md` — every smell with its usual response, and the order to fix them in.
 - `project-refactor.md` — campaign protocol for whole-project or module-wide cleanup.
 - `new-project.md` — greenfield protocol: architecture and standards before code.

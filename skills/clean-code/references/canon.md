@@ -113,3 +113,4 @@ Cite these directly in findings. Full catalogue and the cross-reference table ar
 | **J** | J2-J3 | Language-specific that generalize (J1 intentionally omitted) |
 | **N** | N1-N7 | Naming |
 | **T** | T1-T9 | Tests |
+| **A** | A1-A10 | Agent smells: hallucinated APIs, phantom success, drift, and the rest — `agent-smells.md` |
