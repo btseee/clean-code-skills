@@ -4,7 +4,7 @@ Clean-code operating instructions for Claude Code. In a project that installs th
 
 Use the `clean-code` skill when writing, editing, reviewing, or refactoring code. If the skill is not loadable by name, read it from `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, or `skills/clean-code/SKILL.md`. Keep the process light for trivial typo fixes; use the full loop for any non-trivial change.
 
-<!-- clean-code-skills:begin v3.1.1 -->
+<!-- clean-code-skills:begin v3.2.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.

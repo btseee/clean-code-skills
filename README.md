@@ -352,7 +352,7 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 | Variable | Effect |
 | --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.1.1` |
+| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.2.0` |
 | `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
 | `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
 | `PYTHON_BIN` | Point the hook at a specific interpreter |

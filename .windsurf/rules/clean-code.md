@@ -7,7 +7,7 @@ description: Apply language-agnostic clean-code discipline to all code writing, 
 
 Use these rules for every coding task in Windsurf. In a project that installs this package, the managed block below is kept up to date by the installer; content outside the markers is never touched.
 
-<!-- clean-code-skills:begin v3.1.1 -->
+<!-- clean-code-skills:begin v3.2.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.

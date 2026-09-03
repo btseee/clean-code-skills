@@ -3,6 +3,40 @@
 All notable changes to this project. Versions follow semver; the version in `VERSION` is the single
 source and the git tag must match it exactly.
 
+## 3.2.0
+
+Deepening release, driven by an architecture review of the repository's own hot spots: the
+install, validate, and sync scripts and the three bundled Python scanners. One user-visible fix;
+the rest removes duplicated knowledge so the next host or the next marker change is one edit.
+
+### Fixed
+
+- **`check_boundaries.py` no longer misses Python relative imports.** `from ..infra.db import Db`
+  inside the domain layer passed, because an unresolvable relative import fell through as a fake
+  path that `fnmatch` then matched against the source layer. Resolution is now a pure function over
+  root-relative paths that understands Python's dotted form and returns unknown, never a guess.
+  `allow x -> *` and `deny x -> *`, which parsed but were ignored, are honoured. The report counts
+  imports that landed outside every declared layer, and CI drives the classifier with a table.
+
+### Changed
+
+- **Hosts live in one table.** `templates/hosts.tsv` holds every profile, scope, kind, path, and
+  detect flag; `install.sh`, `install.ps1`, and `sync.sh` read it, and `validate.sh` asserts it
+  agrees with the adapter list. Detection is derived from the same rows the installer applies.
+  After `--global agents`, `--detect` now reports `codex opencode agents`, so the shared skill
+  folder is updated along with the two blocks.
+- **One managed-block implementation in bash.** `merge_block`, `remove_block`, and the version
+  parse moved into `scripts/install-lib.sh`, sourced by `install.sh` and `sync.sh`; `sync.sh` lost
+  its own awk and its GNU-only `sed -i`, so it runs on macOS, and CI runs it on a synced tree and
+  asserts the tree stays clean.
+- **`validate.sh` is the validator on Windows too**, run under Git Bash in CI. `validate.ps1`
+  shrank to the one thing bash cannot observe: exercising `install.ps1`. Windows contributors run
+  `bash scripts/validate.sh` from Git Bash; users are unaffected.
+- **The three scanners share one project walker.** `skills/clean-code/scripts/project_files.py`
+  owns skip rules, the file cap, capped reads, and test-path detection; the copies had drifted
+  (different skip lists, caps of 40000, 20000, and none, different test folder names). Every
+  scanner now reports `scan_truncated` when the cap cut a walk short.
+
 ## 3.1.1
 
 Hardening release: three read-only deep-scan passes walked the skill the way a user would — a cold
