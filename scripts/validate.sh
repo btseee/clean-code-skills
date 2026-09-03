@@ -58,6 +58,7 @@ required_files=(
   "skills/clean-code/references/host-matrix.md"
   "skills/clean-code/references/agent-smells.md"
   "skills/clean-code/references/plan.md"
+  "skills/clean-code/references/risk-verification.md"
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
@@ -107,6 +108,13 @@ for command in 'plan <task>' review audit 'new-project <description>' clean-up q
 done
 grep -q '^## The `review` Command' "$ROOT_DIR/skills/clean-code/references/review-checklist.md" || fail "review-checklist.md lacks the review command section"
 pass "commands are documented in SKILL.md and README.md"
+
+grep -q '^## Self-Check Before Claiming Completion' "$skill_file" || fail "SKILL.md lacks the completion self-check"
+[[ "$(sed -n '/^## Self-Check Before Claiming Completion/,/^## /p' "$skill_file" | grep -c '^- \[ \]')" -eq 10 ]] || fail "the completion self-check must have exactly ten items"
+for level in LOW MEDIUM HIGH; do
+  grep -q "^### $level" "$ROOT_DIR/skills/clean-code/references/risk-verification.md" || fail "risk-verification.md lacks the $level level"
+done
+pass "self-check and risk levels are present"
 
 # --- versions stay in sync ----------------------------------------------------
 

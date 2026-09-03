@@ -30,7 +30,7 @@ before altering it.
 
 **6. Plan the edit.** Decide which unit owns the responsibility, which side of which boundary the
 change sits on, and what the smallest diff looks like. For anything non-trivial, write the plan down
-before editing.
+before editing; `plan.md` is the full form, and `/clean-code plan <task>` produces it on request.
 
 ## During
 
@@ -58,8 +58,10 @@ commonest invented API is one from a version you remember rather than the versio
 
 ## After
 
-**14. Run the checks.** The narrowest meaningful check first, then broader ones as risk demands. Use
-the project's real command, from `.clean/context.json` or the project's own docs.
+**14. Classify the risk, then run the checks it owes.** LOW, MEDIUM, or HIGH per
+`risk-verification.md`; state the level, then run the narrowest meaningful check first and the
+broader ones the level requires. Use the project's real command, from `.clean/commands.json`,
+`.clean/context.json`, or the project's own docs.
 
 **15. Review the impact.** Who calls what you changed? What did you orphan? Is anything now
 unreferenced, half-wired, or newly duplicated?
@@ -80,7 +82,8 @@ constraint the next session would otherwise have to rediscover. When it does not
 create it at the end — creating `.clean/` is the `audit` and `questions` workflows' job, never a
 silent side effect (`memory-protocol.md`).
 
-**20. Hand off cleanly.** Report: what changed and why; what command you ran and its result; what you
+**20. Self-check, then hand off cleanly.** Run the ten questions in `SKILL.md`, "Self-Check Before
+Claiming Completion"; each yes is a finding to fix or report. Then report: what changed and why; what command you ran and its result; what you
 did *not* run and what risk remains; what you found but deliberately left alone. If work is
 unfinished and `.clean/` exists, write the remaining steps into `.clean/ledger.md` so the next
 session resumes instead of restarting; otherwise put them in the handoff report and offer to

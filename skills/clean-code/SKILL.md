@@ -92,10 +92,11 @@ defer trivial in-scope cleanup with a TODO.
 
 ### 5. Verify The Claim
 
-Match verification to risk: a focused unit test or direct command for a small pure function; a
-reproducer test first for a bug fix; tests before and after for a refactor; an integration or
-contract check for an API or boundary change; a browser check for UI; a race-focused test for
-concurrency.
+Classify the risk first (`references/risk-verification.md`): **LOW** owes the narrowest check that
+would fail if the change were wrong; **MEDIUM** adds the changed units' tests, typecheck or build,
+and a contract check across any process seam; **HIGH** (auth, payment, migration, concurrency,
+public API, a boundary change) adds the broader suite, boundary review, and an explicit
+unverified-risk report. Take the higher level when unsure.
 
 If verification cannot be run, say exactly what was not run and what risk remains. Never claim
 success from memory of what the code should do.
@@ -329,21 +330,25 @@ Stop and reassess when you catch yourself thinking:
 | "These two blocks are identical, so I will extract a helper." | Only if they must always change together. Check who owns each one. |
 | "We will clean it up after the deadline." | The pressure that created the shortcut never abates. |
 
-## Completion Checklist
+## Self-Check Before Claiming Completion
 
-Before saying the work is complete, confirm:
+Answer each honestly; a "yes" to any of the first nine is a finding to fix or report, and a "no" to
+the last one means the work is not done.
 
-- The change solves the stated task, and every changed line traces to it.
-- New files sit in conventional locations, follow local naming, and are fully wired in.
-- No duplicate implementation or sibling-variant file was introduced.
-- Each new or grown unit passes the one-sentence test.
-- Every dependency you added points inward, and no detail leaked into a policy module.
-- Names and structure reveal intent; errors, boundaries, and state are explicit enough for the risk.
-- Tests or checks match the behavior changed; no test was weakened to pass.
-- No dead code, scratch files, or debug output introduced by the change remains.
-- Verification results are reported honestly, including what did not run.
-- Decisions worth keeping are recorded in `.clean/decisions.md`; in campaign mode the ledger is
-  current and the batch is verified and checkpointed.
+- [ ] Did I invent or assume an API, option, flag, or config key (A1)?
+- [ ] Did I skip verifying a dependency version where it mattered (A2)?
+- [ ] Did I touch files or lines the task did not need (A4)?
+- [ ] Did I duplicate behavior that already existed (A5)?
+- [ ] Did I create an abstraction without a current need (A9)?
+- [ ] Did I place code away from the unit that owns the responsibility (A6)?
+- [ ] Did I weaken, skip, or delete a test to get green (A8)?
+- [ ] Did I add a dependency that points outward or leaks a detail inward (A10)?
+- [ ] Did I leave a new file, route, or registration unwired?
+- [ ] Did I actually run every verification command I claim to have run, at the depth the risk
+  level owes, and report what I did not run (A7)?
+
+Then: decisions worth keeping are in `.clean/decisions.md`; in campaign mode the ledger is current
+and the batch is checkpointed.
 
 ## References
 
@@ -352,6 +357,7 @@ Before saying the work is complete, confirm:
   testability, decoupling modes.
 - `principles.md` — naming, functions, formatting, errors, data, security, performance in full.
 - `tests.md` — the Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, test failure modes.
+- `risk-verification.md` — LOW / MEDIUM / HIGH classification and what each level owes before completion.
 - `concurrency.md` — execution models, deadlock conditions, and how to actually catch a race.
 - `examples.md` — worked before-and-after cases and output templates.
 - `agent-smells.md` — A1-A10: the failures specific to AI-generated code, with detection and verification.
