@@ -36,6 +36,7 @@ required_files=(
   ".github/workflows/ci.yml"
   ".github/workflows/release.yml"
   "templates/agent-block.md"
+  "templates/hosts.tsv"
   "skills/clean-code/SKILL.md"
   "skills/clean-code/references/chapter-map.md"
   "skills/clean-code/references/framework-map.md"
@@ -58,12 +59,14 @@ required_files=(
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
+  "skills/clean-code/scripts/project_files.py"
   "skills/clean-code/assets/templates/architecture.md"
   "skills/clean-code/assets/templates/decisions.md"
   "skills/clean-code/assets/templates/ledger.md"
   "skills/clean-code/assets/hooks/pre-commit"
   "skills/clean-code/assets/hooks/claude-settings.json"
   "scripts/install.sh"
+  "scripts/install-lib.sh"
   "scripts/install.ps1"
   "scripts/remote-install.sh"
   "scripts/remote-install.ps1"
@@ -130,6 +133,13 @@ for file in "${block_files[@]}"; do
 done
 pass "managed block is identical in all adapter files"
 
+# The host table must name exactly these adapters, or the installer and this check
+# would disagree about which files carry the block.
+table_adapters="$(awk -F'\t' '!/^#/ && $1 == "project" && ($3 == "block" || $3 == "owned") && !seen[$4]++ { print $4 }' "$ROOT_DIR/templates/hosts.tsv" | sort)"
+[[ "$table_adapters" == "$(printf '%s\n' "${block_files[@]}" | sort)" ]] || fail "templates/hosts.tsv project block/owned paths differ from the adapter list in validate.sh"
+awk -F'\t' '!/^#/ && NF && NF != 5 { print FILENAME ":" FNR ": expected 5 tab-separated fields, got " NF; bad = 1 } END { exit bad }' "$ROOT_DIR/templates/hosts.tsv" || fail "templates/hosts.tsv has a malformed row"
+pass "host table matches the adapter list"
+
 # --- tool front matter ---------------------------------------------------------
 
 cursor_rule="$ROOT_DIR/.cursor/rules/clean-code.mdc"
@@ -164,6 +174,7 @@ else
 fi
 
 bash -n "$ROOT_DIR/scripts/install.sh"
+bash -n "$ROOT_DIR/scripts/install-lib.sh"
 bash -n "$ROOT_DIR/scripts/remote-install.sh"
 bash -n "$ROOT_DIR/scripts/sync.sh"
 bash -n "$ROOT_DIR/scripts/validate.sh"
@@ -308,9 +319,10 @@ import sys
 
 ALLOWED = {
     "argparse", "ast", "collections", "dataclasses", "difflib", "fnmatch",
-    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "re",
+    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "__future__",
+    "project_files",  # sibling module in the same folder
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"

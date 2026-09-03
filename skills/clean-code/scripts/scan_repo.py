@@ -23,20 +23,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-SKIP_DIRS = frozenset({
-    ".git", ".hg", ".svn", ".idea", ".vscode", ".vs",
-    "node_modules", "bower_components", "vendor", "__pycache__",
-    ".venv", "venv", "env", ".tox", ".nox", ".mypy_cache", ".pytest_cache",
-    ".ruff_cache", ".gradle", ".dart_tool", ".terraform",
-    "bin", "obj", "build", "dist", "out", "target", "_build",
-    "coverage", "htmlcov", ".next", ".nuxt", "Pods", "migrations",
-})
+import project_files
+from project_files import is_test_path
 
 CODE_EXTENSIONS = frozenset({
     ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue", ".svelte",
@@ -124,41 +117,9 @@ def looks_like_commented_code(line: str) -> bool:
         return True
     return len(body.split()) <= 5 and not body.endswith(".")
 
-TEST_DIR_NAMES = frozenset({
-    "test", "tests", "spec", "specs", "__tests__", "testing",
-})
-TEST_FILE_PATTERN = re.compile(
-    r"(^test_|_test\.|\.test\.|\.spec\.|_spec\.|Tests?\.|Spec\.)", re.IGNORECASE
-)
-
 LARGE_FILE_LINES = 400
 VERY_LARGE_FILE_LINES = 1000
 LONG_LINE_LENGTH = 200
-MAX_FILE_BYTES = 2_000_000
-MAX_FILES_SCANNED = 20000
-
-
-def is_skippable(directory_name: str) -> bool:
-    return directory_name in SKIP_DIRS or (
-        directory_name.startswith(".") and directory_name != ".github"
-    )
-
-
-def iter_code_files(root: Path):
-    scanned = 0
-    for current_dir, subdirs, filenames in os.walk(root):
-        subdirs[:] = sorted(name for name in subdirs if not is_skippable(name))
-        for filename in sorted(filenames):
-            path = Path(current_dir) / filename
-            if path.suffix.lower() not in CODE_EXTENSIONS:
-                continue
-            scanned += 1
-            if scanned > MAX_FILES_SCANNED:
-                return
-            try:
-                yield path, path.relative_to(root).as_posix()
-            except ValueError:
-                continue
 
 
 def changed_files(root: Path):
@@ -193,21 +154,9 @@ def changed_files(root: Path):
     return files, git_ok
 
 
-def is_test_path(relative_path: str) -> bool:
-    parts = relative_path.split("/")
-    if any(part.lower() in TEST_DIR_NAMES for part in parts[:-1]):
-        return True
-    return bool(TEST_FILE_PATTERN.search(parts[-1]))
-
-
 def read_lines(path: Path):
-    try:
-        if path.stat().st_size > MAX_FILE_BYTES:
-            return None
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            return handle.read().splitlines()
-    except OSError:
-        return None
+    text = project_files.read_text(path)
+    return None if text is None else text.splitlines()
 
 
 def looks_generated(lines) -> bool:
@@ -376,10 +325,13 @@ def collect(results, key):
 
 def build_findings(root: Path, only_changed: bool) -> dict:
     git_ok = True
+    truncated = False
     if only_changed:
         source, git_ok = changed_files(root)
     else:
-        source = iter_code_files(root)
+        walk = project_files.walk(root, CODE_EXTENSIONS)
+        source = [(root / relative, relative) for relative in walk.paths]
+        truncated = walk.truncated
     results = [
         scanned for scanned in (
             scan_file(path, relative_path) for path, relative_path in source
@@ -412,6 +364,7 @@ def build_findings(root: Path, only_changed: bool) -> dict:
             "production_files": sum(1 for result in live if not result["is_test"]),
             "test_files": sum(1 for result in live if result["is_test"]),
             "total_lines": sum(result["line_count"] for result in live),
+            "scan_truncated": truncated,
         },
         "large_files": large_files,
         "very_large_files": [

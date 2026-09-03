@@ -71,10 +71,11 @@ The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter 
 | Tools | `skills/clean-code/scripts/*.py` | `detect_stack.py`, `scan_repo.py`, `check_boundaries.py` |
 | Templates and hooks | `skills/clean-code/assets/` | `.clean/` templates, a portable git pre-commit hook, Claude Code hook settings |
 | Managed rules block | `templates/agent-block.md` | The single text inserted into every agent's instruction file |
+| Host table | `templates/hosts.tsv` | Every profile, scope, and path the installers, sync, and validator know; a new host is one row |
 | Adapters | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/`, `.cursor/`, `.windsurf/`, `.clinerules/` | Per-client carriers of the same block |
 | Manifests | `.claude-plugin/`, `.codex-plugin/`, `gemini-extension.json` | Native packaging for Claude Code, Codex-style registries, Gemini CLI |
 | Installers | `scripts/install.{sh,ps1}`, `scripts/remote-install.{sh,ps1}` | Local and no-clone install, update, global mode, uninstall |
-| Validators and CI | `scripts/validate.{sh,ps1}`, `.github/workflows/` | Repo integrity, block and version sync, installer behavior on Linux and Windows |
+| Validators and CI | `scripts/validate.sh`, `scripts/validate.ps1`, `.github/workflows/` | Repo integrity, block and version sync, installer behavior on Linux and Windows |
 
 `references/` paths above are relative to `skills/clean-code/`.
 
@@ -314,11 +315,9 @@ For contributors, and after any change to the rules block:
 bash scripts/validate.sh
 ```
 
-```powershell
-pwsh scripts/validate.ps1
-```
+On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`, so the two installers stay in step.
 
-Both check required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs both validators plus markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
+The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
 
 ## Configuration
 
@@ -353,7 +352,7 @@ The default rule is the Dependency Rule itself: a layer may depend on itself and
 
 | Variable | Effect |
 | --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.1.1` |
+| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.2.0` |
 | `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
 | `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
 | `PYTHON_BIN` | Point the hook at a specific interpreter |
@@ -437,7 +436,7 @@ More before-and-after cases, in Python, TypeScript, Go and SQL, are in `referenc
 
 Worth knowing before you adopt it.
 
-- **`SKILL.md` is budget-locked** to 500 lines and roughly 5,000 tokens, because hosts load the whole body on activation. Depth lives in `references/`, which load on demand. Both validators enforce the ceiling.
+- **`SKILL.md` is budget-locked** to 500 lines and roughly 5,000 tokens, because hosts load the whole body on activation. Depth lives in `references/`, which load on demand. The validator enforces the ceiling.
 - **Only five frontmatter fields are portable** — `name`, `description`, `license`, `compatibility`, `metadata`. `allowed-tools` is experimental and is never relied on for correctness.
 - **Hooks, slash commands, permissions, and memory are not part of the Agent Skills standard.** They are host-specific, so they live in `assets/` and `host-matrix.md` with a portable substitute for each.
 - **The bundled scripts are standard library only, with no network access.** They read your files and write only to `.clean/`. A validator check rejects any third-party import.

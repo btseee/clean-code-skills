@@ -22,6 +22,7 @@ This repository is behavior-shaping documentation for coding agents. Treat chang
 - The version lives in `VERSION`; the managed rules block is canonical in `templates/agent-block.md`.
 - To change either: edit `VERSION` and/or the template, then run `bash scripts/sync.sh`. It stamps the version into the template marker, `skills/clean-code/SKILL.md` front matter, the three plugin manifests, and `gemini-extension.json`, and mirrors the block into all eight adapter files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.github/instructions/clean-code.instructions.md`, `.cursor/rules/clean-code.mdc`, `.windsurf/rules/clean-code.md`, `.clinerules/clean-code.md`).
 - Never hand-edit the block inside an adapter; validators fail on any drift or version mismatch.
+- Hosts, profiles, and install paths live in `templates/hosts.tsv`; both installers, `sync.sh`, and the validator read it. Adding a host is a row there plus, for a block or owned file, the adapter file itself.
 
 ## Releasing
 
@@ -48,11 +49,7 @@ Run before reporting completion:
 bash scripts/validate.sh
 ```
 
-On Windows:
-
-```powershell
-pwsh scripts/validate.ps1
-```
+On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`.
 
 If you change shell or PowerShell scripts, also run:
 

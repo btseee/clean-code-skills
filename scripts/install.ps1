@@ -16,12 +16,7 @@
 # Bash-style flags (--detect, --global, --force, --uninstall) are also accepted
 # so the same command line works in every shell.
 #
-# Project profiles: all, claude, agents, codex/opencode/jules (aliases for
-# agents), gemini, cursor, copilot, windsurf, cline, grok, antigravity, skill.
-# Global profiles: all (claude + agents + gemini + grok + antigravity),
-# claude (~/.claude), codex (~/.codex), opencode (~/.config/opencode),
-# gemini (~/.gemini), agents (codex + opencode + ~/.agents/skills),
-# grok (~/.grok/skills), antigravity (~/.gemini/config/skills).
+# Profiles and the paths they install are listed in templates/hosts.tsv.
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Target = (Get-Location).Path,
@@ -37,6 +32,10 @@ $ErrorActionPreference = 'Stop'
 
 $RootDir = Split-Path -Parent $PSScriptRoot
 $Template = Join-Path $RootDir 'templates/agent-block.md'
+# The host table is the only place a host path lives; see the header of hosts.tsv.
+$Hosts = @(Get-Content (Join-Path $RootDir 'templates/hosts.tsv') |
+    Where-Object { $_ -and -not $_.StartsWith('#') } |
+    ConvertFrom-Csv -Delimiter "`t" -Header scope, profile, kind, path, detect)
 $BeginMarker = '<!-- clean-code-skills:begin'
 $EndMarker = '<!-- clean-code-skills:end -->'
 
@@ -63,6 +62,7 @@ $Version = $Matches['v']
 if ($Global) {
     $Target = if ($env:CLEAN_CODE_HOME) { $env:CLEAN_CODE_HOME } else { $HOME }
 }
+$Scope = if ($Global) { 'global' } else { 'project' }
 
 if (-not $Uninstall) {
     New-Item -ItemType Directory -Force -Path $Target | Out-Null
@@ -84,27 +84,19 @@ function Test-HasBlock([string]$Path) {
     return (Test-Path $Path) -and (Select-String -Path $Path -Pattern 'clean-code-skills:begin' -Quiet)
 }
 
+# A profile is installed when any of its detect-flagged paths is present:
+# a shared file carrying the block, an owned file, or a skill folder.
 function Get-DetectedProfiles {
-    $found = @()
-    if ($Global) {
-        if ((Test-HasBlock (Join-Path $TargetDir '.claude/CLAUDE.md')) -or (Test-Path (Join-Path $TargetDir '.claude/skills/clean-code'))) { $found += 'claude' }
-        if ((Test-HasBlock (Join-Path $TargetDir '.codex/AGENTS.md')) -or (Test-Path (Join-Path $TargetDir '.agents/skills/clean-code'))) { $found += 'codex' }
-        if (Test-HasBlock (Join-Path $TargetDir '.config/opencode/AGENTS.md')) { $found += 'opencode' }
-        if (Test-HasBlock (Join-Path $TargetDir '.gemini/GEMINI.md')) { $found += 'gemini' }
-        if (Test-Path (Join-Path $TargetDir '.grok/skills/clean-code')) { $found += 'grok' }
-        if (Test-Path (Join-Path $TargetDir '.gemini/config/skills/clean-code')) { $found += 'antigravity' }
-    } else {
-        if ((Test-HasBlock (Join-Path $TargetDir 'CLAUDE.md')) -or (Test-Path (Join-Path $TargetDir '.claude/skills/clean-code'))) { $found += 'claude' }
-        if ((Test-HasBlock (Join-Path $TargetDir 'AGENTS.md')) -or (Test-Path (Join-Path $TargetDir '.agents/skills/clean-code'))) { $found += 'agents' }
-        if (Test-HasBlock (Join-Path $TargetDir 'GEMINI.md')) { $found += 'gemini' }
-        if (Test-Path (Join-Path $TargetDir '.cursor/rules/clean-code.mdc')) { $found += 'cursor' }
-        if ((Test-HasBlock (Join-Path $TargetDir '.github/copilot-instructions.md')) -or (Test-Path (Join-Path $TargetDir '.github/skills/clean-code'))) { $found += 'copilot' }
-        if (Test-Path (Join-Path $TargetDir '.windsurf/rules/clean-code.md')) { $found += 'windsurf' }
-        if (Test-Path (Join-Path $TargetDir '.clinerules/clean-code.md')) { $found += 'cline' }
-        if (Test-Path (Join-Path $TargetDir '.grok/skills/clean-code')) { $found += 'grok' }
-        if (Test-Path (Join-Path $TargetDir 'skills/clean-code')) { $found += 'skill' }
+    $found = foreach ($row in $Hosts | Where-Object { $_.scope -eq $Scope -and $_.detect -eq '1' }) {
+        $path = Join-Path $TargetDir $row.path
+        $present = switch ($row.kind) {
+            'block' { Test-HasBlock $path }
+            'owned' { Test-Path $path -PathType Leaf }
+            'skill' { Test-Path $path -PathType Container }
+        }
+        if ($present) { $row.profile }
     }
-    return $found
+    return @($found | Select-Object -Unique)
 }
 
 if ($Detect) {
@@ -220,84 +212,29 @@ function Invoke-SkillTarget([string]$DestDir) {
     if ($Uninstall) { Remove-SkillDir $DestDir } else { Copy-SkillDir $DestDir }
 }
 
-function Invoke-GlobalProfile([string]$Name) {
-    switch ($Name) {
-        'all' {
-            foreach ($p in @('claude', 'agents', 'gemini', 'grok', 'antigravity')) { Invoke-GlobalProfile $p }
-        }
-        'claude' {
-            Invoke-BlockTarget (Join-Path $TargetDir '.claude/CLAUDE.md')
-            Invoke-SkillTarget (Join-Path $TargetDir '.claude/skills/clean-code')
-        }
-        'agents' {
-            Invoke-GlobalProfile 'codex'
-            Invoke-GlobalProfile 'opencode'
-            Invoke-SkillTarget (Join-Path $TargetDir '.agents/skills/clean-code')
-        }
-        'codex' { Invoke-BlockTarget (Join-Path $TargetDir '.codex/AGENTS.md') }
-        'opencode' { Invoke-BlockTarget (Join-Path $TargetDir '.config/opencode/AGENTS.md') }
-        'jules' { Invoke-GlobalProfile 'agents' }
-        'gemini' { Invoke-BlockTarget (Join-Path $TargetDir '.gemini/GEMINI.md') }
-        'grok' { Invoke-SkillTarget (Join-Path $TargetDir '.grok/skills/clean-code') }
-        'antigravity' {
-            # Antigravity's personal skill root is the Gemini config dir, not ~/.agents/skills.
-            Invoke-SkillTarget (Join-Path $TargetDir '.gemini/config/skills/clean-code')
-        }
-        { $_ -in 'cursor', 'copilot', 'windsurf', 'cline', 'skill' } {
+function Invoke-Profile([string]$Name) {
+    $rows = @($Hosts | Where-Object { $_.scope -eq $Scope -and $_.profile -eq $Name })
+    if ($rows.Count -eq 0) {
+        if (@($Hosts | Where-Object { $_.profile -eq $Name }).Count -gt 0) {
             Write-Output "SKIP: $Name is project-scoped; run without -Global for a specific project."
+            return
         }
-        default {
-            throw "Unknown profile: $Name"
-        }
+        $known = ($Hosts | Where-Object { $_.scope -eq $Scope } | ForEach-Object { $_.profile } | Select-Object -Unique) -join ', '
+        throw "Unknown profile: $Name (expected one of: $known)"
     }
-}
-
-function Invoke-ProjectProfile([string]$Name) {
-    switch ($Name) {
-        'all' {
-            foreach ($p in @('claude', 'agents', 'gemini', 'cursor', 'copilot', 'windsurf', 'cline', 'grok', 'skill')) {
-                Invoke-ProjectProfile $p
-            }
-        }
-        'claude' {
-            Invoke-BlockTarget (Join-Path $TargetDir 'CLAUDE.md')
-            Invoke-SkillTarget (Join-Path $TargetDir '.claude/skills/clean-code')
-        }
-        { $_ -in 'agents', 'codex', 'opencode', 'jules' } {
-            Invoke-BlockTarget (Join-Path $TargetDir 'AGENTS.md')
-            # .agents/skills is the shared cross-agent skill root: Codex CLI, GitHub
-            # Copilot, Gemini CLI and Amp all read it, so installing here makes the
-            # skill itself discoverable rather than only the instruction block.
-            Invoke-SkillTarget (Join-Path $TargetDir '.agents/skills/clean-code')
-        }
-        'gemini' { Invoke-BlockTarget (Join-Path $TargetDir 'GEMINI.md') }
-        'cursor' { Invoke-OwnedFileTarget (Join-Path $RootDir '.cursor/rules/clean-code.mdc') (Join-Path $TargetDir '.cursor/rules/clean-code.mdc') }
-        'copilot' {
-            Invoke-BlockTarget (Join-Path $TargetDir '.github/copilot-instructions.md')
-            Invoke-OwnedFileTarget (Join-Path $RootDir '.github/instructions/clean-code.instructions.md') (Join-Path $TargetDir '.github/instructions/clean-code.instructions.md')
-            Invoke-SkillTarget (Join-Path $TargetDir '.github/skills/clean-code')
-        }
-        'windsurf' { Invoke-OwnedFileTarget (Join-Path $RootDir '.windsurf/rules/clean-code.md') (Join-Path $TargetDir '.windsurf/rules/clean-code.md') }
-        'cline' { Invoke-OwnedFileTarget (Join-Path $RootDir '.clinerules/clean-code.md') (Join-Path $TargetDir '.clinerules/clean-code.md') }
-        'grok' {
-            # Grok Build CLI reads AGENTS.md, but its project skill root is .grok/skills,
-            # not the shared .agents/skills root.
-            Invoke-BlockTarget (Join-Path $TargetDir 'AGENTS.md')
-            Invoke-SkillTarget (Join-Path $TargetDir '.grok/skills/clean-code')
-        }
-        'antigravity' {
-            # Antigravity defaults to the shared project root; only its personal root differs.
-            Invoke-SkillTarget (Join-Path $TargetDir '.agents/skills/clean-code')
-        }
-        'skill' { Invoke-SkillTarget (Join-Path $TargetDir 'skills/clean-code') }
-        default {
-            throw "Unknown profile: $Name (expected all, claude, agents, codex, opencode, jules, gemini, cursor, copilot, windsurf, cline, grok, antigravity, skill)"
+    foreach ($row in $rows) {
+        switch ($row.kind) {
+            'include' { Invoke-Profile $row.path }
+            'block' { Invoke-BlockTarget (Join-Path $TargetDir $row.path) }
+            'owned' { Invoke-OwnedFileTarget (Join-Path $RootDir $row.path) (Join-Path $TargetDir $row.path) }
+            'skill' { Invoke-SkillTarget (Join-Path $TargetDir $row.path) }
+            default { throw "Unknown kind '$($row.kind)' in templates/hosts.tsv" }
         }
     }
 }
 
 foreach ($p in $Profiles) {
-    if ($Global) { Invoke-GlobalProfile $p } else { Invoke-ProjectProfile $p }
+    Invoke-Profile $p
 }
 
 if ($Uninstall) {

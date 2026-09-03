@@ -2,9 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEMPLATE="$ROOT_DIR/templates/agent-block.md"
-BEGIN_MARKER='<!-- clean-code-skills:begin'
-END_MARKER='<!-- clean-code-skills:end -->'
+# shellcheck source=install-lib.sh
+source "$ROOT_DIR/scripts/install-lib.sh"
 TARGET_DIR="$(pwd)"
 FORCE=0
 UNINSTALL=0
@@ -110,9 +109,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -f "$TEMPLATE" ]] || { printf 'ERROR: missing %s\n' "$TEMPLATE" >&2; exit 1; }
-VERSION="$(sed -n "s/^<!-- clean-code-skills:begin v\(.*\) -->$/\1/p" "$TEMPLATE")"
-[[ -n "$VERSION" ]] || { printf 'ERROR: could not read version from template begin marker\n' >&2; exit 1; }
+VERSION="$(template_version)"
 
 if [[ "$GLOBAL" -eq 1 ]]; then
   TARGET_DIR="${CLEAN_CODE_HOME:-$HOME}"
@@ -124,37 +121,23 @@ fi
 [[ -d "$TARGET_DIR" ]] || { printf 'ERROR: target %s does not exist\n' "$TARGET_DIR" >&2; exit 1; }
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
-relpath() {
-  printf '%s' "${1#"$TARGET_DIR"/}"
-}
-
 # --- detection ---------------------------------------------------------------
 
-has_block() {
-  [[ -f "$1" ]] && grep -q "$BEGIN_MARKER" "$1"
+scope() {
+  if [[ "$GLOBAL" -eq 1 ]]; then printf 'global'; else printf 'project'; fi
 }
 
+# A profile is installed when any of its detect-flagged paths is present:
+# a shared file carrying the block, an owned file, or a skill folder.
 detect_profiles() {
-  local found=()
-  if [[ "$GLOBAL" -eq 1 ]]; then
-    { has_block "$TARGET_DIR/.claude/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    { has_block "$TARGET_DIR/.codex/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(codex)
-    has_block "$TARGET_DIR/.config/opencode/AGENTS.md" && found+=(opencode)
-    has_block "$TARGET_DIR/.gemini/GEMINI.md" && found+=(gemini)
-    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
-    [[ -d "$TARGET_DIR/.gemini/config/skills/clean-code" ]] && found+=(antigravity)
-  else
-    { has_block "$TARGET_DIR/CLAUDE.md" || [[ -d "$TARGET_DIR/.claude/skills/clean-code" ]]; } && found+=(claude)
-    { has_block "$TARGET_DIR/AGENTS.md" || [[ -d "$TARGET_DIR/.agents/skills/clean-code" ]]; } && found+=(agents)
-    has_block "$TARGET_DIR/GEMINI.md" && found+=(gemini)
-    [[ -f "$TARGET_DIR/.cursor/rules/clean-code.mdc" ]] && found+=(cursor)
-    { has_block "$TARGET_DIR/.github/copilot-instructions.md" || [[ -d "$TARGET_DIR/.github/skills/clean-code" ]]; } && found+=(copilot)
-    [[ -f "$TARGET_DIR/.windsurf/rules/clean-code.md" ]] && found+=(windsurf)
-    [[ -f "$TARGET_DIR/.clinerules/clean-code.md" ]] && found+=(cline)
-    [[ -d "$TARGET_DIR/.grok/skills/clean-code" ]] && found+=(grok)
-    [[ -d "$TARGET_DIR/skills/clean-code" ]] && found+=(skill)
-  fi
-  printf '%s\n' "${found[@]:-}"
+  local profile kind path
+  while IFS=$'\t' read -r profile kind path; do
+    case "$kind" in
+      block) has_block "$TARGET_DIR/$path" && printf '%s\n' "$profile" ;;
+      owned) [[ -f "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
+      skill) [[ -d "$TARGET_DIR/$path" ]] && printf '%s\n' "$profile" ;;
+    esac
+  done < <(host_detect "$(scope)") | awk '!seen[$0]++'
 }
 
 if [[ "$DETECT" -eq 1 ]]; then
@@ -171,90 +154,6 @@ fi
 if [[ ${#profiles[@]} -eq 0 ]]; then
   profiles=(all)
 fi
-
-# --- managed block in shared files ---------------------------------------
-
-merge_block() {
-  local dest="$1"
-  local begin_count end_count
-
-  mkdir -p "$(dirname "$dest")"
-
-  if [[ ! -e "$dest" ]]; then
-    cat "$TEMPLATE" > "$dest"
-    printf 'INSTALLED: %s (new file with managed block v%s)\n' "$(relpath "$dest")" "$VERSION"
-    return
-  fi
-
-  begin_count="$(grep -c "$BEGIN_MARKER" "$dest" || true)"
-  end_count="$(grep -cF "$END_MARKER" "$dest" || true)"
-
-  if [[ "$begin_count" -eq 0 && "$end_count" -eq 0 ]]; then
-    # Ensure the file ends with a newline, then append the block.
-    if [[ -s "$dest" && "$(tail -c 1 "$dest" | wc -l)" -eq 0 ]]; then
-      printf '\n' >> "$dest"
-    fi
-    printf '\n' >> "$dest"
-    cat "$TEMPLATE" >> "$dest"
-    printf 'UPDATED: %s (managed block v%s appended; existing content preserved)\n' "$(relpath "$dest")" "$VERSION"
-    return
-  fi
-
-  if [[ "$begin_count" -ne 1 || "$end_count" -ne 1 ]]; then
-    printf 'ERROR: %s has malformed clean-code-skills markers (begin=%s end=%s); fix manually\n' \
-      "$(relpath "$dest")" "$begin_count" "$end_count" >&2
-    exit 1
-  fi
-
-  local tmp
-  tmp="$(mktemp)"
-  awk -v tpl="$TEMPLATE" -v begin="$BEGIN_MARKER" -v end="$END_MARKER" '
-    index($0, begin) == 1 {
-      while ((getline line < tpl) > 0) print line
-      close(tpl)
-      skipping = 1
-      next
-    }
-    index($0, end) == 1 && skipping { skipping = 0; next }
-    !skipping { print }
-  ' "$dest" > "$tmp"
-  mv "$tmp" "$dest"
-  printf 'UPDATED: %s (managed block replaced with v%s)\n' "$(relpath "$dest")" "$VERSION"
-}
-
-remove_block() {
-  local dest="$1"
-  [[ -e "$dest" ]] || return 0
-  if ! grep -q "$BEGIN_MARKER" "$dest"; then
-    return 0
-  fi
-
-  local tmp
-  tmp="$(mktemp)"
-  awk -v begin="$BEGIN_MARKER" -v end="$END_MARKER" '
-    index($0, begin) == 1 { skipping = 1; next }
-    index($0, end) == 1 && skipping { skipping = 0; next }
-    !skipping { print }
-  ' "$dest" > "$tmp"
-
-  if [[ -z "$(tr -d '[:space:]' < "$tmp")" ]]; then
-    rm -f "$tmp" "$dest"
-    printf 'REMOVED: %s (file contained only the managed block)\n' "$(relpath "$dest")"
-  else
-    # merge_block inserts a blank separator line before an appended block. Removing the
-    # block must take that separator with it, or install-then-uninstall leaves the file
-    # one blank line longer each round trip instead of restoring it exactly.
-    trimmed="$(mktemp)"
-    awk '{ lines[NR] = $0 } END {
-      last = NR
-      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
-      for (i = 1; i <= last; i++) print lines[i]
-    }' "$tmp" > "$trimmed"
-    mv "$trimmed" "$dest"
-    rm -f "$tmp"
-    printf 'UPDATED: %s (managed block removed; your content kept)\n' "$(relpath "$dest")"
-  fi
-}
 
 block_target() {
   if [[ "$UNINSTALL" -eq 1 ]]; then
@@ -327,128 +226,33 @@ owned_file_target() {
   fi
 }
 
-skip_in_global() {
-  printf 'SKIP: %s is project-scoped; run without --global for a specific project.\n' "$1"
-}
-
 # --- profiles --------------------------------------------------------------
 
-apply_global_profile() {
-  case "$1" in
-    all)
-      apply_global_profile claude
-      apply_global_profile agents
-      apply_global_profile gemini
-      apply_global_profile grok
-      apply_global_profile antigravity
-      ;;
-    claude)
-      block_target "$TARGET_DIR/.claude/CLAUDE.md"
-      skill_target "$TARGET_DIR/.claude/skills/clean-code"
-      ;;
-    agents)
-      apply_global_profile codex
-      apply_global_profile opencode
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    codex)
-      block_target "$TARGET_DIR/.codex/AGENTS.md"
-      ;;
-    opencode)
-      block_target "$TARGET_DIR/.config/opencode/AGENTS.md"
-      ;;
-    jules)
-      apply_global_profile agents
-      ;;
-    gemini)
-      block_target "$TARGET_DIR/.gemini/GEMINI.md"
-      ;;
-    grok)
-      skill_target "$TARGET_DIR/.grok/skills/clean-code"
-      ;;
-    antigravity)
-      # Antigravity's personal skill root is the Gemini config dir, not ~/.agents/skills.
-      skill_target "$TARGET_DIR/.gemini/config/skills/clean-code"
-      ;;
-    cursor|copilot|windsurf|cline|skill)
-      skip_in_global "$1"
-      ;;
-    *)
-      printf 'Unknown profile: %s\n\n' "$1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
-}
-
-apply_project_profile() {
-  case "$1" in
-    all)
-      apply_project_profile claude
-      apply_project_profile agents
-      apply_project_profile gemini
-      apply_project_profile cursor
-      apply_project_profile copilot
-      apply_project_profile windsurf
-      apply_project_profile cline
-      apply_project_profile grok
-      apply_project_profile skill
-      ;;
-    claude)
-      block_target "$TARGET_DIR/CLAUDE.md"
-      skill_target "$TARGET_DIR/.claude/skills/clean-code"
-      ;;
-    agents|codex|opencode|jules)
-      block_target "$TARGET_DIR/AGENTS.md"
-      # .agents/skills is the shared cross-agent skill root: Codex CLI, GitHub Copilot,
-      # Gemini CLI and Amp all read it, so installing here makes the skill itself
-      # discoverable rather than only the instruction block.
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    gemini)
-      block_target "$TARGET_DIR/GEMINI.md"
-      ;;
-    cursor)
-      owned_file_target "$ROOT_DIR/.cursor/rules/clean-code.mdc" "$TARGET_DIR/.cursor/rules/clean-code.mdc"
-      ;;
-    copilot)
-      block_target "$TARGET_DIR/.github/copilot-instructions.md"
-      owned_file_target "$ROOT_DIR/.github/instructions/clean-code.instructions.md" "$TARGET_DIR/.github/instructions/clean-code.instructions.md"
-      skill_target "$TARGET_DIR/.github/skills/clean-code"
-      ;;
-    windsurf)
-      owned_file_target "$ROOT_DIR/.windsurf/rules/clean-code.md" "$TARGET_DIR/.windsurf/rules/clean-code.md"
-      ;;
-    cline)
-      owned_file_target "$ROOT_DIR/.clinerules/clean-code.md" "$TARGET_DIR/.clinerules/clean-code.md"
-      ;;
-    grok)
-      # Grok Build CLI reads AGENTS.md, but its project skill root is .grok/skills,
-      # not the shared .agents/skills root.
-      block_target "$TARGET_DIR/AGENTS.md"
-      skill_target "$TARGET_DIR/.grok/skills/clean-code"
-      ;;
-    antigravity)
-      # Antigravity defaults to the shared project root; only its personal root differs.
-      skill_target "$TARGET_DIR/.agents/skills/clean-code"
-      ;;
-    skill)
-      skill_target "$TARGET_DIR/skills/clean-code"
-      ;;
-    *)
-      printf 'Unknown profile: %s\n\n' "$1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
+apply_profile() {
+  local profile="$1" rows kind path _
+  rows="$(host_rows "$(scope)" "$profile")"
+  if [[ -z "$rows" ]]; then
+    if [[ -n "$(host_rows project "$profile")$(host_rows global "$profile")" ]]; then
+      printf 'SKIP: %s is project-scoped; run without --global for a specific project.\n' "$profile"
+      return
+    fi
+    printf 'Unknown profile: %s\n\n' "$profile" >&2
+    usage >&2
+    exit 1
+  fi
+  while IFS=$'\t' read -r kind path _; do
+    case "$kind" in
+      include) apply_profile "$path" ;;
+      block) block_target "$TARGET_DIR/$path" ;;
+      owned) owned_file_target "$ROOT_DIR/$path" "$TARGET_DIR/$path" ;;
+      skill) skill_target "$TARGET_DIR/$path" ;;
+      *) printf 'ERROR: unknown kind %s in %s\n' "$kind" "$HOSTS" >&2; exit 1 ;;
+    esac
+  done <<< "$rows"
 }
 
 for profile in "${profiles[@]}"; do
-  if [[ "$GLOBAL" -eq 1 ]]; then
-    apply_global_profile "$profile"
-  else
-    apply_project_profile "$profile"
-  fi
+  apply_profile "$profile"
 done
 
 if [[ "$UNINSTALL" -eq 1 ]]; then

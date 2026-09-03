@@ -37,10 +37,12 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
-import os
+import posixpath
 import re
 import sys
 from pathlib import Path
+
+import project_files
 
 CONFIG_BLOCK_PATTERN = re.compile(
     r"```(?:clean-architecture|clean-arch|architecture)\s*\n(.*?)```",
@@ -50,15 +52,6 @@ CONFIG_BLOCK_PATTERN = re.compile(
 LAYER_PATTERN = re.compile(r"^layer\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 NAMESPACE_PATTERN = re.compile(r"^namespace\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 RULE_PATTERN = re.compile(r"^(allow|deny)\s+([\w.-]+)\s*->\s*(.+)$", re.IGNORECASE)
-
-SKIP_DIRS = frozenset({
-    ".git", ".hg", ".svn", ".idea", ".vscode", ".vs",
-    "node_modules", "bower_components", "vendor", "__pycache__",
-    ".venv", "venv", "env", ".tox", ".nox", ".mypy_cache", ".pytest_cache",
-    ".ruff_cache", ".gradle", ".dart_tool", ".terraform",
-    "bin", "obj", "build", "dist", "out", "target", "_build",
-    "coverage", "htmlcov", ".next", ".nuxt", "Pods",
-})
 
 # Extension -> patterns that capture the imported module or path.
 IMPORT_PATTERNS = {
@@ -108,7 +101,6 @@ RESOLVABLE_SUFFIXES = (
     ".py", ".dart", ".rb",
 )
 
-MAX_FILE_BYTES = 2_000_000
 DEFAULT_CONFIG_PATHS = (
     ".clean/architecture.md",
     ".clean/ARCHITECTURE.md",
@@ -134,12 +126,50 @@ class Layering:
     def permits(self, source_layer: str, target_layer: str) -> bool:
         if source_layer == target_layer:
             return True
-        if target_layer in self.denied.get(source_layer, ()):
+        denied = self.denied.get(source_layer, ())
+        allowed = self.allowed.get(source_layer, ())
+        if target_layer in denied or "*" in denied:
             return False
-        if target_layer in self.allowed.get(source_layer, ()):
+        if target_layer in allowed or "*" in allowed:
             return True
         # The Dependency Rule: a layer may point inward, never outward.
         return self.order[target_layer] < self.order[source_layer]
+
+    def layer_of_path(self, relative_path: str) -> str | None:
+        """Innermost matching layer wins, so nested globs stay predictable."""
+        for name in self.layers:
+            for glob in self.layers[name]:
+                normalized = glob.replace("\\", "/")
+                if fnmatch.fnmatch(relative_path, normalized):
+                    return name
+                # `src/Domain/**` should also match `src/Domain/Order.cs`.
+                if normalized.endswith("/**") and fnmatch.fnmatch(
+                    relative_path, normalized[:-3] + "/*"
+                ):
+                    return name
+        return None
+
+    def layer_of_name(self, module: str) -> str | None:
+        """Place a module name such as `App.Domain.Orders` by its namespace tokens."""
+        normalized = module.replace("\\", ".").replace("/", ".").lower()
+        segments = {segment for segment in normalized.split(".") if segment}
+        for name, tokens in self.namespaces.items():
+            if any(token in segments for token in tokens):
+                return name
+        return None
+
+    def layer_of_import(self, module: str, source_path: str, exists) -> str | None:
+        """Classify one import from `source_path` into a declared layer.
+
+        A relative import that resolves to a file on disk is placed by that file's
+        path and nothing else; one that resolves nowhere falls back to its name,
+        so `from ..infra.db import Db` still lands in `infra`. Returns None when
+        the import points outside every declared layer or cannot be placed.
+        """
+        resolved = resolve_relative_import(source_path, module, exists)
+        if resolved is not None:
+            return self.layer_of_path(resolved)
+        return self.layer_of_name(module)
 
 
 def parse_list(raw: str) -> list:
@@ -248,68 +278,29 @@ def find_config(root: Path, explicit: str | None) -> Path:
     )
 
 
-def iter_source_files(root: Path):
-    for current_dir, subdirs, filenames in os.walk(root):
-        subdirs[:] = sorted(
-            name for name in subdirs
-            if name not in SKIP_DIRS and not (name.startswith(".") and name != ".github")
-        )
-        for filename in filenames:
-            path = Path(current_dir) / filename
-            if path.suffix.lower() not in COMPILED_IMPORT_PATTERNS:
-                continue
-            try:
-                yield path, path.relative_to(root).as_posix()
-            except ValueError:
-                continue
+def resolve_relative_import(source_path: str, module: str, exists) -> str | None:
+    """Turn `./x`, `../x`, or Python's `..pkg.mod` into a root-relative path.
 
-
-def layer_of_path(relative_path: str, layering: Layering) -> str | None:
-    """Innermost matching layer wins, so nested globs stay predictable."""
-    for name in layering.layers:
-        for glob in layering.layers[name]:
-            normalized = glob.replace("\\", "/")
-            if fnmatch.fnmatch(relative_path, normalized):
-                return name
-            # `src/Domain/**` should also match `src/Domain/Order.cs`.
-            if normalized.endswith("/**") and fnmatch.fnmatch(
-                relative_path, normalized[:-3] + "/*"
-            ):
-                return name
-    return None
-
-
-def resolve_relative_import(source_file: Path, module: str, root: Path) -> str | None:
+    `exists` answers whether a root-relative path is on disk. Returns None when
+    the import is not relative, escapes the root, or matches no file: an import
+    that cannot be found is unknown, never a guessed path.
+    """
     if not module.startswith("."):
         return None
-    base = (source_file.parent / module).resolve()
-    for suffix in RESOLVABLE_SUFFIXES:
-        candidate = Path(str(base) + suffix)
-        if candidate.exists():
-            try:
-                return candidate.relative_to(root).as_posix()
-            except ValueError:
-                return None
-    try:
-        return base.relative_to(root).as_posix()
-    except ValueError:
+    base = posixpath.dirname(source_path)
+    if "/" in module:
+        target = posixpath.normpath(posixpath.join(base, module))
+    else:
+        dots = len(module) - len(module.lstrip("."))
+        for _ in range(dots - 1):
+            base = posixpath.dirname(base)
+        rest = module[dots:].replace(".", "/")
+        target = posixpath.normpath(posixpath.join(base, rest)) if rest else (base or ".")
+    if target.startswith(".."):
         return None
-
-
-def layer_of_import(module: str, source_file: Path, root: Path, layering: Layering):
-    """Classify an import string into a declared layer, or None if outside them."""
-    resolved = resolve_relative_import(source_file, module, root)
-    if resolved:
-        matched = layer_of_path(resolved, layering)
-        if matched:
-            return matched
-
-    normalized = module.replace("\\", ".").replace("/", ".").lower()
-    segments = {segment for segment in normalized.split(".") if segment}
-
-    for name, tokens in layering.namespaces.items():
-        if any(token in segments for token in tokens):
-            return name
+    for suffix in RESOLVABLE_SUFFIXES:
+        if exists(target + suffix):
+            return target + suffix
     return None
 
 
@@ -317,36 +308,40 @@ def extract_imports(path: Path):
     patterns = COMPILED_IMPORT_PATTERNS.get(path.suffix.lower(), [])
     if not patterns:
         return
-    try:
-        if path.stat().st_size > MAX_FILE_BYTES:
-            return
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            for line_number, line in enumerate(handle, 1):
-                if len(line) > 500:
-                    continue
-                for pattern in patterns:
-                    found = pattern.search(line)
-                    if found:
-                        yield line_number, found.group(1).strip(), line.strip()
-                        break
-    except OSError:
+    text = project_files.read_text(path)
+    if text is None:
         return
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if len(line) > 500:
+            continue
+        for pattern in patterns:
+            found = pattern.search(line)
+            if found:
+                yield line_number, found.group(1).strip(), line.strip()
+                break
 
 
 def check_project(root: Path, layering: Layering) -> dict:
     violations = []
     files_by_layer: dict = {}
     imports_checked = 0
+    imports_unplaced = 0
 
-    for path, relative_path in iter_source_files(root):
-        source_layer = layer_of_path(relative_path, layering)
+    def exists(relative_path: str) -> bool:
+        return (root / relative_path).exists()
+
+    walk = project_files.walk(root, COMPILED_IMPORT_PATTERNS)
+    for relative_path in walk.paths:
+        path = root / relative_path
+        source_layer = layering.layer_of_path(relative_path)
         if source_layer is None:
             continue
         files_by_layer[source_layer] = files_by_layer.get(source_layer, 0) + 1
 
         for line_number, module, line_text in extract_imports(path):
-            target_layer = layer_of_import(module, path, root, layering)
+            target_layer = layering.layer_of_import(module, relative_path, exists)
             if target_layer is None:
+                imports_unplaced += 1
                 continue
             imports_checked += 1
             if not layering.permits(source_layer, target_layer):
@@ -363,6 +358,8 @@ def check_project(root: Path, layering: Layering) -> dict:
         "layers": list(layering.layers),
         "files_by_layer": files_by_layer,
         "cross_layer_imports_checked": imports_checked,
+        "imports_outside_layers": imports_unplaced,
+        "scan_truncated": walk.truncated,
         "violation_count": len(violations),
         "violations": violations,
     }
@@ -387,6 +384,7 @@ def render_report(result: dict) -> str:
         return "\n".join(lines)
 
     lines.append(f"  Cross-layer imports     : {result['cross_layer_imports_checked']}")
+    lines.append(f"  Imports outside layers  : {result['imports_outside_layers']}")
     lines.append("")
 
     if not result["violations"]:

@@ -1,6 +1,6 @@
 {
   "name": "clean-code-skills",
-  "version": "3.1.1",
+  "version": "3.2.0",
   "description": "Clean code and clean architecture for Gemini CLI, language-agnostic: naming, file placement, single responsibility, the Dependency Rule and SOLID, errors, tests, and four commands — audit, new-project, clean-up, questions — with durable project memory in .clean/.",
   "contextFileName": "GEMINI.md"
 }

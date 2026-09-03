@@ -21,24 +21,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+import project_files
+from project_files import TEST_DIR_NAMES, TEST_FILE_PATTERN, is_skippable
 
-# Directories that hold dependencies, build output, or tool caches. Walking them
-# is slow and tells us nothing about the project's own design.
-SKIP_DIRS = frozenset({
-    ".git", ".hg", ".svn", ".idea", ".vscode", ".vs",
-    "node_modules", "bower_components", "jspm_packages", "vendor",
-    "__pycache__", ".venv", "venv", "env", ".tox", ".nox", ".mypy_cache",
-    ".pytest_cache", ".ruff_cache", ".gradle", ".dart_tool", ".terraform",
-    "bin", "obj", "build", "dist", "out", "target", "_build", "deps",
-    "coverage", "htmlcov", ".next", ".nuxt", ".svelte-kit", ".parcel-cache",
-    "Pods", "Carthage", ".cargo", ".stack-work", "cmake-build-debug",
-})
+SCHEMA_VERSION = 1
 
 # Extension -> language. Deliberately broad: the skill must work in any language,
 # so an unknown extension is reported as unknown rather than forced into a guess.
@@ -138,15 +128,6 @@ TEST_RUNNER_SIGNATURES = [
     ("testify", "Testify"), ("ginkgo", "Ginkgo"),
 ]
 
-TEST_DIR_NAMES = frozenset({
-    "test", "tests", "spec", "specs", "__tests__", "testing",
-    "unittest", "unittests", "test_suite", "integration-tests",
-})
-
-TEST_FILE_PATTERN = re.compile(
-    r"(^test_|_test\.|\.test\.|\.spec\.|Tests?\.|Spec\.|_spec\.)", re.IGNORECASE
-)
-
 # Directory name -> the architectural role it conventionally signals. Used to
 # offer a starting layer map; the project's real layout always overrides it.
 LAYER_HINTS = {
@@ -209,30 +190,7 @@ AGENT_CONTEXT_FILES = (
     "ARCHITECTURE.md", "docs/architecture.md", "adr", "docs/adr",
 )
 
-MAX_FILES_SCANNED = 40000
 MANIFEST_READ_LIMIT = 200_000
-
-
-def is_skippable(directory_name: str) -> bool:
-    return directory_name in SKIP_DIRS or (
-        directory_name.startswith(".") and directory_name not in {".github"}
-    )
-
-
-def walk_project(root: Path):
-    """Yield (relative_path, filename) for project files, pruning noise directories."""
-    scanned = 0
-    for current_dir, subdirs, filenames in os.walk(root):
-        subdirs[:] = sorted(name for name in subdirs if not is_skippable(name))
-        for filename in filenames:
-            scanned += 1
-            if scanned > MAX_FILES_SCANNED:
-                return
-            absolute = Path(current_dir) / filename
-            try:
-                yield absolute.relative_to(root), filename
-            except ValueError:
-                continue
 
 
 def read_text_safely(path: Path, limit: int = MANIFEST_READ_LIMIT) -> str:
@@ -628,7 +586,8 @@ def infer_purpose(root: Path, manifests: list, languages: dict, tests: dict) -> 
 
 
 def build_context(root: Path) -> dict:
-    files = list(walk_project(root))
+    walk = project_files.walk(root)
+    files = [(Path(relative), Path(relative).name) for relative in walk.paths]
     languages = count_languages(files)
     manifests = find_manifests(root, files)
     frameworks, test_runners = scan_manifest_contents(root, manifests)
@@ -661,6 +620,7 @@ def build_context(root: Path) -> dict:
         "existing_context_files": find_existing_context_files(root),
         "purpose": infer_purpose(root, manifests, languages, tests),
         "files_scanned": len(files),
+        "scan_truncated": walk.truncated,
     }
 
 

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with no tooling. Optional scripts in scripts/ need Python 3.8+ and read-only filesystem access; they write only to .clean/ and never use the network.
 argument-hint: "[audit | new-project <description> | clean-up | questions]"
 metadata:
-  version: "3.1.1"
+  version: "3.2.0"
 ---
 
 # Clean Code And Clean Architecture

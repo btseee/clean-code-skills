@@ -4,7 +4,7 @@ Instructions for AI coding agents (Codex CLI, Jules, opencode, Amp, Gemini CLI w
 
 Load and apply the `clean-code` skill before non-trivial code writing, editing, review, testing, or refactoring. Depending on the install target, the skill lives at `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`, or in the agent's global skill registry as `clean-code`.
 
-<!-- clean-code-skills:begin v3.1.1 -->
+<!-- clean-code-skills:begin v3.2.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
@@ -74,7 +74,7 @@ When changing the clean-code-skills repository itself:
 - The managed block above is canonical in `templates/agent-block.md`, and the version lives in `VERSION`. After changing either, run `bash scripts/sync.sh` to stamp the version everywhere and mirror the block into every adapter file. `scripts/validate.sh` fails on drift.
 - Do not copy proprietary or copyrighted source text into this repo. Study material (`clean-code.md`, `clean-code.pdf`) is gitignored and must stay untracked.
 - Keep `skills/clean-code/SKILL.md` valid under the Agent Skills spec: front matter with `name` and `description`, then markdown instructions.
-- Run `bash scripts/validate.sh` (or `pwsh scripts/validate.ps1`) before reporting completion.
+- Run `bash scripts/validate.sh` (from Git Bash on Windows) before reporting completion. `pwsh scripts/validate.ps1` only exercises `install.ps1`.
 
 ## Review Bias
 
