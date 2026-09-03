@@ -59,6 +59,7 @@ required_files=(
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
+  "skills/clean-code/scripts/project_files.py"
   "skills/clean-code/assets/templates/architecture.md"
   "skills/clean-code/assets/templates/decisions.md"
   "skills/clean-code/assets/templates/ledger.md"
@@ -321,6 +322,7 @@ ALLOWED = {
     "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "__future__",
+    "project_files",  # sibling module in the same folder
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"

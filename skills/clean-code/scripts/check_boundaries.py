@@ -37,11 +37,12 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
-import os
 import posixpath
 import re
 import sys
 from pathlib import Path
+
+import project_files
 
 CONFIG_BLOCK_PATTERN = re.compile(
     r"```(?:clean-architecture|clean-arch|architecture)\s*\n(.*?)```",
@@ -51,15 +52,6 @@ CONFIG_BLOCK_PATTERN = re.compile(
 LAYER_PATTERN = re.compile(r"^layer\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 NAMESPACE_PATTERN = re.compile(r"^namespace\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 RULE_PATTERN = re.compile(r"^(allow|deny)\s+([\w.-]+)\s*->\s*(.+)$", re.IGNORECASE)
-
-SKIP_DIRS = frozenset({
-    ".git", ".hg", ".svn", ".idea", ".vscode", ".vs",
-    "node_modules", "bower_components", "vendor", "__pycache__",
-    ".venv", "venv", "env", ".tox", ".nox", ".mypy_cache", ".pytest_cache",
-    ".ruff_cache", ".gradle", ".dart_tool", ".terraform",
-    "bin", "obj", "build", "dist", "out", "target", "_build",
-    "coverage", "htmlcov", ".next", ".nuxt", "Pods",
-})
 
 # Extension -> patterns that capture the imported module or path.
 IMPORT_PATTERNS = {
@@ -109,7 +101,6 @@ RESOLVABLE_SUFFIXES = (
     ".py", ".dart", ".rb",
 )
 
-MAX_FILE_BYTES = 2_000_000
 DEFAULT_CONFIG_PATHS = (
     ".clean/architecture.md",
     ".clean/ARCHITECTURE.md",
@@ -287,22 +278,6 @@ def find_config(root: Path, explicit: str | None) -> Path:
     )
 
 
-def iter_source_files(root: Path):
-    for current_dir, subdirs, filenames in os.walk(root):
-        subdirs[:] = sorted(
-            name for name in subdirs
-            if name not in SKIP_DIRS and not (name.startswith(".") and name != ".github")
-        )
-        for filename in filenames:
-            path = Path(current_dir) / filename
-            if path.suffix.lower() not in COMPILED_IMPORT_PATTERNS:
-                continue
-            try:
-                yield path, path.relative_to(root).as_posix()
-            except ValueError:
-                continue
-
-
 def resolve_relative_import(source_path: str, module: str, exists) -> str | None:
     """Turn `./x`, `../x`, or Python's `..pkg.mod` into a root-relative path.
 
@@ -333,20 +308,17 @@ def extract_imports(path: Path):
     patterns = COMPILED_IMPORT_PATTERNS.get(path.suffix.lower(), [])
     if not patterns:
         return
-    try:
-        if path.stat().st_size > MAX_FILE_BYTES:
-            return
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            for line_number, line in enumerate(handle, 1):
-                if len(line) > 500:
-                    continue
-                for pattern in patterns:
-                    found = pattern.search(line)
-                    if found:
-                        yield line_number, found.group(1).strip(), line.strip()
-                        break
-    except OSError:
+    text = project_files.read_text(path)
+    if text is None:
         return
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if len(line) > 500:
+            continue
+        for pattern in patterns:
+            found = pattern.search(line)
+            if found:
+                yield line_number, found.group(1).strip(), line.strip()
+                break
 
 
 def check_project(root: Path, layering: Layering) -> dict:
@@ -358,7 +330,9 @@ def check_project(root: Path, layering: Layering) -> dict:
     def exists(relative_path: str) -> bool:
         return (root / relative_path).exists()
 
-    for path, relative_path in iter_source_files(root):
+    walk = project_files.walk(root, COMPILED_IMPORT_PATTERNS)
+    for relative_path in walk.paths:
+        path = root / relative_path
         source_layer = layering.layer_of_path(relative_path)
         if source_layer is None:
             continue
@@ -385,6 +359,7 @@ def check_project(root: Path, layering: Layering) -> dict:
         "files_by_layer": files_by_layer,
         "cross_layer_imports_checked": imports_checked,
         "imports_outside_layers": imports_unplaced,
+        "scan_truncated": walk.truncated,
         "violation_count": len(violations),
         "violations": violations,
     }
