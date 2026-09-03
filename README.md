@@ -172,12 +172,14 @@ Editor rules (Cursor, Windsurf, Cline, Copilot) and the bare `skill` profile are
 
 Once installed, agents pick the skill up on their own — the `description` is what every host matches against, so a request about naming, structure, tests, or where a file belongs activates it without being asked.
 
-### The four commands
+### The six commands
 
 The skill takes arguments — `/clean-code <argument>` in Claude Code, with the full per-host forms listed under **Forcing it** below. Plain language ("run the clean-code audit") works on every host.
 
 | Command | What happens |
 | --- | --- |
+| `/clean-code plan <task>` | Inspects the project and writes a change plan before any edit: goal, existing implementation, likely files, ownership, boundaries crossed, dependencies, risks, smallest change, verification plan, open assumptions. Changes nothing |
+| `/clean-code review` | Reviews the current diff (working tree, then staged, then named files) plus its tests and the boundaries it touches. Findings first, P0-P3 severity, smell IDs cited; nothing the formatter owns |
 | `/clean-code audit` | Exhaustive audit: every file inventoried and reviewed, sweeps repeated until one adds zero new findings. Fills `.clean/` (context, architecture, decisions, ledger) and produces a findings-first report. Changes no code |
 | `/clean-code new-project <description>` | Greenfield protocol seeded with your description: requirements, actors, layers, standards, then vertical slices |
 | `/clean-code clean-up` | The cleanup campaign, consuming `.clean/ledger.md` in small verified batches — placement moves, package idioms, structure, boundaries. No ledger? It proposes the audit, names the project's file count, and waits for your consent |

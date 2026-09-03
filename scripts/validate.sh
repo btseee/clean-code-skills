@@ -57,6 +57,7 @@ required_files=(
   "skills/clean-code/references/memory-protocol.md"
   "skills/clean-code/references/host-matrix.md"
   "skills/clean-code/references/agent-smells.md"
+  "skills/clean-code/references/plan.md"
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
@@ -99,6 +100,13 @@ for id in A1 A2 A3 A4 A5 A6 A7 A8 A9 A10; do
   grep -q "^| $id | " "$skill_file" || fail "SKILL.md agent-smells table is missing $id"
 done
 pass "agent smells A1-A10 are defined and indexed"
+
+for command in 'plan <task>' review audit 'new-project <description>' clean-up questions; do
+  grep -q "^| \`$command\` |" "$skill_file" || fail "SKILL.md command table is missing $command"
+  grep -qF "$command" "$ROOT_DIR/README.md" || fail "README.md does not document the $command command"
+done
+grep -q '^## The `review` Command' "$ROOT_DIR/skills/clean-code/references/review-checklist.md" || fail "review-checklist.md lacks the review command section"
+pass "commands are documented in SKILL.md and README.md"
 
 # --- versions stay in sync ----------------------------------------------------
 

@@ -3,7 +3,7 @@ name: clean-code
 description: Use when writing, editing, reviewing, testing, or refactoring code in any language or framework; when creating files or deciding where code belongs; when designing or changing module boundaries, layers, and dependencies; when starting a new project; or when auditing or cleaning up an existing one. Covers naming, functions, comments, error handling, tests, concurrency, security, code placement, single responsibility, code smells, SOLID, the dependency rule, component boundaries, layering, testability, architectural drift, and verified surgical or whole-project refactoring.
 license: MIT
 compatibility: Works with no tooling. Optional scripts in scripts/ need Python 3.8+ and read-only filesystem access; they write only to .clean/ and never use the network.
-argument-hint: "[audit | new-project <description> | clean-up | questions]"
+argument-hint: "[plan <task> | review | audit | new-project <description> | clean-up | questions]"
 metadata:
   version: "3.2.0"
 ---
@@ -233,6 +233,8 @@ Invoked with an argument — `/clean-code audit`, `$clean-code audit`, `@clean-c
 
 | Argument | Also triggered by | Follow |
 | --- | --- | --- |
+| `plan <task>` | "plan this change before editing" | `references/plan.md` — inspects context and produces a change plan (goal, existing code, files, boundaries, risks, verification); edits nothing |
+| `review` | "review my diff" | `references/review-checklist.md`, "The `review` Command" — findings first with P0-P3 severity and smell IDs, scoped to the change and its boundaries |
 | `audit` | "audit this project" | `references/audit-report.md` — every inventoried file reviewed, sweeps repeated until one adds zero new findings, `.clean/` populated; changes no production code |
 | `new-project <description>` | "start a project" | `references/new-project.md`, seeded with the description |
 | `clean-up` | "clean this up" | `references/project-refactor.md`, consuming `.clean/ledger.md`. No ledger yet? Propose the audit with its file count; wait for consent |
@@ -359,7 +361,8 @@ Before saying the work is complete, confirm:
 - `session-protocol.md` — per-session loop, context recovery, and clean handoff.
 - `audit-report.md` — the exhaustive audit: inventory, convergence, filling `.clean/`.
 - `questions.md` — the interview that turns your answers into `.clean/` state.
-- `review-checklist.md` — finding-first checklist for reviews and diff review.
+- `plan.md` — the change plan produced before editing: existing code, files, boundaries, risks, checks.
+- `review-checklist.md` — finding-first checklist, and the `review` command with P0-P3 severity.
 - `chapter-map.md` — code-level chapter map and the full smell catalogue with IDs.
 - `architecture-map.md` — architectural topic map, from question to governing rule.
 - `framework-map.md` — per-language and per-stack adaptation notes.

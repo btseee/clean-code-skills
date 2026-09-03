@@ -1,6 +1,6 @@
 {
   "name": "clean-code-skills",
-  "description": "Clean code and clean architecture for AI agents, language-agnostic: naming, focused functions, file placement, single responsibility, the Dependency Rule, SOLID and component principles, errors, tests, concurrency, agent failure modes — plus /clean-code audit, new-project, clean-up, and questions commands that persist project memory in .clean/.",
+  "description": "Clean code and clean architecture for AI agents, language-agnostic: naming, focused functions, file placement, single responsibility, the Dependency Rule, SOLID and component principles, errors, tests, concurrency, agent failure modes — plus /clean-code plan, review, audit, new-project, clean-up, and questions commands that persist project memory in .clean/.",
   "version": "3.2.0",
   "author": {
     "name": "Battseren Badral",

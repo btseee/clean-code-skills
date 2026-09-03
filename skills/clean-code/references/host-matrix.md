@@ -117,7 +117,7 @@ no host support at all, runs the dependency check and a scan of changed files, a
 enforcement that works identically everywhere.
 
 **Claude Code:** merge `assets/hooks/claude-settings.json` into `.claude/settings.json` for a
-session-start context print and a post-edit scan. Optionally expose the four workflows as commands in
+session-start context print and a post-edit scan. Optionally expose the six workflows as commands in
 `.claude/commands/`.
 
 **Codex CLI, Copilot, Gemini CLI, Cursor, Amp, OpenCode, Factory Droid, Devin CLI, Kimi Code,
