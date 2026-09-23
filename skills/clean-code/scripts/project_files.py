@@ -11,6 +11,7 @@ Standard library only. Reads files; never writes.
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 from pathlib import Path
@@ -81,6 +82,48 @@ def is_test_path(relative_path: str) -> bool:
     if any(part.lower() in TEST_DIR_NAMES for part in parts[:-1]):
         return True
     return bool(TEST_FILE_PATTERN.search(parts[-1]))
+
+
+@functools.lru_cache(maxsize=None)
+def _glob_regex(pattern: str) -> re.Pattern:
+    normalized = pattern.replace("\\", "/").lower()
+    parts = []
+    index = 0
+    while index < len(normalized):
+        if normalized.startswith("**/", index):
+            parts.append("(?:.*/)?")
+            index += 3
+        elif normalized.startswith("/**", index) and index + 3 == len(normalized):
+            parts.append("(?:/.*)?")
+            index += 3
+        elif normalized.startswith("**", index):
+            parts.append(".*")
+            index += 2
+        elif normalized[index] == "*":
+            parts.append("[^/]*")
+            index += 1
+        elif normalized[index] == "?":
+            parts.append("[^/]")
+            index += 1
+        else:
+            parts.append(re.escape(normalized[index]))
+            index += 1
+    return re.compile("^" + "".join(parts) + "$")
+
+
+def glob_match(pattern: str, relative_path: str) -> bool:
+    """Whether a root-relative path matches a glob, ignoring case.
+
+    `**/` spans zero or more directories and a trailing `/**` everything below,
+    while `*` and `?` never cross a slash. fnmatch lets `*` cross slashes, which
+    makes `**/middleware/**` miss a top-level `middleware/` folder.
+    """
+    return bool(_glob_regex(pattern).match(relative_path.replace("\\", "/").lower()))
+
+
+def literal_weight(pattern: str) -> int:
+    """How specific a glob is: its characters that are neither wildcards nor slashes."""
+    return sum(1 for character in pattern if character not in "*?/\\")
 
 
 def read_text(path: Path) -> str | None:
