@@ -3,6 +3,69 @@
   "evals": [
     {
       "id": 1,
+      "name": "angular-service",
+      "prompt": "OrdersComponent calls HttpClient directly. Add retry and keep the component thin.",
+      "expected_output": "An injectable OrdersService (for example src/app/orders/orders.service.ts) wraps the HttpClient call with a retry policy and exposes the data; OrdersComponent injects that service instead of HttpClient and no longer calls http.get itself.",
+      "files": [
+        "evals/cases/angular-service/repo"
+      ],
+      "expectations": [
+        "OrdersComponent no longer references HttpClient directly",
+        "An injectable service class contains the HttpClient call",
+        "A retry policy is applied to the orders request",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "aspnet-core-service",
+      "prompt": "Add an endpoint that archives completed projects older than a year.",
+      "expected_output": "ProjectsController gains a write endpoint that calls into a service; the archiving rule (completed and more than a year old) is implemented on the project service, not the controller; the controller still never references DbContext directly; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/aspnet-core-service/repo"
+      ],
+      "expectations": [
+        "ProjectsController gains a write endpoint for archiving projects",
+        "The archiving rule is implemented on the project service",
+        "ProjectsController still does not reference DbContext directly",
+        "No new code lands in the wrong folder",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "c-error-codes",
+      "prompt": "Add `list_remove` that reports when the index is out of range.",
+      "expected_output": "list_remove is declared in src/list.h returning the module's list_status_t and implemented in src/list.c; the header gains a new status value for an out-of-range index; nothing lands at the repository root.",
+      "files": [
+        "evals/cases/c-error-codes/repo"
+      ],
+      "expectations": [
+        "The header declares list_remove",
+        "The header declares a new status value for an out-of-range index",
+        "list_remove is implemented and returns the module's error-code type",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "compose-view-model",
+      "prompt": "The screen reads the repository directly. Add a loading state.",
+      "expected_output": "An OrdersViewModel is added that extends Android's ViewModel, holds the OrderRepository, and exposes UI state including a loading flag; OrdersScreen no longer references OrderRepository at all, instead obtaining its state from the ViewModel and rendering a loading indicator; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/compose-view-model/repo"
+      ],
+      "expectations": [
+        "A ViewModel class exists",
+        "The new class extends Android's ViewModel",
+        "The composable no longer references the repository type",
+        "The screen renders a loading state",
+        "The screen obtains its state from a ViewModel",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 5,
       "name": "core-context-gate",
       "prompt": "Add a GET /orders/health endpoint that returns {\"status\": \"ok\"}.",
       "expected_output": "The agent reads .clean/context.json and the packs it lists before its first edit, then adds the endpoint to the existing orders router.",
@@ -17,7 +80,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": 6,
       "name": "core-init",
       "prompt": "/clean-code init. Answer the interview yourself: the purpose is an order API for a bakery; the actors are bakery staff and customers; do not enforce layers; the verify command is npm test; there are no no-go zones.",
       "expected_output": ".clean/context.json holds the detected stack with its packs and the confirmed answers; .clean/structure.md maps the project; no code changes.",
@@ -33,7 +96,7 @@
       ]
     },
     {
-      "id": 3,
+      "id": 7,
       "name": "core-layers-declared",
       "prompt": "Orders over 500 EUR need a manager's approval before they are placed. Add that rule.",
       "expected_output": "The approval rule lands in the domain or application layer; the domain never imports Express; the declared layering still passes.",
@@ -49,7 +112,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": 8,
       "name": "core-no-sibling",
       "prompt": "Improve the error handling in src/services/payment.js.",
       "expected_output": "payment.js itself is improved: the swallowed error is handled or rethrown with its cause; no copy of the file appears.",
@@ -65,7 +128,248 @@
       ]
     },
     {
-      "id": 5,
+      "id": 9,
+      "name": "cpp-raii",
+      "prompt": "Wrap the file handle so it always closes.",
+      "expected_output": "A class manages the FILE* handle and releases it automatically; src/main.cpp no longer calls fclose or manually deletes anything; the handle is still closed somewhere.",
+      "files": [
+        "evals/cases/cpp-raii/repo"
+      ],
+      "expectations": [
+        "The caller no longer calls fclose itself",
+        "The caller does not manually delete anything",
+        "A class exists to manage the file handle",
+        "The file handle is still closed somewhere, just no longer by the caller",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "django-service",
+      "prompt": "Cancelling an order must refund the payment and restock items.",
+      "expected_output": "The refund-and-restock rule lives in services.py (or a model method), not in the view; CancelOrderView delegates to it instead of mutating the order directly; nothing lands at the repository root.",
+      "files": [
+        "evals/cases/django-service/repo"
+      ],
+      "expectations": [
+        "The cancellation flow refunds the payment somewhere outside the view",
+        "The cancellation flow restocks items somewhere outside the view",
+        "CancelOrderView itself contains no refund logic",
+        "CancelOrderView no longer mutates order status inline; it delegates the rule",
+        "No view, model, or service lands outside its role's home",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "express-rate-limit",
+      "prompt": "Limit POST /login to five attempts per minute per client IP.",
+      "expected_output": "A new middleware under src/middleware tracks attempts per client IP and rejects the sixth attempt within a minute with a 429 status; the login route applies it. userService.js and the rest of the app are untouched, and nothing lands outside the existing folders.",
+      "files": [
+        "evals/cases/express-rate-limit/repo"
+      ],
+      "expectations": [
+        "A file under src/middleware exports an Express middleware function (req, res, next)",
+        "The middleware answers with a 429 status once the limit is exceeded",
+        "userService.js is unchanged; rate limiting is not a user-service business rule",
+        "map_structure reports no misplaced finding",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "fastapi-schema",
+      "prompt": "Add PATCH /items/{id} to update the price.",
+      "expected_output": "A Pydantic schema models the price update; the PATCH route calls a crud module to apply it and never mutates the ORM object inline; nothing lands at the repository root.",
+      "files": [
+        "evals/cases/fastapi-schema/repo"
+      ],
+      "expectations": [
+        "A Pydantic schema models the price update",
+        "A PATCH route exists for updating an item",
+        "A crud module handles the price update",
+        "The router does not mutate the item's price directly",
+        "No router, schema, or crud module lands outside its role's home",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "flask-blueprint",
+      "prompt": "Add GET /reports/monthly returning totals per month.",
+      "expected_output": "A blueprint route for GET /reports/monthly exists; a service module computes the monthly totals; the app factory changes only to register the new blueprint; nothing lands at the repository root.",
+      "files": [
+        "evals/cases/flask-blueprint/repo"
+      ],
+      "expectations": [
+        "A route path for /reports/monthly exists somewhere in the app",
+        "A service module computes the monthly totals",
+        "The app factory gains no aggregation logic of its own",
+        "No route or service lands outside its role's home",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "flutter-notifier",
+      "prompt": "The login screen calls the API inside `build`. Fix it and show a spinner while loading.",
+      "expected_output": "The session check moves out of LoginScreen's build method into a notifier, cubit, or its State; build no longer fires the HTTP call as a side effect of rendering, it shows a spinner while the check is in flight, and nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/flutter-notifier/repo"
+      ],
+      "expectations": [
+        "LoginScreen's build no longer opens by firing the HTTP call directly",
+        "The session check still happens somewhere in the app, just not as build's first act",
+        "LoginScreen shows a spinner while the check is in flight",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "gin-middleware",
+      "prompt": "Add request-ID middleware and use the ID in the order service logs.",
+      "expected_output": "A new file under internal/middleware defines a gin.HandlerFunc that generates or forwards a request ID and is registered with r.Use(...) in main.go. The handler reads the ID from the gin context and passes it into the order service as a plain value; the service logs include it, and the service still takes no *gin.Context parameter.",
+      "files": [
+        "evals/cases/gin-middleware/repo"
+      ],
+      "expectations": [
+        "A file under internal/middleware defines a gin.HandlerFunc",
+        "The new middleware is registered on the router with .Use(...)",
+        "The order service function now takes the request ID as an added parameter",
+        "The order service still takes no *gin.Context parameter",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "ktor-route",
+      "prompt": "Add POST /orders with validation.",
+      "expected_output": "A POST /orders endpoint is added to the existing routes file as part of the Route extension function, delegating creation to the OrderService rather than mutating storage inline; the request is validated and rejected with a client error when invalid; the existing GET /orders endpoint keeps working; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/ktor-route/repo"
+      ],
+      "expectations": [
+        "A POST handler for /orders is added to the routes file",
+        "The existing GET /orders endpoint is preserved",
+        "The new endpoint is not embedded directly in the plugin configuration",
+        "The service gains the order-creation logic, not the route",
+        "The new endpoint validates its input",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "laravel-form-request",
+      "prompt": "Validate that a new invoice has a positive amount and a due date in the future, and only let accountants create invoices.",
+      "expected_output": "A Form Request validates the invoice input; a policy or middleware in its conventional folder enforces the accountant-only rule; InvoiceController stays a thin adapter that no longer inlines the validation rules or the role check.",
+      "files": [
+        "evals/cases/laravel-form-request/repo"
+      ],
+      "expectations": [
+        "A Form Request class exists for the invoice input",
+        "The Form Request declares its own rules() method",
+        "A middleware or policy enforces the accountant-only rule in its conventional folder",
+        "The controller no longer inlines the validation rules",
+        "The controller no longer inlines the accountant role check",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "nestjs-admin-guard",
+      "prompt": "Only admins may call DELETE /users/:id.",
+      "expected_output": "A new guard implementing CanActivate checks that the caller is an admin; UsersController applies it with @UseGuards on the delete route. UsersService keeps its own job of removing a user and knows nothing about roles.",
+      "files": [
+        "evals/cases/nestjs-admin-guard/repo"
+      ],
+      "expectations": [
+        "A guard file implements CanActivate",
+        "The controller wires the guard in with UseGuards",
+        "Role checking does not leak into the service",
+        "map_structure reports no misplaced finding",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "nextjs-shared-rule",
+      "prompt": "Apply a 10% discount to orders over 100 EUR on the orders page and in the orders API route.",
+      "expected_output": "The discount rule lives in one module outside app/ (for example lib/orders.ts or a new lib/pricing.ts); both app/orders/page.tsx and app/api/orders/route.ts import and apply it instead of each computing their own 10% cut.",
+      "files": [
+        "evals/cases/nextjs-shared-rule/repo"
+      ],
+      "expectations": [
+        "A shared module outside app/ names the discount rule",
+        "The orders page applies the discount rule",
+        "The orders API route applies the discount rule",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "objc-nserror",
+      "prompt": "Report save failures to the caller.",
+      "expected_output": "FeedStore's save method gains an NSError ** out parameter under the file's existing nullability annotations; on failure it populates the error with a domain, code, and description instead of only logging; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/objc-nserror/repo"
+      ],
+      "expectations": [
+        "FeedStore declares an NSError ** out parameter",
+        "FeedStore.m populates the error out parameter on failure",
+        "The populated NSError carries a description",
+        "FeedStore.h keeps its nullability annotations",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "powershell-advanced-function",
+      "prompt": "Add a command that removes stale temp files older than N days.",
+      "expected_output": "A new Remove-/Clear- function under Public/ deletes temp files older than N days, gated behind [CmdletBinding(SupportsShouldProcess)] and a real $PSCmdlet.ShouldProcess call, using Write-Verbose/Write-Output instead of Write-Host; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/powershell-advanced-function/repo"
+      ],
+      "expectations": [
+        "A new function uses an approved verb such as Remove- or Clear-",
+        "The new function declares [CmdletBinding(SupportsShouldProcess)]",
+        "No function writes output with Write-Host",
+        "The function calls $PSCmdlet.ShouldProcess before deleting anything",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "r-function",
+      "prompt": "The analysis script repeats the same cleaning steps twice.",
+      "expected_output": "A function under R/ holds the cleaning steps; analysis.R calls it once per site instead of repeating them; a testthat test exercises the new function.",
+      "files": [
+        "evals/cases/r-function/repo"
+      ],
+      "expectations": [
+        "A function under R/ holds the cleaning steps",
+        "The analysis script no longer inlines the cleaning steps",
+        "A testthat test exercises the extracted cleaning function",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "rails-service-object",
+      "prompt": "Charging a subscription must create an invoice and send a receipt.",
+      "expected_output": "The invoice-creation and receipt-sending logic lives in a Subscription model method or a new app/services/ object; SubscriptionsController stays thin, and no new callback is added to Subscription to trigger the side effect.",
+      "files": [
+        "evals/cases/rails-service-object/repo"
+      ],
+      "expectations": [
+        "Charging a subscription creates an Invoice, in a model method or a service object",
+        "The controller does not create the invoice itself; it stays thin",
+        "No new persistence callback is added to Subscription to trigger the side effect",
+        "A receipt is sent through ReceiptMailer when the subscription is charged",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 24,
       "name": "react-hook-extraction",
       "prompt": "UserList fetches users inside a component effect and shows nothing while loading or when the request fails. Add loading and error states, and make the user fetching reusable so ProfilePage can show the user's name too.",
       "expected_output": "The fetching moves into a custom hook under src/hooks; UserList renders loading and error states through it; ProfilePage can reuse the hook; nothing lands at the repository root.",
@@ -79,6 +383,147 @@
         "UserList renders an error state",
         "No hook or component lands in the wrong folder",
         "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "rust-errors",
+      "prompt": "Parse config values and report bad input to the caller.",
+      "expected_output": "parse_config returns a Result instead of panicking. A dedicated error enum names each way the input can be bad (a missing '=', an unparsable port, an unparsable timeout), and library code no longer calls .unwrap() on the input path.",
+      "files": [
+        "evals/cases/rust-errors/repo"
+      ],
+      "expectations": [
+        "An error enum exists for bad config input",
+        "Library code contains no .unwrap()",
+        "parse_config reports failure through a Result instead of panicking",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "scala-option",
+      "prompt": "Lookup returns null when the user is missing; fix it.",
+      "expected_output": "UserRepository.findById returns Option[User] instead of a nullable User, with no null literal left in the lookup; Greeter (and any other caller) handles the None case without comparing the result to null.",
+      "files": [
+        "evals/cases/scala-option/repo"
+      ],
+      "expectations": [
+        "UserRepository's lookup no longer returns null",
+        "findById's signature returns Option[User]",
+        "No caller compares the result to null any more",
+        "Greeter handles the Option idiomatically instead of a null check",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 27,
+      "name": "shell-functions",
+      "prompt": "Make deploy.sh safe to rerun and easier to read.",
+      "expected_output": "deploy.sh gains `set -euo pipefail`, quotes its expansions, and moves its steps into named functions called from a main entry point; the release symlink swap still runs.",
+      "files": [
+        "evals/cases/shell-functions/repo"
+      ],
+      "expectations": [
+        "The script sets `set -euo pipefail`",
+        "The script's steps are moved into functions",
+        "`$1` is never used unquoted",
+        "The release symlink swap is preserved",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "spring-layering",
+      "prompt": "Add an endpoint that closes an account when its balance is zero.",
+      "expected_output": "The zero-balance close rule is implemented as a method on AccountService; AccountController adds an endpoint that calls it, without injecting AccountRepository or resorting to field injection.",
+      "files": [
+        "evals/cases/spring-layering/repo"
+      ],
+      "expectations": [
+        "AccountController gains an endpoint for closing an account",
+        "The closing behavior is implemented on the @Service class",
+        "AccountController still does not inject AccountRepository directly",
+        "AccountController keeps constructor injection, not field injection",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 29,
+      "name": "strapi-service-logic",
+      "prompt": "When an article is published, compute its reading time.",
+      "expected_output": "The article service computes the reading time (for example from the body's word count) and stores it on readingTimeMinutes when an article is published. The controller stays the generated default and does not compute anything itself.",
+      "files": [
+        "evals/cases/strapi-service-logic/repo"
+      ],
+      "expectations": [
+        "The article service computes the reading time",
+        "The controller does not compute the reading time itself",
+        "The routes stay the generated default",
+        "map_structure reports no misplaced finding",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "svelte-load",
+      "prompt": "The page component fetches products in the script block. Move loading to the right place.",
+      "expected_output": "A +page.ts (or +page.server.ts) load function fetches the products and returns them; +page.svelte reads them from its data prop instead of calling fetch itself in onMount.",
+      "files": [
+        "evals/cases/svelte-load/repo"
+      ],
+      "expectations": [
+        "A +page.ts or +page.server.ts sits beside the route",
+        "It exports a load function",
+        "The page component no longer calls fetch itself",
+        "Nothing new lands at the repository root"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "swiftui-view-model",
+      "prompt": "ContentView downloads the feed with URLSession. Add pull-to-refresh.",
+      "expected_output": "The URLSession fetch moves into a view model that ContentView reads; ContentView.swift no longer calls URLSession itself and gains pull-to-refresh; nothing new lands at the repository root.",
+      "files": [
+        "evals/cases/swiftui-view-model/repo"
+      ],
+      "expectations": [
+        "A view model contains the URLSession call",
+        "ContentView no longer calls URLSession directly",
+        "ContentView adds pull-to-refresh",
+        "No view or view-model symbol lands in the wrong place for its role",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "symfony-service",
+      "prompt": "Send a welcome email after a user registers.",
+      "expected_output": "A service or a Messenger message handler owns building and sending the welcome email; RegistrationController no longer constructs the mailer or the Email object itself, and still persists the new user.",
+      "files": [
+        "evals/cases/symfony-service/repo"
+      ],
+      "expectations": [
+        "RegistrationController no longer constructs or calls the mailer directly",
+        "A service under src/Service holds the mailer dependency",
+        "A message handler under src/MessageHandler sends the mail",
+        "The controller still persists the newly registered user",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 33,
+      "name": "vue-composable",
+      "prompt": "Two components duplicate cart-total logic. Make it shared.",
+      "expected_output": "A composable such as composables/useCartTotal.ts owns the calculation; both CartSummary.vue and CheckoutSummary.vue import and call it instead of each defining their own copy.",
+      "files": [
+        "evals/cases/vue-composable/repo"
+      ],
+      "expectations": [
+        "A composable exists under composables/, named use*",
+        "CartSummary imports the shared composable",
+        "CheckoutSummary imports the shared composable",
+        "No duplicated cart-total function remains across the two components"
       ]
     }
   ]

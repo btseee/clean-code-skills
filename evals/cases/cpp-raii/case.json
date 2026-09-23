@@ -1,0 +1,37 @@
+{
+  "id": "cpp-raii",
+  "pack": "languages/cpp.md",
+  "prompt": "Wrap the file handle so it always closes.",
+  "expected_output": "A class manages the FILE* handle and releases it automatically; src/main.cpp no longer calls fclose or manually deletes anything; the handle is still closed somewhere.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/main.cpp",
+      "pattern": "fclose\\s*\\(",
+      "text": "The caller no longer calls fclose itself"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/main.cpp",
+      "pattern": "delete\\s",
+      "text": "The caller does not manually delete anything"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*",
+      "pattern": "class\\s+[A-Za-z_]\\w*",
+      "text": "A class exists to manage the file handle"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*",
+      "pattern": "fclose\\s*\\(",
+      "text": "The file handle is still closed somewhere, just no longer by the caller"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

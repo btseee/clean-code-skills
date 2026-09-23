@@ -1,0 +1,37 @@
+{
+  "id": "symfony-service",
+  "pack": "frameworks/symfony.md",
+  "prompt": "Send a welcome email after a user registers.",
+  "expected_output": "A service or a Messenger message handler owns building and sending the welcome email; RegistrationController no longer constructs the mailer or the Email object itself, and still persists the new user.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/Controller/**",
+      "pattern": "MailerInterface|new Email\\(",
+      "text": "RegistrationController no longer constructs or calls the mailer directly"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/Service/**",
+      "pattern": "MailerInterface",
+      "text": "A service under src/Service holds the mailer dependency"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/MessageHandler/**",
+      "pattern": "#\\[AsMessageHandler\\]",
+      "text": "A message handler under src/MessageHandler sends the mail"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/Controller/**",
+      "pattern": "persist\\(|flush\\(",
+      "text": "The controller still persists the newly registered user"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

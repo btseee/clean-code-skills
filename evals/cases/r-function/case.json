@@ -1,0 +1,31 @@
+{
+  "id": "r-function",
+  "pack": "languages/r.md",
+  "prompt": "The analysis script repeats the same cleaning steps twice.",
+  "expected_output": "A function under R/ holds the cleaning steps; analysis.R calls it once per site instead of repeating them; a testthat test exercises the new function.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "R/**",
+      "pattern": "trimws\\s*\\(",
+      "text": "A function under R/ holds the cleaning steps"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "analysis.R",
+      "pattern": "trimws\\s*\\(",
+      "text": "The analysis script no longer inlines the cleaning steps"
+    },
+    {
+      "type": "file_contains",
+      "glob": "tests/testthat/**",
+      "pattern": "trimws",
+      "text": "A testthat test exercises the extracted cleaning function"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

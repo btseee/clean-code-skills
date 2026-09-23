@@ -1,0 +1,14 @@
+{
+  "name": "blog-cms",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "build": "strapi build"
+  },
+  "dependencies": {
+    "@strapi/strapi": "^5.55.0",
+    "better-sqlite3": "^11.3.0"
+  }
+}

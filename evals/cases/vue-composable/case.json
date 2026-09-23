@@ -1,0 +1,30 @@
+{
+  "id": "vue-composable",
+  "pack": "frameworks/vue-nuxt.md",
+  "prompt": "Two components duplicate cart-total logic. Make it shared.",
+  "expected_output": "A composable such as composables/useCartTotal.ts owns the calculation; both CartSummary.vue and CheckoutSummary.vue import and call it instead of each defining their own copy.",
+  "expectations": [
+    {
+      "type": "file_exists",
+      "glob": "**/composables/use*.ts",
+      "text": "A composable exists under composables/, named use*"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/CartSummary.vue",
+      "pattern": "from\\s+[\"'][^\"']*composables",
+      "text": "CartSummary imports the shared composable"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/CheckoutSummary.vue",
+      "pattern": "from\\s+[\"'][^\"']*composables",
+      "text": "CheckoutSummary imports the shared composable"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "duplicates",
+      "text": "No duplicated cart-total function remains across the two components"
+    }
+  ]
+}

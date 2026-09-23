@@ -1,0 +1,37 @@
+{
+  "id": "scala-option",
+  "pack": "languages/scala.md",
+  "prompt": "Lookup returns null when the user is missing; fix it.",
+  "expected_output": "UserRepository.findById returns Option[User] instead of a nullable User, with no null literal left in the lookup; Greeter (and any other caller) handles the None case without comparing the result to null.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/main/scala/users/UserRepository.scala",
+      "pattern": "\\bnull\\b",
+      "text": "UserRepository's lookup no longer returns null"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/main/scala/users/UserRepository.scala",
+      "pattern": "Option\\[User\\]",
+      "text": "findById's signature returns Option[User]"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/main/scala/**",
+      "pattern": "==\\s*null|null\\s*==",
+      "text": "No caller compares the result to null any more"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/main/scala/users/Greeter.scala",
+      "pattern": "\\.map\\(|\\.fold\\(|match|getOrElse",
+      "text": "Greeter handles the Option idiomatically instead of a null check"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

@@ -29,17 +29,55 @@ drops the packs of a label that a detected framework already covers.
 language JavaScript = languages/javascript.md
 language TypeScript = languages/typescript.md, languages/javascript.md
 language Python = languages/python.md
+language Java = languages/java.md
+language C = languages/c.md
+language C++ = languages/cpp.md
+language C++ header = languages/cpp.md
+language C# = languages/csharp.md
+language PHP = languages/php.md
 language Go = languages/go.md
 language Rust = languages/rust.md
+language Swift = languages/swift.md
+language Objective-C = languages/objective-c.md
+language Objective-C++ = languages/objective-c.md, languages/cpp.md
 language Kotlin = languages/kotlin.md
+language Ruby = languages/ruby.md
+language Shell = languages/shell.md
+language PowerShell = languages/powershell.md
+language R = languages/r.md
+language Dart = languages/dart.md
+language Scala = languages/scala.md
+language Vue = frameworks/vue-nuxt.md
+language Svelte = frameworks/svelte.md
 framework React = frameworks/react.md
+framework Next.js = frameworks/nextjs.md
+framework Vue = frameworks/vue-nuxt.md
+framework Nuxt = frameworks/vue-nuxt.md
+framework Angular = frameworks/angular.md
+framework Svelte = frameworks/svelte.md
+framework SvelteKit = frameworks/svelte.md
 framework Django = frameworks/django.md
 framework Flask = frameworks/flask.md
 framework FastAPI = frameworks/fastapi.md
+framework Express = frameworks/express.md
+framework NestJS = frameworks/nestjs.md
+framework Strapi = frameworks/strapi.md
+framework Spring = frameworks/spring.md
+framework Spring Boot = frameworks/spring.md
+framework ASP.NET Core = frameworks/aspnet-core.md
+framework EF Core = frameworks/aspnet-core.md
+framework Laravel = frameworks/laravel.md
+framework Symfony = frameworks/symfony.md
+framework Ruby on Rails = frameworks/rails.md
 framework Gin = frameworks/gin-beego.md
 framework Beego = frameworks/gin-beego.md
 framework Ktor = frameworks/ktor.md
 framework Jetpack Compose = frameworks/jetpack-compose.md
+framework SwiftUI = frameworks/swiftui-uikit.md
+framework UIKit = frameworks/swiftui-uikit.md
+framework Flutter = frameworks/flutter.md
+supersede NestJS > Express
+supersede Strapi > React
 ```
 
 ## Roles

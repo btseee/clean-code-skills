@@ -1,0 +1,37 @@
+{
+  "id": "spring-layering",
+  "pack": "frameworks/spring.md",
+  "prompt": "Add an endpoint that closes an account when its balance is zero.",
+  "expected_output": "The zero-balance close rule is implemented as a method on AccountService; AccountController adds an endpoint that calls it, without injecting AccountRepository or resorting to field injection.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/AccountController.java",
+      "pattern": "(?i)@(?:Post|Put|Patch|Delete)Mapping[\\s\\S]{0,80}?close",
+      "text": "AccountController gains an endpoint for closing an account"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/AccountService.java",
+      "pattern": "(?i)close",
+      "text": "The closing behavior is implemented on the @Service class"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/AccountController.java",
+      "pattern": "AccountRepository",
+      "text": "AccountController still does not inject AccountRepository directly"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/AccountController.java",
+      "pattern": "(?i)@Autowired",
+      "text": "AccountController keeps constructor injection, not field injection"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

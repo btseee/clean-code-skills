@@ -1,0 +1,31 @@
+{
+  "id": "flutter-notifier",
+  "pack": "frameworks/flutter.md",
+  "prompt": "The login screen calls the API inside `build`. Fix it and show a spinner while loading.",
+  "expected_output": "The session check moves out of LoginScreen's build method into a notifier, cubit, or its State; build no longer fires the HTTP call as a side effect of rendering, it shows a spinner while the check is in flight, and nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "lib/screens/login_screen.dart",
+      "pattern": "Widget\\s+build\\(BuildContext context\\)\\s*\\{\\s*http\\.(get|post)\\(",
+      "text": "LoginScreen's build no longer opens by firing the HTTP call directly"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**",
+      "pattern": "http\\.(get|post)\\(",
+      "text": "The session check still happens somewhere in the app, just not as build's first act"
+    },
+    {
+      "type": "file_contains",
+      "glob": "lib/screens/login_screen.dart",
+      "pattern": "(?i)circularprogressindicator",
+      "text": "LoginScreen shows a spinner while the check is in flight"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

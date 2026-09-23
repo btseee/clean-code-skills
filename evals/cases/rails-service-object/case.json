@@ -1,0 +1,37 @@
+{
+  "id": "rails-service-object",
+  "pack": "frameworks/rails.md",
+  "prompt": "Charging a subscription must create an invoice and send a receipt.",
+  "expected_output": "The invoice-creation and receipt-sending logic lives in a Subscription model method or a new app/services/ object; SubscriptionsController stays thin, and no new callback is added to Subscription to trigger the side effect.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "app/**",
+      "pattern": "Invoice\\.create|invoices\\.(create|build)",
+      "text": "Charging a subscription creates an Invoice, in a model method or a service object"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/controllers/**",
+      "pattern": "Invoice\\.create|invoices\\.(create|build)",
+      "text": "The controller does not create the invoice itself; it stays thin"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/models/subscription.rb",
+      "pattern": "after_create|after_save|after_commit|before_save|before_create",
+      "text": "No new persistence callback is added to Subscription to trigger the side effect"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/**",
+      "pattern": "ReceiptMailer\\.\\w+",
+      "text": "A receipt is sent through ReceiptMailer when the subscription is charged"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

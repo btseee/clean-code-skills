@@ -1,0 +1,31 @@
+{
+  "id": "angular-service",
+  "pack": "frameworks/angular.md",
+  "prompt": "OrdersComponent calls HttpClient directly. Add retry and keep the component thin.",
+  "expected_output": "An injectable OrdersService (for example src/app/orders/orders.service.ts) wraps the HttpClient call with a retry policy and exposes the data; OrdersComponent injects that service instead of HttpClient and no longer calls http.get itself.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/app/orders/orders.component.ts",
+      "pattern": "HttpClient",
+      "text": "OrdersComponent no longer references HttpClient directly"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/app/**",
+      "pattern": "@Injectable\\([\\s\\S]{0,400}HttpClient",
+      "text": "An injectable service class contains the HttpClient call"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/app/**",
+      "pattern": "(?i)retry",
+      "text": "A retry policy is applied to the orders request"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

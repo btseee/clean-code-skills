@@ -1,0 +1,14 @@
+Package: siteanalysis
+Title: Cleans And Summarizes Site Score Exports
+Version: 0.0.1
+Description: Internal analysis helpers for combining per-site score exports.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    dplyr
+Suggests:
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3

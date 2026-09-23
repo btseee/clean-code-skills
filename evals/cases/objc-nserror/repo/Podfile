@@ -1,0 +1,5 @@
+platform :ios, '17.0'
+
+target 'FeedKit' do
+  use_frameworks!
+end

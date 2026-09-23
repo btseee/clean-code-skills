@@ -1,0 +1,36 @@
+{
+  "id": "aspnet-core-service",
+  "pack": "frameworks/aspnet-core.md",
+  "prompt": "Add an endpoint that archives completed projects older than a year.",
+  "expected_output": "ProjectsController gains a write endpoint that calls into a service; the archiving rule (completed and more than a year old) is implemented on the project service, not the controller; the controller still never references DbContext directly; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/ProjectsController.cs",
+      "pattern": "(?i)\\[Http(?:Post|Put|Patch|Delete)[\\s\\S]{0,80}?archiv",
+      "text": "ProjectsController gains a write endpoint for archiving projects"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/ProjectService.cs",
+      "pattern": "(?i)archiv",
+      "text": "The archiving rule is implemented on the project service"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/ProjectsController.cs",
+      "pattern": "DbContext",
+      "text": "ProjectsController still does not reference DbContext directly"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No new code lands in the wrong folder"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "shell-functions",
+  "pack": "languages/shell.md",
+  "prompt": "Make deploy.sh safe to rerun and easier to read.",
+  "expected_output": "deploy.sh gains `set -euo pipefail`, quotes its expansions, and moves its steps into named functions called from a main entry point; the release symlink swap still runs.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "deploy.sh",
+      "pattern": "set\\s+-euo\\s+pipefail",
+      "text": "The script sets `set -euo pipefail`"
+    },
+    {
+      "type": "file_contains",
+      "glob": "deploy.sh",
+      "pattern": "\\w+\\(\\)\\s*\\{",
+      "text": "The script's steps are moved into functions"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "deploy.sh",
+      "pattern": "(?<!\")\\$1(?!\")",
+      "text": "`$1` is never used unquoted"
+    },
+    {
+      "type": "file_contains",
+      "glob": "deploy.sh",
+      "pattern": "ln\\s+-\\w*s",
+      "text": "The release symlink swap is preserved"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

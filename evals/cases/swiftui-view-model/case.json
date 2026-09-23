@@ -1,0 +1,36 @@
+{
+  "id": "swiftui-view-model",
+  "pack": "frameworks/swiftui-uikit.md",
+  "prompt": "ContentView downloads the feed with URLSession. Add pull-to-refresh.",
+  "expected_output": "The URLSession fetch moves into a view model that ContentView reads; ContentView.swift no longer calls URLSession itself and gains pull-to-refresh; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/*ViewModel.swift",
+      "pattern": "URLSession",
+      "text": "A view model contains the URLSession call"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/ContentView.swift",
+      "pattern": "URLSession",
+      "text": "ContentView no longer calls URLSession directly"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/ContentView.swift",
+      "pattern": "\\.refreshable",
+      "text": "ContentView adds pull-to-refresh"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No view or view-model symbol lands in the wrong place for its role"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

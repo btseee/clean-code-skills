@@ -1,0 +1,37 @@
+{
+  "id": "objc-nserror",
+  "pack": "languages/objective-c.md",
+  "prompt": "Report save failures to the caller.",
+  "expected_output": "FeedStore's save method gains an NSError ** out parameter under the file's existing nullability annotations; on failure it populates the error with a domain, code, and description instead of only logging; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/FeedStore.h",
+      "pattern": "NSError\\s*\\*\\s*(?:_Nullable\\s*)?\\*",
+      "text": "FeedStore declares an NSError ** out parameter"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/FeedStore.m",
+      "pattern": "\\*error\\s*=",
+      "text": "FeedStore.m populates the error out parameter on failure"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/FeedStore.m",
+      "pattern": "NSLocalizedDescriptionKey",
+      "text": "The populated NSError carries a description"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/FeedStore.h",
+      "pattern": "NS_ASSUME_NONNULL_BEGIN",
+      "text": "FeedStore.h keeps its nullability annotations"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

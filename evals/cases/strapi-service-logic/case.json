@@ -1,0 +1,35 @@
+{
+  "id": "strapi-service-logic",
+  "pack": "frameworks/strapi.md",
+  "prompt": "When an article is published, compute its reading time.",
+  "expected_output": "The article service computes the reading time (for example from the body's word count) and stores it on readingTimeMinutes when an article is published. The controller stays the generated default and does not compute anything itself.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/api/article/services/article.js",
+      "pattern": "(?i)reading.?time",
+      "text": "The article service computes the reading time"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/api/article/controllers/article.js",
+      "pattern": "(?i)reading.?time",
+      "text": "The controller does not compute the reading time itself"
+    },
+    {
+      "type": "unchanged",
+      "path": "src/api/article/routes/article.js",
+      "text": "The routes stay the generated default"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "map_structure reports no misplaced finding"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "laravel-form-request",
+  "pack": "frameworks/laravel.md",
+  "prompt": "Validate that a new invoice has a positive amount and a due date in the future, and only let accountants create invoices.",
+  "expected_output": "A Form Request validates the invoice input; a policy or middleware in its conventional folder enforces the accountant-only rule; InvoiceController stays a thin adapter that no longer inlines the validation rules or the role check.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "app/Http/Requests/**",
+      "pattern": "extends\\s+FormRequest",
+      "text": "A Form Request class exists for the invoice input"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/Http/Requests/**",
+      "pattern": "function rules\\(",
+      "text": "The Form Request declares its own rules() method"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/**",
+      "pattern": "function handle\\([^)]*Closure \\$next\\)|class \\w*Policy\\b",
+      "text": "A middleware or policy enforces the accountant-only rule in its conventional folder"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/Http/Controllers/**",
+      "pattern": "\\$request->validate\\(",
+      "text": "The controller no longer inlines the validation rules"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/Http/Controllers/**",
+      "pattern": "role\\s*!==\\s*['\"]accountant['\"]",
+      "text": "The controller no longer inlines the accountant role check"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

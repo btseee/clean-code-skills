@@ -1,0 +1,36 @@
+{
+  "id": "nestjs-admin-guard",
+  "pack": "frameworks/nestjs.md",
+  "prompt": "Only admins may call DELETE /users/:id.",
+  "expected_output": "A new guard implementing CanActivate checks that the caller is an admin; UsersController applies it with @UseGuards on the delete route. UsersService keeps its own job of removing a user and knows nothing about roles.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/*.guard.ts",
+      "pattern": "CanActivate",
+      "text": "A guard file implements CanActivate"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/users.controller.ts",
+      "pattern": "UseGuards",
+      "text": "The controller wires the guard in with UseGuards"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/users.service.ts",
+      "pattern": "(?i)role",
+      "text": "Role checking does not leak into the service"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "map_structure reports no misplaced finding"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

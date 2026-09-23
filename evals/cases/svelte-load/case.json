@@ -1,0 +1,30 @@
+{
+  "id": "svelte-load",
+  "pack": "frameworks/svelte.md",
+  "prompt": "The page component fetches products in the script block. Move loading to the right place.",
+  "expected_output": "A +page.ts (or +page.server.ts) load function fetches the products and returns them; +page.svelte reads them from its data prop instead of calling fetch itself in onMount.",
+  "expectations": [
+    {
+      "type": "file_exists",
+      "glob": "src/routes/products/+page*.ts",
+      "text": "A +page.ts or +page.server.ts sits beside the route"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/routes/products/+page*.ts",
+      "pattern": "export\\s+(async\\s+)?function\\s+load|export\\s+const\\s+load",
+      "text": "It exports a load function"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/routes/products/+page.svelte",
+      "pattern": "fetch\\(",
+      "text": "The page component no longer calls fetch itself"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

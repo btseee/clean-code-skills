@@ -1,0 +1,31 @@
+{
+  "id": "c-error-codes",
+  "pack": "languages/c.md",
+  "prompt": "Add `list_remove` that reports when the index is out of range.",
+  "expected_output": "list_remove is declared in src/list.h returning the module's list_status_t and implemented in src/list.c; the header gains a new status value for an out-of-range index; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/list.h",
+      "pattern": "list_remove\\s*\\(",
+      "text": "The header declares list_remove"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/list.h",
+      "pattern": "LIST_[A-Z_]*(RANGE|INDEX|BOUNDS|OOB)",
+      "text": "The header declares a new status value for an out-of-range index"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/list.c",
+      "pattern": "list_status_t\\s+list_remove",
+      "text": "list_remove is implemented and returns the module's error-code type"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

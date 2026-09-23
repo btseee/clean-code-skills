@@ -1,0 +1,31 @@
+{
+  "id": "nextjs-shared-rule",
+  "pack": "frameworks/nextjs.md",
+  "prompt": "Apply a 10% discount to orders over 100 EUR on the orders page and in the orders API route.",
+  "expected_output": "The discount rule lives in one module outside app/ (for example lib/orders.ts or a new lib/pricing.ts); both app/orders/page.tsx and app/api/orders/route.ts import and apply it instead of each computing their own 10% cut.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "lib/**",
+      "pattern": "(?i)discount",
+      "text": "A shared module outside app/ names the discount rule"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/orders/page.tsx",
+      "pattern": "(?i)discount",
+      "text": "The orders page applies the discount rule"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/api/orders/route.ts",
+      "pattern": "(?i)discount",
+      "text": "The orders API route applies the discount rule"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

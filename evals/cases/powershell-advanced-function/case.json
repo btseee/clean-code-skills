@@ -1,0 +1,37 @@
+{
+  "id": "powershell-advanced-function",
+  "pack": "languages/powershell.md",
+  "prompt": "Add a command that removes stale temp files older than N days.",
+  "expected_output": "A new Remove-/Clear- function under Public/ deletes temp files older than N days, gated behind [CmdletBinding(SupportsShouldProcess)] and a real $PSCmdlet.ShouldProcess call, using Write-Verbose/Write-Output instead of Write-Host; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "Public/**",
+      "pattern": "function\\s+(Remove|Clear)-[A-Za-z]+\\b",
+      "text": "A new function uses an approved verb such as Remove- or Clear-"
+    },
+    {
+      "type": "file_contains",
+      "glob": "Public/**",
+      "pattern": "\\[CmdletBinding\\(\\s*SupportsShouldProcess",
+      "text": "The new function declares [CmdletBinding(SupportsShouldProcess)]"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "Public/**",
+      "pattern": "Write-Host",
+      "text": "No function writes output with Write-Host"
+    },
+    {
+      "type": "file_contains",
+      "glob": "Public/**",
+      "pattern": "ShouldProcess\\(",
+      "text": "The function calls $PSCmdlet.ShouldProcess before deleting anything"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}
