@@ -312,20 +312,45 @@ if [[ -n "$SKILL_PYTHON" ]]; then
   done
   pass "skill scripts parse"
 
+  # The scripts promise Python 3.8+. The running interpreter is usually newer, so ask the
+  # parser to reject any syntax 3.8 would not accept.
+  "$SKILL_PYTHON" - "$ROOT_DIR" <<'PY' || fail "a skill script uses syntax newer than Python 3.8"
+import ast
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
+try:
+    ast.parse("x = 1", feature_version=(3, 8))
+except (TypeError, ValueError):
+    print("WARN: this Python cannot check the 3.8 grammar; skipped")
+    sys.exit(0)
+bad = []
+for path in sorted(root.glob("*.py")):
+    try:
+        ast.parse(path.read_text(encoding="utf-8"), feature_version=(3, 8))
+    except SyntaxError as error:
+        bad.append(f"{path.name}:{error.lineno}: {error.msg}")
+if bad:
+    print("\n".join(bad))
+    sys.exit(1)
+PY
+  pass "skill scripts parse under the Python 3.8 grammar"
+
   "$SKILL_PYTHON" - "$ROOT_DIR" <<'PY' || fail "a skill script imports a third-party module; keep them standard-library only"
 import ast
 import pathlib
 import sys
 
 ALLOWED = {
-    "argparse", "ast", "collections", "dataclasses", "difflib", "fnmatch",
+    "argparse", "ast", "bisect", "collections", "dataclasses", "difflib", "fnmatch",
     "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "__future__",
-    "project_files",  # sibling module in the same folder
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
+ALLOWED |= {path.stem for path in root.glob("*.py")}  # sibling modules in the same folder
 bad = []
 for path in sorted(root.glob("*.py")):
     tree = ast.parse(path.read_text(encoding="utf-8"))
