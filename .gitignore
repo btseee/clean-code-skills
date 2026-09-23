@@ -56,3 +56,8 @@ __pycache__/
 .mypy_cache/
 node_modules/
 *.log
+
+# Build output that IDEs and toolchains create inside the eval fixtures
+/evals/cases/*/repo/**/obj/
+/evals/cases/*/repo/**/.dart_tool/
+/evals/cases/*/repo/**/target/
