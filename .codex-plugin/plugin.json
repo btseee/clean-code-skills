@@ -1,6 +1,6 @@
 {
   "name": "clean-code-skills",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "description": "Codex-ready clean-code and clean-architecture skill for maintainable, verifiable agent-written code: naming, placement, single responsibility, the Dependency Rule and SOLID, errors, tests, packs for 19 languages and 21 frameworks, a structure map, and the init / audit / clean-up / new-project workflows.",
   "author": {
     "name": "Battseren Badral",

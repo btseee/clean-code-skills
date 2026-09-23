@@ -4,7 +4,7 @@ Instructions for AI coding agents (Codex CLI, Jules, opencode, Amp, Gemini CLI w
 
 Load and apply the `clean-code` skill before non-trivial code writing, editing, review, testing, or refactoring. Depending on the install target, the skill lives at `.claude/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`, or in the agent's global skill registry as `clean-code`.
 
-<!-- clean-code-skills:begin v3.2.0 -->
+<!-- clean-code-skills:begin v4.0.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.

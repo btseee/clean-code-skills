@@ -6,7 +6,7 @@ applyTo: "**/*"
 
 Apply these rules to every file type unless a more specific instruction file overrides them.
 
-<!-- clean-code-skills:begin v3.2.0 -->
+<!-- clean-code-skills:begin v4.0.0 -->
 ## Clean Code Rules (clean-code-skills)
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.

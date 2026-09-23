@@ -1,7 +1,7 @@
 {
   "name": "clean-code-skills",
   "description": "Clean code and clean architecture for AI agents: naming, focused functions, file placement, single responsibility, the Dependency Rule, SOLID and component principles, errors, tests — with rule packs for 19 languages and 21 frameworks, a structure map of every file's symbols and misplaced code, and /clean-code init, audit, clean-up, and new-project commands that persist project memory in .clean/.",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "author": {
     "name": "Battseren Badral",
     "email": "bbattseren88@gmail.com",

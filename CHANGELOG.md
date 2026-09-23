@@ -3,6 +3,69 @@
 All notable changes to this project. Versions follow semver; the version in `VERSION` is the single
 source and the git tag must match it exactly.
 
+## 4.0.0
+
+Stack-aware release. The skill now carries a short, strict pack for each of 19 languages and 21
+frameworks, loads only the packs a project needs, and maps every file's functions and classes to
+show misplaced, mixed, and duplicated code in one place. The core shrank so the context an agent
+must read before its first edit stays small on any model.
+
+### Breaking
+
+- **Layer rules are framework-first.** The skill follows each framework's own idiomatic structure,
+  and the strict Clean Architecture layer rules apply only when `.clean/architecture.md` declares
+  layers. Projects that relied on layers being assumed should declare them; `/clean-code init`
+  asks, and proposes an ordering from the detected layer candidates.
+- **`questions` is now `init`.** `references/questions.md` became `references/init.md`; the
+  `questions` command still works as an alias. `init` detects the stack, runs the interview, maps
+  the structure, and writes `.clean/`.
+- **The managed block changed**: placement is role-based and the layer section is framework-first.
+  Re-run the installer to update it.
+
+### Added
+
+- **Language and framework packs** under `references/languages/` and `references/frameworks/`:
+  TypeScript, JavaScript, Python, Java, C, C++, C#, PHP, Go, Rust, Swift, Objective-C, Kotlin, Ruby,
+  Shell, PowerShell, R, Dart, Scala; React, Next.js, Vue and Nuxt, Angular, Svelte and SvelteKit,
+  Django, Flask, FastAPI, Express, NestJS, Strapi, Spring, ASP.NET Core with EF Core, Laravel,
+  Symfony, Ruby on Rails, Gin and Beego, Ktor, Jetpack Compose, SwiftUI and UIKit, Flutter. Language
+  packs cover names, functions and types, errors, modules, placement, tests, layers, enforcement,
+  and smells; framework packs cover structure, roles, rules, layers, tests, enforcement, and smells.
+  Each stays under 2,000 tokens.
+- **Pack routing.** `framework-map.md` holds the pack index; `detect_stack.py` records the selected
+  packs in `context.json` as `packs` and prints them under **Read next**. It also detects SvelteKit,
+  Strapi, Beego, Spring, the ASP.NET Core SDK, Jetpack Compose, Ktor, SwiftUI, and UIKit.
+- **`map_structure.py`**, the structure map: one table of every file with its purpose, symbols,
+  and roles, plus findings for misplaced symbols (middleware declared in `auth.ts` is reported with
+  a move to `middleware/`), files mixing several roles, duplicated bodies, clashing names, synonym
+  verbs, component coupling metrics (Ca, Ce, I, A, D), and folder cycles. `--write` saves
+  `.clean/structure.md` and `.clean/structure.json`; the SessionStart hook prints the findings.
+  Symbol extraction covers all 19 languages with the standard library only.
+- **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
+  signal), overridable per project in `.clean/roles.md`.
+- **An eval harness**: `evals/grade.py` grades a run against a case's deterministic expectations
+  and exports `evals/evals.json` in skill-creator's layout; 33 cases, one per pack plus four core
+  cases, and `evals/triggers.json` for description tuning.
+- **A unit test suite** (`tests/`, standard library `unittest`), run by `validate.sh` and CI.
+- `docs/install.md`, `docs/configuration.md`, and `docs/pack-sources.md`, the sources each pack was
+  checked against.
+
+### Changed
+
+- **`SKILL.md` is a lean router** of about 1,950 tokens that opens with the context gate: read
+  `.clean/`, run the detector, read the named packs, then edit. `validate.sh` enforces the budgets:
+  `SKILL.md` at most 3,000 tokens, the managed block 1,200, each pack 2,000.
+- **The README is short**; install and configuration details moved to `docs/`.
+- The agent failure-mode and anti-loophole tables moved from `SKILL.md` to `review-checklist.md`.
+- Import parsing moved into `project_imports.py` and now reads Shell, PowerShell, R, and
+  Objective-C imports; `scan_repo.py` shares the generated-file detection of the new map.
+
+### Fixed
+
+- **`check_boundaries.py` layer globs**: a leading `**/` now also matches a top-level folder, and
+  folders that only hold sources (`src/main/java`, `include/`, R's `R/`) no longer become namespace
+  tokens, which had classified every `java.*` import into the first declared layer.
+
 ## 3.2.0
 
 Deepening release, driven by an architecture review of the repository's own hot spots: the
