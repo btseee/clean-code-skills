@@ -1,0 +1,8 @@
+{
+  "name": "team-directory",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "react": "19.1.0", "react-dom": "19.1.0" },
+  "devDependencies": { "typescript": "5.9.2", "vitest": "3.2.4", "@testing-library/react": "16.3.0" }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "react-hook-extraction",
+  "pack": "frameworks/react.md",
+  "prompt": "UserList fetches users inside a component effect and shows nothing while loading or when the request fails. Add loading and error states, and make the user fetching reusable so ProfilePage can show the user's name too.",
+  "expected_output": "The fetching moves into a custom hook under src/hooks; UserList renders loading and error states through it; ProfilePage can reuse the hook; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/hooks/**",
+      "pattern": "fetch\\(|/api/users",
+      "text": "The fetching lives in a custom hook under src/hooks"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/components/UserList.tsx",
+      "pattern": "fetch\\(",
+      "text": "UserList no longer calls fetch itself"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/UserList.tsx",
+      "pattern": "(?i)loading",
+      "text": "UserList renders a loading state"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/UserList.tsx",
+      "pattern": "(?i)error",
+      "text": "UserList renders an error state"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No hook or component lands in the wrong folder"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

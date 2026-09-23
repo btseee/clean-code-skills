@@ -26,6 +26,9 @@ drops the packs of a label that a detected framework already covers.
 # language <Label> = <pack>[, <pack>...]
 # framework <Label> = <pack>[, <pack>...]
 # supersede <Label> > <Label>[, <Label>...]
+language JavaScript = languages/javascript.md
+language TypeScript = languages/typescript.md, languages/javascript.md
+framework React = frameworks/react.md
 ```
 
 ## Roles

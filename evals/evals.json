@@ -63,6 +63,23 @@
         "No final copy",
         "No copy of the file"
       ]
+    },
+    {
+      "id": 5,
+      "name": "react-hook-extraction",
+      "prompt": "UserList fetches users inside a component effect and shows nothing while loading or when the request fails. Add loading and error states, and make the user fetching reusable so ProfilePage can show the user's name too.",
+      "expected_output": "The fetching moves into a custom hook under src/hooks; UserList renders loading and error states through it; ProfilePage can reuse the hook; nothing lands at the repository root.",
+      "files": [
+        "evals/cases/react-hook-extraction/repo"
+      ],
+      "expectations": [
+        "The fetching lives in a custom hook under src/hooks",
+        "UserList no longer calls fetch itself",
+        "UserList renders a loading state",
+        "UserList renders an error state",
+        "No hook or component lands in the wrong folder",
+        "Nothing new at the repository root"
+      ]
     }
   ]
 }
