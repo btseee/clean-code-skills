@@ -60,4 +60,25 @@ expectations about placement, boundaries, and preserved behavior over exact word
 
 ## Results
 
-No model runs are recorded yet.
+Iteration 1, 2026-09-23: ten cases (the four core cases, Express, Django, Spring, Flutter, Rust,
+and ASP.NET Core), one run per configuration, Claude Sonnet 5 subagents in Claude Code on Windows,
+graded by `grade.py` at commit `834430f`.
+
+| | With the skill | Without it |
+|---|---|---|
+| Pass rate, mean per run | 100% (48 of 48) | 95.5% (46 of 48) |
+| Tokens per run, mean | 124k | 84k |
+| Time per run, mean | 513 s | 284 s |
+| Code-changing runs that added tests | 8 of 9 | 2 of 9 |
+
+- Two expectations told the configurations apart: with the skill, the run read the Express pack
+  that `.clean/context.json` lists, and `init` recorded the packs. Every other expectation passed
+  both ways, so the next iteration needs sharper cases, a tests-added expectation, and several runs
+  per configuration.
+- Runs without the skill still received this repository's `CLAUDE.md`, whose managed block
+  carries the core rules. The comparison measures `SKILL.md`, the packs, and the scripts on top of
+  that block.
+- The cost is real: about 40k more tokens and four more minutes per task, spent reading packs,
+  running the scanners, and writing tests.
+- Three expectations were corrected after the first grading pass because they failed correct work
+  in both configurations (commit `cace411`).
