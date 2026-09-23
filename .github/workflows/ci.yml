@@ -136,3 +136,22 @@ jobs:
           assert data["future_key"] == 123, "unknown key was dropped"
           assert data["primary_language"], "detector keys missing after merge"
           EOF
+      - name: map_structure runs on this repository
+        run: python skills/clean-code/scripts/map_structure.py --root . --json > /dev/null
+      - name: map_structure flags a middleware living in a service file
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/src/services" "$fixture/src/middleware"
+          printf 'class AuthService {}\nfunction authMiddleware(req, res, next) { next(); }\nmodule.exports = { AuthService, authMiddleware };\n' \
+            > "$fixture/src/services/auth.js"
+          printf 'module.exports = function corsMiddleware(req, res, next) { next(); };\n' \
+            > "$fixture/src/middleware/cors.js"
+          python skills/clean-code/scripts/map_structure.py --root "$fixture" --json > "$fixture/map.json"
+          python - "$fixture/map.json" <<'EOF'
+          import json, sys
+          misplaced = json.load(open(sys.argv[1], encoding="utf-8"))["findings"]["misplaced"]
+          assert [item["symbol"] for item in misplaced] == ["authMiddleware"], misplaced
+          assert misplaced[0]["suggestion"] == "src/middleware/", misplaced
+          EOF
+      - name: Eval cases are well-formed and not vacuous
+        run: python evals/grade.py --self-test

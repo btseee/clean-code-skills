@@ -1,0 +1,35 @@
+{
+  "id": "core-init",
+  "pack": "core",
+  "prompt": "/clean-code init. Answer the interview yourself: the purpose is an order API for a bakery; the actors are bakery staff and customers; do not enforce layers; the verify command is npm test; there are no no-go zones.",
+  "expected_output": ".clean/context.json holds the detected stack with its packs and the confirmed answers; .clean/structure.md maps the project; no code changes.",
+  "expectations": [
+    {
+      "type": "file_exists",
+      "glob": ".clean/context.json",
+      "text": "context.json exists"
+    },
+    {
+      "type": "file_contains",
+      "glob": ".clean/context.json",
+      "pattern": "\\\"packs\\\"",
+      "text": "context.json records the packs"
+    },
+    {
+      "type": "file_contains",
+      "glob": ".clean/context.json",
+      "pattern": "bakery",
+      "text": "The confirmed purpose is recorded"
+    },
+    {
+      "type": "file_exists",
+      "glob": ".clean/structure.md",
+      "text": "The structure map exists"
+    },
+    {
+      "type": "unchanged",
+      "path": "src/services/orderService.js",
+      "text": "Init changes no production code"
+    }
+  ]
+}

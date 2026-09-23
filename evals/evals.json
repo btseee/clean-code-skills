@@ -1,0 +1,68 @@
+{
+  "skill_name": "clean-code",
+  "evals": [
+    {
+      "id": 1,
+      "name": "core-context-gate",
+      "prompt": "Add a GET /orders/health endpoint that returns {\"status\": \"ok\"}.",
+      "expected_output": "The agent reads .clean/context.json and the packs it lists before its first edit, then adds the endpoint to the existing orders router.",
+      "files": [
+        "evals/cases/core-context-gate/repo"
+      ],
+      "expectations": [
+        "Reads .clean/context.json before editing",
+        "Reads the Express pack that context.json lists",
+        "The endpoint lives in the existing orders router",
+        "Nothing new at the repository root"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "core-init",
+      "prompt": "/clean-code init. Answer the interview yourself: the purpose is an order API for a bakery; the actors are bakery staff and customers; do not enforce layers; the verify command is npm test; there are no no-go zones.",
+      "expected_output": ".clean/context.json holds the detected stack with its packs and the confirmed answers; .clean/structure.md maps the project; no code changes.",
+      "files": [
+        "evals/cases/core-init/repo"
+      ],
+      "expectations": [
+        "context.json exists",
+        "context.json records the packs",
+        "The confirmed purpose is recorded",
+        "The structure map exists",
+        "Init changes no production code"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "core-layers-declared",
+      "prompt": "Orders over 500 EUR need a manager's approval before they are placed. Add that rule.",
+      "expected_output": "The approval rule lands in the domain or application layer; the domain never imports Express; the declared layering still passes.",
+      "files": [
+        "evals/cases/core-layers-declared/repo"
+      ],
+      "expectations": [
+        "The 500 EUR threshold is implemented",
+        "The threshold is not decided in the HTTP adapter",
+        "The domain knows the approval rule",
+        "The domain never imports Express",
+        "check_boundaries.py still passes"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "core-no-sibling",
+      "prompt": "Improve the error handling in src/services/payment.js.",
+      "expected_output": "payment.js itself is improved: the swallowed error is handled or rethrown with its cause; no copy of the file appears.",
+      "files": [
+        "evals/cases/core-no-sibling/repo"
+      ],
+      "expectations": [
+        "No empty catch remains",
+        "No _v2 copy",
+        "No _new copy",
+        "No final copy",
+        "No copy of the file"
+      ]
+    }
+  ]
+}

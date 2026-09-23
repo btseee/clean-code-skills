@@ -1,0 +1,34 @@
+{
+  "id": "core-no-sibling",
+  "pack": "core",
+  "prompt": "Improve the error handling in src/services/payment.js.",
+  "expected_output": "payment.js itself is improved: the swallowed error is handled or rethrown with its cause; no copy of the file appears.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/services/payment.js",
+      "pattern": "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}",
+      "text": "No empty catch remains"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "**/*_v2.*",
+      "text": "No _v2 copy"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "**/*_new.*",
+      "text": "No _new copy"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "**/*final*",
+      "text": "No final copy"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "**/*copy*",
+      "text": "No copy of the file"
+    }
+  ]
+}

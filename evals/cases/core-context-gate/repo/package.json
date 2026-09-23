@@ -1,0 +1,10 @@
+{
+  "name": "bakery-orders",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "5.1.0"
+  }
+}

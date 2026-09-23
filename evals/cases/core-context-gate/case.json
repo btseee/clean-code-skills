@@ -1,0 +1,29 @@
+{
+  "id": "core-context-gate",
+  "pack": "core",
+  "prompt": "Add a GET /orders/health endpoint that returns {\"status\": \"ok\"}.",
+  "expected_output": "The agent reads .clean/context.json and the packs it lists before its first edit, then adds the endpoint to the existing orders router.",
+  "expectations": [
+    {
+      "type": "transcript_reads",
+      "pattern": "\\.clean/context\\.json",
+      "text": "Reads .clean/context.json before editing"
+    },
+    {
+      "type": "transcript_reads",
+      "pattern": "frameworks/express\\.md",
+      "text": "Reads the Express pack that context.json lists"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/routes/orders.js",
+      "pattern": "health",
+      "text": "The endpoint lives in the existing orders router"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*.js",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

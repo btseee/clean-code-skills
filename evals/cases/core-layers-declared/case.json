@@ -1,0 +1,36 @@
+{
+  "id": "core-layers-declared",
+  "pack": "core",
+  "prompt": "Orders over 500 EUR need a manager's approval before they are placed. Add that rule.",
+  "expected_output": "The approval rule lands in the domain or application layer; the domain never imports Express; the declared layering still passes.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/**",
+      "pattern": "500",
+      "text": "The 500 EUR threshold is implemented"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/adapters/**",
+      "pattern": "500",
+      "text": "The threshold is not decided in the HTTP adapter"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/domain/**",
+      "pattern": "500|approval|Approval",
+      "text": "The domain knows the approval rule"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/domain/**",
+      "pattern": "require\\(['\\\"]express|from ['\\\"]express",
+      "text": "The domain never imports Express"
+    },
+    {
+      "type": "boundaries_pass",
+      "text": "check_boundaries.py still passes"
+    }
+  ]
+}
