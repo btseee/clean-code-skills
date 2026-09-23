@@ -23,6 +23,8 @@ LANGUAGE_BY_SUFFIX = {
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "typescript", ".mts": "typescript", ".cts": "typescript",
     ".vue": "vue", ".svelte": "svelte",
+    ".java": "java", ".kt": "kotlin", ".kts": "kotlin", ".scala": "scala",
+    ".cs": "csharp", ".php": "php", ".dart": "dart",
 }
 
 SUPPORTED_SUFFIXES = frozenset(LANGUAGE_BY_SUFFIX)
@@ -30,6 +32,12 @@ SUPPORTED_SUFFIXES = frozenset(LANGUAGE_BY_SUFFIX)
 _BRACE_GRAMMARS = {
     "javascript": brace_grammars.JAVASCRIPT,
     "typescript": brace_grammars.TYPESCRIPT,
+    "java": brace_grammars.JAVA,
+    "kotlin": brace_grammars.KOTLIN,
+    "scala": brace_grammars.SCALA,
+    "csharp": brace_grammars.CSHARP,
+    "php": brace_grammars.PHP,
+    "dart": brace_grammars.DART,
 }
 
 

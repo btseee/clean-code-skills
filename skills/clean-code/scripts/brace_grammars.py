@@ -178,3 +178,174 @@ def extract_component(path: str, text: str, language: str) -> symbol_model.FileS
     )
     return symbol_model.file_symbols(path, language, inner.purpose, text,
                                      [component] + list(inner.symbols))
+
+
+# --- JVM languages, C#, PHP, Dart ------------------------------------------------------
+
+_WORD = r"[A-Za-z_]\w*"
+
+
+def _mods(match) -> str:
+    return match.groupdict().get("mods") or ""
+
+
+def _has(match, *words) -> bool:
+    mods = _mods(match).split()
+    return any(word in mods for word in words)
+
+
+def _pattern(regex: str, kind: str, **options) -> Pattern:
+    return Pattern(re.compile(regex, re.M), kind, **options)
+
+
+_JVM_KEYWORDS = frozenset("""
+if for while switch catch return new throw else do try synchronized assert super this
+when is in as typeof yield await
+""".split())
+
+JAVA = Grammar(
+    language="java",
+    lexer="java",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|abstract|final|static|sealed|"
+                 rf"non-sealed|strictfp)[ \t]+)*)(?P<kind>class|interface|enum|record|@interface)"
+                 rf"[ \t]+(?P<name>{_WORD})", "class", container=True),
+    ),
+    functions=(),
+    members=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|abstract|final|static|"
+                 rf"synchronized|native|default|strictfp)[ \t]+)*)(?:<[^>\n]+>[ \t]+)?"
+                 rf"[\w<>\[\],.? ]*?[\w>\]][ \t]+(?P<name>[a-zA-Z_]\w*)[ \t]*\(", "method"),
+        _pattern(r"^[ \t]*(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
+                 r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
+    ),
+    transparent=None,
+    decorators=("@",),
+    doc_markers=C_DOC,
+    keywords=_JVM_KEYWORDS,
+    exported=lambda match, name, kind, member: (
+        not _has(match, "private") if member else _has(match, "public")),
+    abstract=lambda match, kind, body: kind == "interface" or _has(match, "abstract"),
+)
+
+KOTLIN = Grammar(
+    language="kotlin",
+    lexer="kotlin",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|internal|protected|open|abstract|sealed|"
+                 rf"data|inner|value|inline|expect|actual)[ \t]+)*)(?P<kind>enum[ \t]+class|"
+                 rf"annotation[ \t]+class|fun[ \t]+interface|class|interface|object)[ \t]+"
+                 rf"(?P<name>{_WORD})", "class", container=True),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|internal|protected|open|abstract|override|"
+                 rf"suspend|inline|operator|infix|tailrec|external|actual|expect|final)[ \t]+)*)"
+                 rf"fun[ \t]+(?:<[^>\n]+>[ \t]*)?(?:[\w.<>?, ]+\.)?(?P<name>{_WORD})[ \t]*\(",
+                 "function"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=("@",),
+    doc_markers=C_DOC,
+    keywords=_JVM_KEYWORDS,
+    exported=lambda match, name, kind, member: not _has(match, "private"),
+    abstract=lambda match, kind, body: kind == "interface" or _has(match, "abstract", "sealed"),
+)
+
+SCALA = Grammar(
+    language="scala",
+    lexer="scala",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:private|protected|final|sealed|abstract|implicit|lazy|"
+                 rf"case|override|open)(?:\[[^\]\n]*\])?[ \t]+)*)(?P<kind>class|trait|object|enum)"
+                 rf"[ \t]+(?P<name>{_WORD})", "class", container=True),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:private|protected|final|override|implicit|inline|"
+                 rf"transparent|lazy)(?:\[[^\]\n]*\])?[ \t]+)*)def[ \t]+(?P<name>{_WORD})",
+                 "function"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=("@",),
+    doc_markers=C_DOC,
+    keywords=_JVM_KEYWORDS,
+    exported=lambda match, name, kind, member: not _has(match, "private"),
+    abstract=lambda match, kind, body: kind == "trait" or _has(match, "abstract"),
+    indent_blocks=True,
+)
+
+CSHARP = Grammar(
+    language="csharp",
+    lexer="csharp",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static|abstract|sealed|"
+                 rf"partial|readonly|ref|unsafe|file|new)[ \t]+)*)(?P<kind>record[ \t]+struct|"
+                 rf"record[ \t]+class|record|class|interface|struct|enum)[ \t]+(?P<name>{_WORD})",
+                 "class", container=True),
+    ),
+    functions=(),
+    members=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static|virtual|override|"
+                 rf"abstract|sealed|async|extern|unsafe|new|partial|readonly)[ \t]+)*)"
+                 rf"[\w<>\[\],.?() ]*?[\w>\]?)][ \t]+(?P<name>{_WORD})[ \t]*(?:<[^>\n]*>)?[ \t]*\(",
+                 "method"),
+        _pattern(r"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static)[ \t]+)*)"
+                 r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
+    ),
+    transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w.]+[ \t\r\n]*\{", re.M),
+    decorators=("[",),
+    doc_markers=C_DOC,
+    keywords=_JVM_KEYWORDS | {"using", "lock", "foreach", "fixed", "checked", "unchecked", "nameof"},
+    exported=lambda match, name, kind, member: (
+        _has(match, "public", "internal", "protected") if member
+        else not _has(match, "private", "file")),
+    abstract=lambda match, kind, body: kind == "interface" or _has(match, "abstract"),
+)
+
+PHP = Grammar(
+    language="php",
+    lexer="php",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:abstract|final|readonly)[ \t]+)*)"
+                 rf"(?P<kind>class|interface|trait|enum)[ \t]+(?P<name>{_WORD})", "class",
+                 container=True),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|static|abstract|final)[ \t]+)*)"
+                 rf"function[ \t]+&?[ \t]*(?P<name>{_WORD})[ \t]*\(", "function"),
+    ),
+    members=(),
+    transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w\]+[ \t\r\n]*\{", re.M),
+    decorators=("#[",),
+    doc_markers=C_DOC,
+    keywords=frozenset({"if", "for", "foreach", "while", "switch", "catch", "return", "new",
+                        "fn", "match", "echo", "print", "isset", "unset", "empty", "list"}),
+    exported=lambda match, name, kind, member: not _has(match, "private", "protected"),
+    abstract=lambda match, kind, body: kind == "interface" or _has(match, "abstract"),
+)
+
+DART = Grammar(
+    language="dart",
+    lexer="dart",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:abstract|base|final|interface|sealed)[ \t]+)*)"
+                 rf"(?P<kind>mixin[ \t]+class|class|mixin|enum)[ \t]+(?P<name>{_WORD})", "class",
+                 container=True),
+        _pattern(rf"^[ \t]*extension[ \t]+(?P<name>{_WORD})", "class", container=True, emit=False),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:static|external|factory|abstract|const|late|covariant)"
+                 rf"[ \t]+)*)(?:[\w<>?,\[\]. ]*?[\w>?\]][ \t]+)?(?P<name>{_WORD})"
+                 rf"(?:\.{_WORD})?[ \t]*(?:<[^>\n]*>)?[ \t]*\(", "function"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=("@",),
+    doc_markers=C_DOC,
+    keywords=frozenset({"if", "for", "while", "switch", "catch", "return", "assert", "super",
+                        "this", "new", "throw", "await", "yield", "else", "do", "try",
+                        "rethrow", "get", "set", "import", "export", "part", "library"}),
+    exported=lambda match, name, kind, member: not name.startswith("_"),
+    abstract=lambda match, kind, body: _has(match, "abstract", "interface", "sealed"),
+)

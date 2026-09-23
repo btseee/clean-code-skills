@@ -10,7 +10,11 @@ def extract(path, source):
 
 
 def by_name(file_symbols):
-    return {symbol.name: symbol for symbol in file_symbols.symbols}
+    """First symbol per name; symbols are sorted by line, so a class wins over its constructor."""
+    found = {}
+    for symbol in file_symbols.symbols:
+        found.setdefault(symbol.name, symbol)
+    return found
 
 
 class PythonTest(unittest.TestCase):
@@ -231,6 +235,164 @@ class SingleFileComponentTest(unittest.TestCase):
         symbols = by_name(result)
         self.assertEqual(symbols["Card"].kind, "component")
         self.assertEqual(symbols["reset"].line, 2)
+
+
+class JvmTest(unittest.TestCase):
+    def test_java_annotated_class_and_methods(self):
+        symbols = by_name(extract("UserController.java", """
+            @RestController
+            public class UserController {
+              public UserController(UserService service) {}
+              public List<User> all() { return List.of(); }
+            }
+            """))
+        self.assertEqual(symbols["UserController"].kind, "class")
+        self.assertIn("@RestController", symbols["UserController"].context)
+        self.assertEqual(symbols["all"].parent, "UserController")
+        self.assertTrue(symbols["UserController"].exported)
+
+    def test_java_interface_methods_have_no_body(self):
+        result = extract("OrderPort.java", """
+            public interface OrderPort {
+              void save(Order o);
+            }
+            """)
+        symbols = by_name(result)
+        self.assertEqual(symbols["OrderPort"].kind, "interface")
+        self.assertEqual(symbols["save"].kind, "method")
+        self.assertIsNone(symbols["save"].exact)
+        self.assertEqual(result.abstract_types, 1)
+
+    def test_java_enum_constants_are_not_methods(self):
+        symbols = by_name(extract("Color.java", """
+            public enum Color {
+              RED("r"),
+              GREEN("g");
+              Color(String code) {}
+            }
+            """))
+        self.assertNotIn("RED", symbols)
+        self.assertEqual(symbols["Color"].kind, "enum")
+
+    def test_kotlin_classes_extension_functions_and_objects(self):
+        symbols = by_name(extract("Svc.kt", """
+            @Service
+            class OrderService(private val repo: Repo) {
+              suspend fun place(o: Order) { repo.save(o) }
+            }
+            fun String.slug() = lowercase()
+            internal object Cache
+            private fun hidden() {}
+            enum class Level { LOW }
+            """))
+        self.assertIn("@Service", symbols["OrderService"].context)
+        self.assertEqual(symbols["place"].parent, "OrderService")
+        self.assertEqual((symbols["slug"].kind, symbols["slug"].exported), ("function", True))
+        self.assertEqual((symbols["Cache"].kind, symbols["Cache"].exported), ("object", True))
+        self.assertFalse(symbols["hidden"].exported)
+        self.assertEqual(symbols["Level"].kind, "enum")
+
+    def test_scala_traits_case_classes_and_objects(self):
+        result = extract("Model.scala", """
+            sealed trait Shape
+            case class Circle(r: Double) extends Shape
+            object Shape {
+              def unit: Shape = Circle(1)
+            }
+            """)
+        kinds = {(symbol.name, symbol.kind) for symbol in result.symbols}
+        self.assertTrue({("Shape", "trait"), ("Circle", "class"), ("Shape", "object"),
+                         ("unit", "method")} <= kinds)
+        self.assertEqual(result.abstract_types, 1)
+
+    def test_scala_3_braceless_members(self):
+        symbols = by_name(extract("Greeter.scala", """
+            class Greeter(name: String):
+              def greet(): String =
+                s"Hello $name"
+              def bye(): String = "bye"
+
+            def top(): Int = 1
+            """))
+        self.assertEqual(symbols["Greeter"].end_line, 4)
+        self.assertEqual(symbols["greet"].parent, "Greeter")
+        self.assertEqual(symbols["bye"].parent, "Greeter")
+        self.assertIsNone(symbols["top"].parent)
+
+
+class DotnetTest(unittest.TestCase):
+    def test_types_inside_a_namespace_block_are_top_level(self):
+        symbols = by_name(extract("Orders.cs", """
+            namespace App.Web {
+              [ApiController]
+              public sealed class OrdersController : ControllerBase {
+                public async Task<IActionResult> Get(CancellationToken ct) { return Ok(); }
+                private void Log() {}
+              }
+            }
+            """))
+        controller = symbols["OrdersController"]
+        self.assertIsNone(controller.parent)
+        self.assertIn("[ApiController]", controller.context)
+        self.assertIn("ControllerBase", controller.context)
+        self.assertEqual(symbols["Get"].parent, "OrdersController")
+        self.assertTrue(symbols["Get"].exported)
+        self.assertFalse(symbols["Log"].exported)
+
+    def test_records_and_interfaces_with_a_file_scoped_namespace(self):
+        result = extract("File.cs", """
+            namespace App.Domain;
+            public record Money(decimal Amount);
+            public interface IClock { DateTime Now { get; } }
+            """)
+        symbols = by_name(result)
+        self.assertEqual(symbols["Money"].kind, "record")
+        self.assertEqual(symbols["IClock"].kind, "interface")
+        self.assertEqual(result.abstract_types, 1)
+
+
+class PhpTest(unittest.TestCase):
+    def test_attributes_classes_and_methods(self):
+        symbols = by_name(extract("Authenticate.php", """
+            <?php
+            namespace App\Http\Middleware;
+            #[Attr]
+            final class Authenticate {
+              public function handle($request, Closure $next) { return $next($request); }
+              private function check() {}
+            }
+            trait Loggable {}
+            """))
+        self.assertIn("#[Attr]", symbols["Authenticate"].context)
+        self.assertEqual(symbols["handle"].parent, "Authenticate")
+        self.assertTrue(symbols["handle"].exported)
+        self.assertFalse(symbols["check"].exported)
+        self.assertEqual(symbols["Loggable"].kind, "trait")
+        self.assertFalse(symbols["Loggable"].abstract)
+
+
+class DartTest(unittest.TestCase):
+    def test_widgets_constructors_and_privacy(self):
+        result = extract("login_page.dart", """
+            class LoginPage extends StatelessWidget {
+              const LoginPage({super.key});
+              @override
+              Widget build(BuildContext context) { return Text(''); }
+            }
+            abstract interface class AuthRepo { Future<User> login(); }
+            String _hidden() => '';
+            extension StringX on String {
+              String shout() => toUpperCase();
+            }
+            """)
+        symbols = by_name(result)
+        self.assertIn("StatelessWidget", symbols["LoginPage"].context)
+        self.assertEqual(symbols["build"].parent, "LoginPage")
+        self.assertIn("@override", symbols["build"].context)
+        self.assertTrue(symbols["AuthRepo"].abstract)
+        self.assertFalse(symbols["_hidden"].exported)
+        self.assertNotIn("StringX", symbols)
+        self.assertEqual(symbols["shout"].parent, "StringX")
 
 
 class DispatchTest(unittest.TestCase):

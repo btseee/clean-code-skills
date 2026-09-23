@@ -34,6 +34,14 @@ class Pattern(NamedTuple):
     confirm: Optional[Callable] = None
 
 
+# Multi-word declaration keywords, reduced to the kind the rest of the scanner uses.
+KIND_ALIASES = {
+    "enum class": "enum", "annotation class": "interface", "@interface": "interface",
+    "fun interface": "interface", "record class": "record", "record struct": "record",
+    "mixin": "class", "mixin class": "class", "actor": "class", "union": "struct",
+}
+
+
 class Grammar(NamedTuple):
     language: str
     lexer: str
@@ -49,12 +57,14 @@ class Grammar(NamedTuple):
     skip: Optional[re.Pattern] = None
     finish: Optional[Callable] = None
     purpose: Optional[Callable] = None
+    indent_blocks: bool = False
 
 
 class _Container(NamedTuple):
     open: int
     close: int
     name: str
+    member_indent: Optional[int] = None
 
 
 class Source:
@@ -97,9 +107,28 @@ class Source:
                 spans.append((open_index, self.braces[open_index]))
         return spans
 
-    def _indent(self, offset: int) -> int:
+    def indent_of(self, offset: int) -> int:
         line = self.code_lines[self.line_of(offset) - 1]
         return len(line) - len(line.lstrip())
+
+    def indent_block(self, line_index: int):
+        """(last line index, member indentation) of an indentation-delimited block
+        opened by the declaration on line_index, as in Scala 3 or Python."""
+        declaration = self.code_lines[line_index]
+        base = len(declaration) - len(declaration.lstrip())
+        last = line_index
+        member_indent = None
+        for index in range(line_index + 1, len(self.code_lines)):
+            line = self.code_lines[index]
+            if not line.strip():
+                continue
+            indent = len(line) - len(line.lstrip())
+            if indent <= base:
+                break
+            if member_indent is None:
+                member_indent = indent
+            last = index
+        return last, member_indent
 
     def _next_line(self, offset: int) -> Optional[str]:
         line_number = self.line_of(offset)
@@ -118,7 +147,7 @@ class Source:
         indented continuation of the signature.
         """
         code = self.code
-        indent = self._indent(declaration_start)
+        indent = self.indent_of(declaration_start)
         paren = 0
         index = offset
         while index < len(code):
@@ -191,11 +220,12 @@ class _Extraction:
             yield match, name
 
     def add(self, match, name: str, kind: str, parent: Optional[str], is_member: bool,
-            emit: bool = True) -> Optional[int]:
+            emit: bool = True, end_line: Optional[int] = None) -> Optional[int]:
         source = self.source
         index = source.line_of(match.start()) - 1
         body = source.body_after(match.end(), match.start())
-        end_line = source.line_of(source.braces[body]) if body is not None else index + 1
+        if end_line is None:
+            end_line = source.line_of(source.braces[body]) if body is not None else index + 1
         if not emit or (index + 1, name) in self.seen:
             return body
         self.seen.add((index + 1, name))
@@ -226,11 +256,34 @@ class _Extraction:
             for match, name in self.matches(pattern):
                 if _effective_depth(self.source, match.start(), self.transparent) != 0:
                     continue
-                kind = _group(match, "kind") or pattern.kind
-                body = self.add(match, name, kind, None, False, emit=pattern.emit)
-                if pattern.container and body is not None:
+                kind = " ".join((_group(match, "kind") or pattern.kind).split())
+                kind = KIND_ALIASES.get(kind, kind)
+                owner_name = _group(match, "parent") or name
+                indented = self.indented_container(match, owner_name) if pattern.container else None
+                end_line = self.source.line_of(indented.close) if indented else None
+                body = self.add(match, name, kind, None, False, emit=pattern.emit,
+                                end_line=end_line)
+                if indented is not None:
+                    self.containers.append(indented)
+                elif pattern.container and body is not None:
                     self.containers.append(
-                        _Container(body, self.source.braces[body], _group(match, "parent") or name))
+                        _Container(body, self.source.braces[body], owner_name))
+
+    def indented_container(self, match, name: str) -> Optional[_Container]:
+        """A container whose body is delimited by indentation, when the grammar allows it."""
+        source = self.source
+        if not self.grammar.indent_blocks:
+            return None
+        if source.body_after(match.end(), match.start()) is not None:
+            return None
+        index = source.line_of(match.start()) - 1
+        if not source.code_lines[index].rstrip().endswith(":"):
+            return None
+        last, member_indent = source.indent_block(index)
+        if member_indent is None:
+            return None
+        close = source.line_starts[last] + len(source.code_lines[last])
+        return _Container(source.line_starts[index + 1] - 1, close, name, member_indent)
 
     def functions(self, patterns, members_only: bool):
         for pattern in patterns:
@@ -239,7 +292,10 @@ class _Extraction:
                 owner = _innermost(self.containers, start)
                 explicit_parent = _group(match, "parent")
                 if owner is not None:
-                    if self.source.depth_before(start) != self.source.depth_before(owner.open) + 1:
+                    if owner.member_indent is not None:
+                        if self.source.indent_of(start) != owner.member_indent:
+                            continue
+                    elif self.source.depth_before(start) != self.source.depth_before(owner.open) + 1:
                         continue
                     self.add(match, name, "method", owner.name, True)
                 elif not members_only and \
