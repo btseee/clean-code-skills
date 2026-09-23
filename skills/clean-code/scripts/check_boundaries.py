@@ -30,6 +30,9 @@ Declare layers innermost first, in a fenced `clean-architecture` block:
     allow infrastructure -> domain
     deny  adapter -> infrastructure
     ```
+
+Globs match the path from the project root; `*` also crosses `/`, and a leading
+`**/` also matches a top-level folder.
 """
 
 from __future__ import annotations
@@ -52,6 +55,12 @@ CONFIG_BLOCK_PATTERN = re.compile(
 LAYER_PATTERN = re.compile(r"^layer\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 NAMESPACE_PATTERN = re.compile(r"^namespace\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 RULE_PATTERN = re.compile(r"^(allow|deny)\s+([\w.-]+)\s*->\s*(.+)$", re.IGNORECASE)
+
+# Folders that hold sources rather than name a concept: `src/main/java`, `include/`, R's `R/`.
+SOURCE_ROOT_SEGMENTS = {
+    "src", "lib", "app", "source", "sources", "pkg", "internal",
+    "main", "java", "kotlin", "scala", "groovy", "include", "r",
+}
 
 DEFAULT_CONFIG_PATHS = (
     ".clean/architecture.md",
@@ -92,13 +101,18 @@ class Layering:
         for name in self.layers:
             for glob in self.layers[name]:
                 normalized = glob.replace("\\", "/")
-                if fnmatch.fnmatch(relative_path, normalized):
-                    return name
-                # `src/Domain/**` should also match `src/Domain/Order.cs`.
-                if normalized.endswith("/**") and fnmatch.fnmatch(
-                    relative_path, normalized[:-3] + "/*"
-                ):
-                    return name
+                candidates = [normalized]
+                # `**/domain/**` should also match a top-level `domain/`.
+                if normalized.startswith("**/"):
+                    candidates.append(normalized[3:])
+                for candidate in candidates:
+                    if fnmatch.fnmatch(relative_path, candidate):
+                        return name
+                    # `src/Domain/**` should also match `src/Domain/Order.cs`.
+                    if candidate.endswith("/**") and fnmatch.fnmatch(
+                        relative_path, candidate[:-3] + "/*"
+                    ):
+                        return name
         return None
 
     def layer_of_name(self, module: str) -> str | None:
@@ -141,7 +155,7 @@ def derive_namespace_tokens(globs) -> list:
             segment = segment.strip()
             if not segment or "*" in segment or segment in {".", ".."}:
                 continue
-            if segment.lower() in {"src", "lib", "app", "source", "sources", "pkg", "internal"}:
+            if segment.lower() in SOURCE_ROOT_SEGMENTS:
                 continue
             tokens.add(segment.lower())
     return sorted(tokens)

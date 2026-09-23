@@ -36,6 +36,26 @@ class ClassificationTest(unittest.TestCase):
         )
         self.assertFalse(plain.permits("domain", "infra"))
 
+    def test_a_leading_double_star_also_matches_a_top_level_folder(self):
+        layering = cb.parse_layering(
+            "```clean-architecture\nlayer domain = **/domain/**\nlayer ui = **/components/**\n```"
+        )
+        for path, want in [("domain/order.ts", "domain"), ("app/domain/order.ts", "domain"),
+                           ("components/Cart.vue", "ui"), ("src/components/Cart.vue", "ui"),
+                           ("mydomain/order.ts", None)]:
+            with self.subTest(path=path):
+                self.assertEqual(layering.layer_of_path(path), want)
+
+    def test_source_root_folders_are_not_namespace_tokens(self):
+        layering = cb.parse_layering(
+            "```clean-architecture\nlayer domain = src/main/java/**/domain/**\n"
+            "layer web = src/main/java/**/web/**\nlayer core = include/*/core/**, R/core-*.R\n```"
+        )
+        self.assertEqual(layering.namespaces["domain"], ["domain"])
+        self.assertEqual(layering.namespaces["core"], ["core"])
+        self.assertIsNone(layering.layer_of_name("java.util.List"))
+        self.assertEqual(layering.layer_of_name("com.example.web.OrderController"), "web")
+
 
 class CheckProjectTest(unittest.TestCase):
     def test_an_outward_import_is_a_violation(self):
