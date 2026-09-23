@@ -80,6 +80,11 @@ for file in "${required_files[@]}"; do
 done
 pass "required files exist"
 
+# The installer copies the skill folder wholesale into every project; the eval harness
+# is for this repository only and must never ride along.
+[[ ! -e "$ROOT_DIR/skills/clean-code/evals" ]] \
+  || fail "evals/ belongs at the repository root, not inside the installed skill"
+
 # --- skill front matter ------------------------------------------------------
 
 skill_file="$ROOT_DIR/skills/clean-code/SKILL.md"
@@ -281,17 +286,23 @@ pass "global install, detect, and uninstall work"
 
 # --- skill budget -------------------------------------------------------------------
 
-# The Agent Skills spec recommends keeping SKILL.md under 500 lines and roughly 5,000
-# tokens, because hosts load the whole body on activation. Depth belongs in references/,
-# which load on demand.
+# Hosts load the whole of SKILL.md on activation and the managed block on every turn, so
+# both are held well below the Agent Skills spec's 500-line / ~5,000-token ceiling: small
+# models need the room for the packs and the project. Depth belongs in references/, which
+# load on demand.
 skill_file="$ROOT_DIR/skills/clean-code/SKILL.md"
 skill_lines="$(wc -l < "$skill_file" | tr -d '[:space:]')"
 skill_words="$(wc -w < "$skill_file" | tr -d '[:space:]')"
 skill_tokens=$(( skill_words * 4 / 3 ))
 
 [[ "$skill_lines" -le 500 ]] || fail "SKILL.md is $skill_lines lines; keep it under 500 and move depth into references/"
-[[ "$skill_tokens" -le 5000 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 5000 and move depth into references/"
+[[ "$skill_tokens" -le 3000 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 3000 and move depth into references/"
 pass "SKILL.md is within budget ($skill_lines lines, ~$skill_tokens tokens)"
+
+block_words="$(wc -w < "$TEMPLATE" | tr -d '[:space:]')"
+block_tokens=$(( block_words * 4 / 3 ))
+[[ "$block_tokens" -le 1200 ]] || fail "the managed block is ~$block_tokens tokens; keep it under 1200 — it loads on every turn"
+pass "managed block is within budget (~$block_tokens tokens)"
 
 # --- skill scripts ------------------------------------------------------------------
 
@@ -370,6 +381,14 @@ if bad:
     sys.exit(1)
 PY
   pass "skill scripts use only the standard library"
+
+  # The scanners' behavior and the shape of the shipped content (pack templates and
+  # budgets, the pack index, role blocks, contents lists) are checked by the unit tests.
+  if ! test_output="$(cd "$ROOT_DIR" && "$SKILL_PYTHON" -m unittest discover -s tests 2>&1)"; then
+    printf '%s\n' "$test_output" | tail -40
+    fail "unit tests failed"
+  fi
+  pass "unit tests pass ($(printf '%s\n' "$test_output" | grep -Eo 'Ran [0-9]+ tests'))"
 else
   printf 'WARN: python not found; skipping skill script checks\n'
 fi

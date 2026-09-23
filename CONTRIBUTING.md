@@ -41,6 +41,69 @@ workflow compares them and fails otherwise.
   workflow step that names a script must also name the manual equivalent — the skill has to work
   with no tooling at all.
 
+## Writing A Pack
+
+A pack is one language's or one framework's rules, in
+`skills/clean-code/references/languages/` or `skills/clean-code/references/frameworks/`. Agents
+load only the packs their stack needs, so each one must stand alone and stay short.
+
+Language pack template (`Concurrency` is optional; every other heading is required, in order):
+
+```markdown
+# <Language>
+
+> Applies to: <versions>. Formatter: <tool>. Linter: <tool>. Read with: <packs, or nothing>.
+
+## Names
+## Functions And Types
+## Errors
+## Modules And Visibility
+## Placement
+## Tests
+## Concurrency
+## Layers
+## Enforce
+## Smells
+```
+
+Framework pack template:
+
+```markdown
+# <Framework>
+
+> Applies to: <versions>. Language pack: <file>. Read with: <packs, or nothing>.
+
+## Structure
+## Roles
+## Rules
+## Layers
+## Tests
+## Enforce
+## Smells
+```
+
+Rules (the unit tests enforce the ones marked checked):
+
+- Headings present and in order; at most 2,000 tokens, aiming for about 1,500 (checked).
+- Imperative one-line bullets — "Never ...", "Always ...", "Prefer ..." — citing the book rule by
+  canon name or smell ID where one applies: (G5), (F.I.R.S.T.), (DIP), (N1).
+- **Structure** gives the framework's idiomatic layout, one line per folder. This skill is
+  framework-first: that layout is the default.
+- **Layers** opens with "Applies only when `.clean/architecture.md` declares layers." (checked),
+  then says which framework types must not cross inward, where interfaces for details go, where the
+  composition root lives, and suggests a `clean-architecture` block of at most six lines.
+- **Roles** holds exactly one `clean-roles` block that parses (checked). The grammar is in
+  `references/framework-map.md`. Put specific signals before general ones: the first match wins.
+- **Enforce** names real tools with the rule or configuration key that matters.
+- **Smells** lists stack-specific failure patterns, each with its nearest smell ID.
+- At most two code examples, each at most eight lines.
+- Verify every API, file convention, and configuration key against official documentation for the
+  versions in "Applies to", and record the sources in `docs/pack-sources.md`.
+- No book text. Before committing, compare the pack against the local, gitignored books for shared
+  runs of eight or more words, and rewrite any hit.
+- Add the pack to the `clean-packs` index in `references/framework-map.md` (checked: every pack is
+  indexed, every indexed path exists, every label is one `detect_stack.py` reports).
+
 ## Validation
 
 Run before reporting completion:

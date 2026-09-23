@@ -5,6 +5,22 @@ where they run, and which way the dependencies cross them. Read this file when a
 placement across layers, a new dependency, a boundary, a framework or database decision, or any
 question of the form "where should this live and what may it know about?"
 
+## Contents
+
+- Why the rule is even possible: the three paradigms
+- State and mutability as an architectural choice
+- Level, policy, and detail
+- The circles
+- SOLID, as dependency rules
+- Component principles
+- Keeping details out
+- Systems: construction, growth, and cross-cutting policy
+- Testability is an architectural property
+- Packaging: four strategies and their weaknesses
+- Decoupling modes
+- Duplication: resist the reflex
+- Architecture serves the developer
+
 The whole subject reduces to one rule and one question.
 
 **The Dependency Rule: source code dependencies must point only inward, toward higher-level

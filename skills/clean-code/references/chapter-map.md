@@ -2,6 +2,16 @@
 
 This is an agent-oriented synthesis of the full clean-code source structure: 17 chapters, the deeper concurrency appendix, the SerialDate appendix, and the cross-reference appendix. It is not a replacement for the source text. Use it as a checklist so no major clean-code area is skipped during writing, refactoring, or review.
 
+## Contents
+
+- How to use this map
+- Chapters 1–16: clean code, names, functions, comments, formatting, objects and data, errors,
+  boundaries, unit tests, classes, systems, emergence, concurrency, successive refinement, JUnit
+  internals, refactoring SerialDate
+- Chapter 17: smells and heuristics — the smell catalogue with IDs (C, E, F, G1–G36, J, N, T)
+- Appendix A: concurrency II; Appendix B: SerialDate source; Appendix C: cross references
+- Coverage pressure scenarios
+
 ## How To Use This Map
 
 - For a narrow task, jump to the relevant chapter area.
