@@ -631,7 +631,7 @@ Each case: a fixture of three to ten files under `repo/`, a realistic prompt, an
 | `swiftui-view-model` | "ContentView downloads the feed with URLSession. Add pull-to-refresh." | a view model contains `URLSession`; `ContentView.swift` does not |
 | `compose-view-model` | "The screen reads the repository directly. Add a loading state." | a ViewModel exposes state; the composable does not reference the repository |
 | `c-error-codes` | "Add `list_remove` that reports when the index is out of range." | the function returns an error code declared in the header; the header declares it |
-| `cpp-raii` | "Wrap the file handle so it always closes." | a class manages the handle; no `delete ` or `fclose(` remains in the caller |
+| `cpp-raii` | "Wrap the file handle so it always closes." | a class manages the handle; no `delete` expression or `fclose(` call remains in the caller |
 | `rust-errors` | "Parse config values and report bad input to the caller." | an error enum exists; library code contains no `.unwrap()` |
 | `shell-functions` | "Make deploy.sh safe to rerun and easier to read." | `set -euo pipefail` present; logic moved into functions; no unquoted `$1` |
 | `powershell-advanced-function` | "Add a command that removes stale temp files older than N days." | a `Verb-Noun` function with `[CmdletBinding(SupportsShouldProcess` exists; no `Write-Host` |

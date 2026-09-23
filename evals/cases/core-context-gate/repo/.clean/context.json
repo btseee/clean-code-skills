@@ -1,0 +1,13 @@
+{
+  "primary_language": "JavaScript",
+  "frameworks": [
+    "Express"
+  ],
+  "packs": [
+    "references/languages/javascript.md",
+    "references/frameworks/express.md"
+  ],
+  "suggested_verify_commands": [
+    "npm test"
+  ]
+}

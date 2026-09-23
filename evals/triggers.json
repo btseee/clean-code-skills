@@ -1,0 +1,22 @@
+[
+  {"query": "add a retry with exponential backoff to the invoice sync in src/sync/invoiceSync.ts — it calls the billing API and currently just throws on the first 503. keep the change small pls", "should_trigger": true},
+  {"query": "where should this currency formatter live? we have a django project with core/, billing/ and reports/ apps and right now it's sitting in billing/views.py but reports needs it too", "should_trigger": true},
+  {"query": "can you review my staged diff before I open the PR? it touches src/middleware/auth.ts and the session service, mostly worried about whether I put things in the right place", "should_trigger": true},
+  {"query": "our NestJS users.service.ts is 900 lines — validation, email sending, persistence and some pricing logic all in there. split it up without changing behavior", "should_trigger": true},
+  {"query": "set up a new payments service in Go with clean architecture, we'll have Stripe and a Postgres db. ask me whatever you need before designing anything", "should_trigger": true},
+  {"query": "audit this repo for misplaced files, duplicated code and god classes. don't change anything, just give me a report I can take to the team", "should_trigger": true},
+  {"query": "is it bad that OrdersController injects AppDbContext directly? it's ASP.NET Core 9, EF Core, and there's a Services folder we mostly ignore", "should_trigger": true},
+  {"query": "write pytest tests for app/pricing/discounts.py — the tiered discount function has no tests and I'm scared to touch it", "should_trigger": true},
+  {"query": "we have getUser, fetchUser and loadUser doing the same thing in different modules of the flutter app. make it consistent and remove the duplicates", "should_trigger": true},
+  {"query": "I keep putting business rules into React components. OrdersPage.tsx computes discounts and taxes inline — move that logic where it belongs", "should_trigger": true},
+  {"query": "recommend two or three books on software architecture for a junior dev who just finished a bootcamp, with a sentence on why each", "should_trigger": false},
+  {"query": "make a 10-slide deck explaining the SOLID principles for our lunch-and-learn next friday, keep it light", "should_trigger": false},
+  {"query": "explain the difference between TCP and UDP like I'm a product manager", "should_trigger": false},
+  {"query": "translate our README.md into German, keep the code blocks untouched", "should_trigger": false},
+  {"query": "my kubernetes pod keeps restarting with CrashLoopBackOff, here's the kubectl describe output — what's going on?", "should_trigger": false},
+  {"query": "draft a friendly slack message telling the team the staging deploy is moving to 4pm", "should_trigger": false},
+  {"query": "summarize this 40-page PDF of our Q3 security audit into five bullet points for the exec summary", "should_trigger": false},
+  {"query": "build me a spreadsheet tracking sprint velocity for the last six sprints from these numbers: 21, 18, 25, 30, 27, 24", "should_trigger": false},
+  {"query": "what's the time complexity of quicksort in the worst case and why?", "should_trigger": false},
+  {"query": "write a short blog post for our engineering blog about why we adopted trunk-based development", "should_trigger": false}
+]
