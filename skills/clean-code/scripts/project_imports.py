@@ -21,7 +21,7 @@ _JS_FROM = r"""from\s+['"]([^'"]+)['"]"""
 _JS_REQUIRE = r"""require\(\s*['"]([^'"]+)['"]"""
 _JS_DYNAMIC = r"""import\s*\(\s*['"]([^'"]+)['"]"""
 _PYTHON = [r"^\s*from\s+([\w.]+)\s+import\b", r"^\s*import\s+([\w.]+)"]
-_SHELL = [r"""^\s*(?:source|\.)\s+["']?([^"'\s;]+)["']?"""]
+_SHELL = [r"""^\s*(?:source|\.)\s+["']?(.+?)["']?\s*(?:;.*|#.*)?$"""]
 _POWERSHELL = [
     r"""(?i)^\s*\.\s+["']?([^"'\s]+)["']?""",
     r"""(?i)^\s*import-module\s+(?:-name\s+)?["']?([^"'\s;]+)["']?""",
