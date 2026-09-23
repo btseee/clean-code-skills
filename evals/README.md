@@ -26,10 +26,10 @@ the skill's own matcher: `**` spans folders, matching ignores case.
 | `file_contains` | `glob`, `pattern` | a matching file contains the regex |
 | `file_not_contains` | `glob`, `pattern` | no matching file contains it |
 | `unchanged` | `path` | the file equals the fixture's, line endings aside |
-| `no_new_files` | `glob` | no file matching the glob was added |
+| `no_new_files` | `glob` | no file matching the glob was added; lockfiles and `.gitignore`, which installing a dependency writes, do not count |
 | `map_finding_absent` | `kind`, optional `path` | `map_structure.py` reports no finding of that kind (mentioning the path) |
 | `boundaries_pass` | — | `check_boundaries.py` exits 0 |
-| `transcript_reads` | `pattern` | the run's transcript matches, with backslashes read as `/`; skipped when there is none |
+| `transcript_reads` | `pattern` | one of the run's tool calls matches (a plain-text transcript is matched whole), with backslashes read as `/`; skipped when there is none |
 
 `grade.py --self-test` rejects a case whose expectations all pass on the untouched fixture: such a
 case cannot tell a good run from a do-nothing run.

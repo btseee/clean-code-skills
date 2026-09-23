@@ -48,6 +48,10 @@ REQUIRED_FIELDS = {
 }
 CASE_KEYS = ("id", "pack", "prompt", "expected_output", "expectations")
 SKIPPED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "vendor", "dist", "build"}
+# Installing a dependency writes these; a run that adds one has not left a stray file.
+DEPENDENCY_ARTIFACTS = {".gitignore", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+                        "pubspec.lock", "Cargo.lock", "poetry.lock", "Pipfile.lock",
+                        "composer.lock", "Gemfile.lock", "go.sum"}
 MAP_FINDING_KINDS = {"misplaced", "mixed", "duplicates", "name_clashes", "synonyms", "cycles"}
 
 
@@ -104,7 +108,8 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
         return same, f"{path} {'is unchanged' if same else 'was changed'}"
     if kind == "no_new_files":
         before = set(files_in(fixture))
-        new = [path for path in _matching(workspace, expectation["glob"]) if path not in before]
+        new = [path for path in _matching(workspace, expectation["glob"])
+               if path not in before and Path(path).name not in DEPENDENCY_ARTIFACTS]
         return not new, ", ".join(new[:5]) or "no new matching files"
     if kind == "map_finding_absent":
         return _map_finding_absent(workspace, expectation)
@@ -118,10 +123,35 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
         if transcript is None:
             return None, "no transcript supplied"
         # Windows paths appear as `a\\b` in a JSON transcript; patterns are written with `/`.
-        text = re.sub(r"\\+", "/", _read(Path(transcript)))
+        text = re.sub(r"\\+", "/", _tool_calls(_read(Path(transcript))))
         hit = re.search(expectation["pattern"], text)
         return bool(hit), hit.group(0) if hit else "not read"
     raise ValueError(f"unknown expectation type {kind!r}")
+
+
+def _tool_calls(text: str) -> str:
+    """The inputs of every tool call in a JSON-lines transcript; any other text as it is.
+
+    A path that appears only inside a file the run was shown is not a file it read.
+    """
+    calls = []
+    structured = False
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except ValueError:
+            return text
+        message = record.get("message") if isinstance(record, dict) else None
+        if not isinstance(message, dict):
+            continue
+        structured = True
+        content = message.get("content")
+        for item in content if isinstance(content, list) else []:
+            if isinstance(item, dict) and item.get("type") == "tool_use":
+                calls.append(json.dumps(item.get("input", {})))
+    return "\n".join(calls) if structured else text
 
 
 def _map_finding_absent(workspace: Path, expectation: dict):

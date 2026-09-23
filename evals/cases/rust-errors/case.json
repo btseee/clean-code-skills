@@ -13,8 +13,8 @@
     {
       "type": "file_not_contains",
       "glob": "src/**",
-      "pattern": "\\.unwrap\\(\\)",
-      "text": "Library code contains no .unwrap()"
+      "pattern": "\\A(?:(?!#\\[cfg\\(test\\)\\])[\\s\\S])*?\\.unwrap\\(\\)",
+      "text": "Library code outside #[cfg(test)] contains no .unwrap()"
     },
     {
       "type": "file_contains",

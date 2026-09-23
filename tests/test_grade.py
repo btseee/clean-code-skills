@@ -63,6 +63,12 @@ class GradeTest(unittest.TestCase):
         write(self.workspace, {"src/services/pay_v2.js": "function pay() {}\n"})
         self.assertFalse(self.grade_one({"type": "no_new_files", "glob": "**/*_v2.*"}))
 
+    def test_no_new_files_ignores_what_installing_a_dependency_writes(self):
+        write(self.workspace, {"package-lock.json": "{}\n", ".gitignore": "node_modules/\n"})
+        self.assertTrue(self.grade_one({"type": "no_new_files", "glob": "*"}))
+        write(self.workspace, {"debug.log": "trace\n"})
+        self.assertFalse(self.grade_one({"type": "no_new_files", "glob": "*"}))
+
     def test_transcript_reads_is_skipped_without_a_transcript(self):
         expectation = {"type": "transcript_reads", "pattern": r"frameworks/express\.md"}
         self.assertIsNone(self.grade_one(expectation))
@@ -76,6 +82,18 @@ class GradeTest(unittest.TestCase):
         transcript = self.workspace.parent / "transcript.jsonl"
         transcript.write_bytes(
             b'{"input": {"file_path": "D:\\\\skills\\\\references\\\\frameworks\\\\express.md"}}\n')
+        self.assertTrue(self.grade_one(expectation, transcript))
+
+    def test_transcript_reads_counts_tool_calls_not_text_the_run_was_shown(self):
+        expectation = {"type": "transcript_reads", "pattern": r"frameworks/express\.md"}
+        transcript = self.workspace.parent / "run.jsonl"
+        shown = {"type": "user", "message": {"content": [{"type": "tool_result", "content":
+                 '{"packs": ["references/frameworks/express.md"]}'}]}}
+        transcript.write_text(json.dumps(shown) + "\n", encoding="utf-8")
+        self.assertFalse(self.grade_one(expectation, transcript))
+        read = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read",
+                "input": {"file_path": "D:\\skill\\references\\frameworks\\express.md"}}]}}
+        transcript.write_text(json.dumps(shown) + "\n" + json.dumps(read) + "\n", encoding="utf-8")
         self.assertTrue(self.grade_one(expectation, transcript))
 
     def test_the_summary_counts_skips_apart(self):

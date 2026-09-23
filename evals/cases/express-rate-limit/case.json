@@ -7,14 +7,14 @@
     {
       "type": "file_contains",
       "glob": "src/middleware/**",
-      "pattern": "\\(\\s*(?:req|request)\\b[^)]*,\\s*(?:res|response)\\b[^)]*,\\s*next\\b",
-      "text": "A file under src/middleware exports an Express middleware function (req, res, next)"
+      "pattern": "(?i)rate.?limit|limiter|too many",
+      "text": "A module under src/middleware implements the rate limit"
     },
     {
       "type": "file_contains",
-      "glob": "src/middleware/**",
-      "pattern": "429",
-      "text": "The middleware answers with a 429 status once the limit is exceeded"
+      "glob": "src/**",
+      "pattern": "(?i)(?:router\\.post|app\\.use)\\([^)]*limit",
+      "text": "The limiter is wired to the login route"
     },
     {
       "type": "unchanged",

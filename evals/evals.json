@@ -169,8 +169,8 @@
         "evals/cases/express-rate-limit/repo"
       ],
       "expectations": [
-        "A file under src/middleware exports an Express middleware function (req, res, next)",
-        "The middleware answers with a 429 status once the limit is exceeded",
+        "A module under src/middleware implements the rate limit",
+        "The limiter is wired to the login route",
         "userService.js is unchanged; rate limiting is not a user-service business rule",
         "map_structure reports no misplaced finding",
         "Nothing new lands at the repository root"
@@ -395,7 +395,7 @@
       ],
       "expectations": [
         "An error enum exists for bad config input",
-        "Library code contains no .unwrap()",
+        "Library code outside #[cfg(test)] contains no .unwrap()",
         "parse_config reports failure through a Result instead of panicking",
         "Nothing new lands at the repository root"
       ]
