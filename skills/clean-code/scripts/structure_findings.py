@@ -27,6 +27,13 @@ EXPORT_AWARE_LANGUAGES = frozenset({"javascript", "typescript", "python", "go", 
 
 SOURCE_ROOTS = frozenset({"src", "lib", "app", "source", "sources", "pkg", "internal"})
 
+# Two `User` classes confuse every reader; two `parse` functions in different modules
+# do not, because a module-scoped language keeps them apart. Where every function
+# shares one namespace, a repeated function name is a real clash.
+CLASHING_KINDS = frozenset({"class", "interface", "enum", "struct", "trait", "protocol",
+                            "record", "object", "module", "component", "type"})
+GLOBAL_FUNCTION_LANGUAGES = frozenset({"c", "shell", "powershell", "r", "php"})
+
 LANGUAGE_FAMILY = {"typescript": "js", "javascript": "js", "vue": "js", "svelte": "js",
                    "java": "jvm", "kotlin": "jvm", "scala": "jvm",
                    "c": "c", "cpp": "c", "objc": "c"}
@@ -184,8 +191,15 @@ def find_duplicates(files) -> list:
                                            item["members"][0]["line"]))
 
 
+def _can_clash(symbol, language: str) -> bool:
+    """Type names clash in any language; function names only where they share one namespace."""
+    if symbol.parent is not None or not symbol.exported or len(symbol.name) < 4:
+        return False
+    return symbol.kind in CLASHING_KINDS or language in GLOBAL_FUNCTION_LANGUAGES
+
+
 def find_name_clashes(files, roles) -> list:
-    """One top-level name declared in several files of the same language family."""
+    """One public type name, or one global function name, declared in several files."""
     declared = defaultdict(list)
     for roled_file in files:
         if roled_file.is_test:
@@ -193,7 +207,7 @@ def find_name_clashes(files, roles) -> list:
         family = LANGUAGE_FAMILY.get(roled_file.language, roled_file.language)
         for item in roled_file.symbols:
             symbol = item.symbol
-            if symbol.parent is not None or len(symbol.name) < 4 or roles.is_ignored_name(symbol.name):
+            if not _can_clash(symbol, roled_file.language) or roles.is_ignored_name(symbol.name):
                 continue
             declared[(family, symbol.name)].append(
                 {"path": roled_file.path, "line": symbol.line, "kind": symbol.kind})

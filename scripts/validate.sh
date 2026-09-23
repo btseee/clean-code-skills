@@ -346,7 +346,7 @@ ALLOWED = {
     "argparse", "ast", "bisect", "collections", "dataclasses", "difflib", "fnmatch",
     "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
     "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
-    "unicodedata", "__future__",
+    "unicodedata", "warnings", "__future__",
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"

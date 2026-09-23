@@ -24,6 +24,7 @@ import re
 from pathlib import Path
 
 import project_files
+import project_imports
 import source_lexer
 
 _FAMILY_BY_SUFFIX = {
@@ -42,6 +43,8 @@ _FAMILY_BY_SUFFIX = {
 _LEXER_BY_FAMILY = {"jvm": "java", "csharp": "csharp", "php": "php", "swift": "swift",
                     "ruby": "ruby"}
 TYPE_REFERENCE_FAMILIES = frozenset(_LEXER_BY_FAMILY)
+SCOPED_FAMILIES = frozenset({"jvm", "csharp", "php"})
+_IMPORT_SUFFIX = {"jvm": ".java", "csharp": ".cs", "php": ".php"}
 
 _JS_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".vue", ".svelte")
 _TYPE_KINDS = frozenset({"class", "interface", "enum", "struct", "trait", "protocol", "record",
@@ -73,6 +76,27 @@ def _read_jsonc(path: Path):
 def _first(pattern: re.Pattern, text: str):
     match = pattern.search(text)
     return match.group(1) if match else None
+
+
+def _visible_namespaces(family: str, namespace: str, path: str, text: str) -> set:
+    """Namespaces whose types this file can name without qualifying them.
+
+    C# sees its own namespace and every enclosing one; Java, Kotlin, Scala, and PHP
+    see only their own. All of them add what they import.
+    """
+    separator = "\\" if family == "php" else "."
+    visible = {namespace}
+    if family == "csharp":
+        parts = namespace.split(".")
+        visible |= {".".join(parts[:end]) for end in range(1, len(parts))}
+    for _, module in project_imports.imports_in_text(_IMPORT_SUFFIX[family], text):
+        module = module.strip(separator).strip("*").rstrip(separator + "._")
+        if family == "php":
+            module = module.lower()
+        visible.add(module)
+        if separator in module:
+            visible.add(module.rsplit(separator, 1)[0])
+    return visible
 
 
 def _rust_crate_root(source: str) -> str:
@@ -112,6 +136,7 @@ class ModuleIndex:
         self._type_owners = {}
         self._declared = {}
         self._references = {}
+        self._visible = {}
         self._ts_aliases = []
         self._ts_base = None
         self._go_module = None
@@ -152,27 +177,30 @@ class ModuleIndex:
             self._add_python(path)
         top_types = [symbol.name for symbol in (symbols.symbols if symbols else [])
                      if symbol.parent is None and symbol.kind in _TYPE_KINDS]
+        namespace = None
         if family == "jvm":
-            package = _first(_JVM_PACKAGE, text) or ""
-            self._jvm_packages.setdefault(package, set()).add(path)
+            namespace = _first(_JVM_PACKAGE, text) or ""
+            self._jvm_packages.setdefault(namespace, set()).add(path)
             for name in top_types:
-                self._jvm_types[f"{package}.{name}" if package else name] = path
+                self._jvm_types[f"{namespace}.{name}" if namespace else name] = path
         elif family == "csharp":
             namespaces = _CSHARP_NAMESPACE.findall(text)
-            for namespace in namespaces:
-                self._csharp_namespaces.setdefault(namespace, set()).add(path)
+            namespace = namespaces[0] if namespaces else ""
+            for declared in namespaces:
+                self._csharp_namespaces.setdefault(declared, set()).add(path)
             for name in top_types:
-                prefix = namespaces[0] + "." if namespaces else ""
-                self._csharp_types[prefix + name] = path
+                self._csharp_types[f"{namespace}.{name}" if namespace else name] = path
         elif family == "php":
-            namespace = (_first(_PHP_NAMESPACE, text) or "").strip("\\")
-            self._php_namespaces.setdefault(namespace.lower(), set()).add(path)
+            namespace = (_first(_PHP_NAMESPACE, text) or "").strip("\\").lower()
+            self._php_namespaces.setdefault(namespace, set()).add(path)
             for name in top_types:
-                self._php_types[f"{namespace}\\{name}".strip("\\").lower()] = path
+                self._php_types[f"{namespace}\\{name.lower()}".strip("\\")] = path
         if family in TYPE_REFERENCE_FAMILIES:
             self._declared[path] = set(top_types)
             for name in top_types:
-                self._type_owners.setdefault((family, name), set()).add(path)
+                self._type_owners.setdefault((family, name), set()).add((path, namespace))
+            if family in SCOPED_FAMILIES:
+                self._visible[path] = _visible_namespaces(family, namespace, path, text)
             code = source_lexer.strip(text, _LEXER_BY_FAMILY[family]).code
             self._references[path] = set(_CAPITALIZED.findall(code))
 
@@ -204,12 +232,18 @@ class ModuleIndex:
         return sorted(set(resolver(source_path, module.strip())))
 
     def resolve_type_references(self, source_path: str) -> list:
-        """Files declaring the capitalized names this file's code uses, where unique."""
+        """Files declaring the capitalized names this file's code uses, where unique.
+
+        In C#, the JVM languages, and PHP a name is only visible from the file's own
+        namespace or package and the ones it imports; elsewhere a type name is global.
+        """
         family = _family(source_path)
         names = self._references.get(source_path, set()) - self._declared.get(source_path, set())
+        visible = self._visible.get(source_path)
         found = set()
         for name in names:
-            owners = self._type_owners.get((family, name), set())
+            owners = {path for path, namespace in self._type_owners.get((family, name), set())
+                      if visible is None or namespace in visible}
             if len(owners) == 1 and source_path not in owners:
                 found |= owners
         return sorted(found)

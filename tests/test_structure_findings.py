@@ -106,16 +106,36 @@ class DuplicateTest(unittest.TestCase):
 
 
 class NameClashTest(unittest.TestCase):
-    def test_one_name_in_two_files_of_a_language_family(self):
+    def test_one_type_name_in_two_files_of_a_language_family(self):
         files = [
-            file("src/a.ts", None, [(sym("formatDate"), None)]),
-            file("src/b.js", None, [(sym("formatDate"), None)], language="javascript"),
-            file("cmd/a/main.go", None, [(sym("main"), None)], language="go"),
-            file("cmd/b/main.go", None, [(sym("main"), None)], language="go"),
+            file("src/a.ts", None, [(sym("UserService", "class"), None)]),
+            file("src/b.js", None, [(sym("UserService", "class"), None)], language="javascript"),
+            file("cmd/a/main.go", None, [(sym("Config", "struct"), None)], language="go"),
+            file("cmd/b/main.go", None, [(sym("Config", "struct"), None)], language="go"),
         ]
         result = findings.find_name_clashes(files, GENERIC)
-        self.assertEqual([group["name"] for group in result], ["formatDate"])
-        self.assertEqual(len(result[0]["members"]), 2)
+        self.assertEqual([group["name"] for group in result], ["Config", "UserService"])
+        self.assertEqual(len(result[1]["members"]), 2)
+
+    def test_functions_clash_only_where_names_share_one_namespace(self):
+        files = [
+            file("src/a.ts", None, [(sym("formatDate"), None)]),
+            file("src/b.ts", None, [(sym("formatDate"), None)]),
+            file("src/list.c", None, [(sym("list_push"), None)], language="c"),
+            file("src/queue.c", None, [(sym("list_push"), None)], language="c"),
+            file("cmd/a/main.go", None, [(sym("main"), None)], language="go"),
+        ]
+        result = findings.find_name_clashes(files, GENERIC)
+        self.assertEqual([group["name"] for group in result], ["list_push"])
+
+    def test_private_names_never_clash(self):
+        files = [
+            file("src/Shape.java", None, [(sym("Helper", "class", exported=False), None)],
+                 language="java"),
+            file("src/Other.java", None, [(sym("Helper", "class", exported=False), None)],
+                 language="java"),
+        ]
+        self.assertEqual(findings.find_name_clashes(files, GENERIC), [])
 
 
 class SynonymTest(unittest.TestCase):

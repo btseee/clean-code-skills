@@ -152,6 +152,22 @@ class ModuleIndexTest(unittest.TestCase):
         self.assertEqual(index.resolve_type_references("Sources/App/CheckoutView.swift"),
                          ["Sources/App/Cart.swift"])
 
+    def test_csharp_type_references_see_only_visible_namespaces(self):
+        files = {
+            "Other/Settings.cs": "namespace Other;\npublic class Settings {}\n",
+            "App/Core/Clock.cs": "namespace App.Core;\npublic class Clock {}\n",
+            "App/Core/Jobs/Runner.cs":
+                "namespace App.Core.Jobs;\npublic class Runner { Settings s; Clock c; }\n",
+        }
+        index = build_index(files)
+        self.assertEqual(index.resolve_type_references("App/Core/Jobs/Runner.cs"),
+                         ["App/Core/Clock.cs"])
+        files["App/Core/Jobs/Runner.cs"] = ("using Other;\nnamespace App.Core.Jobs;\n"
+                                            "public class Runner { Settings s; Clock c; }\n")
+        index = build_index(files)
+        self.assertEqual(index.resolve_type_references("App/Core/Jobs/Runner.cs"),
+                         ["App/Core/Clock.cs", "Other/Settings.cs"])
+
     def test_ambiguous_type_names_resolve_to_nothing(self):
         index = build_index({
             "A/User.cs": "namespace A;\npublic class User {}\n",

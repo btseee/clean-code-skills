@@ -184,6 +184,11 @@ def extract_component(path: str, text: str, language: str) -> symbol_model.FileS
 
 _WORD = r"[A-Za-z_]\w*"
 
+# One declared type: a dotted name with optional generic arguments, array brackets, and
+# a nullable or pointer marker, or a parenthesised tuple. Each part is unambiguous, so a
+# line that is not a declaration fails fast instead of backtracking through it.
+_TYPE = (r"(?:\((?:[^()\n]|\([^()\n]*\))*\)|[\w.]+(?:<[^;{}()\n]*?>)?(?:\[[, ]*\])*[?*]?)")
+
 
 def _mods(match) -> str:
     return match.groupdict().get("mods") or ""
@@ -215,7 +220,7 @@ JAVA = Grammar(
     members=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|abstract|final|static|"
                  rf"synchronized|native|default|strictfp)[ \t]+)*)(?:<[^>\n]+>[ \t]+)?"
-                 rf"[\w<>\[\],.? ]*?[\w>\]][ \t]+(?P<name>[a-zA-Z_]\w*)[ \t]*\(", "method"),
+                 rf"{_TYPE}[ \t]+(?P<name>[a-zA-Z_]\w*)[ \t]*\(", "method"),
         _pattern(r"^[ \t]*(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
                  r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
     ),
@@ -288,7 +293,7 @@ CSHARP = Grammar(
     members=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static|virtual|override|"
                  rf"abstract|sealed|async|extern|unsafe|new|partial|readonly)[ \t]+)*)"
-                 rf"[\w<>\[\],.?() ]*?[\w>\]?)][ \t]+(?P<name>{_WORD})[ \t]*(?:<[^>\n]*>)?[ \t]*\(",
+                 rf"{_TYPE}[ \t]+(?P<name>{_WORD})[ \t]*(?:<[^>\n]*>)?[ \t]*\(",
                  "method"),
         _pattern(r"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static)[ \t]+)*)"
                  r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
@@ -336,7 +341,7 @@ DART = Grammar(
     ),
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:static|external|factory|abstract|const|late|covariant)"
-                 rf"[ \t]+)*)(?:[\w<>?,\[\]. ]*?[\w>?\]][ \t]+)?(?P<name>{_WORD})"
+                 rf"[ \t]+)*)(?:{_TYPE}[ \t]+)?(?P<name>{_WORD})"
                  rf"(?:\.{_WORD})?[ \t]*(?:<[^>\n]*>)?[ \t]*\(", "function"),
     ),
     members=(),
@@ -452,7 +457,7 @@ SWIFT = Grammar(
 _C_KEYWORDS = frozenset({"if", "for", "while", "switch", "return", "sizeof", "else", "do",
                          "case", "typedef", "struct", "union", "enum", "defined", "catch",
                          "alignof", "decltype", "static_assert", "operator", "new", "delete"})
-_C_RETURN_TYPE = r"(?:[A-Za-z_][\w \t\*&:<>,]*?[\s\*&]+)?"
+_C_RETURN_TYPE = r"(?:[A-Za-z_][\w:]*(?:<[^;{}()\n]*?>)?[\s\*&]+)*"
 _C_TYPE = _pattern(rf"^[ \t]*(?:typedef[ \t]+)?(?P<kind>struct|union|enum)[ \t]+(?P<name>{_WORD})"
                    rf"(?=[ \t\r\n]*\{{)", "struct")
 _C_FUNCTION = _pattern(

@@ -66,6 +66,8 @@ def extract(path: str, text: str) -> Optional[FileSymbols]:
     language = language_of(path)
     if language is None:
         return None
+    if text.startswith("﻿"):
+        text = text[1:]
     if language == "python":
         return symbols_python.extract(path, text)
     if language == "ruby":

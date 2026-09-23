@@ -339,6 +339,13 @@ class DotnetTest(unittest.TestCase):
         self.assertTrue(symbols["Get"].exported)
         self.assertFalse(symbols["Log"].exported)
 
+    def test_a_byte_order_mark_does_not_hide_the_namespace(self):
+        symbols = by_name(extract("RelayCommand.cs",
+                                  "﻿namespace Gui\n{\n    public class RelayCommand\n    {\n"
+                                  "        public void Run() {}\n    }\n}\n"))
+        self.assertIsNone(symbols["RelayCommand"].parent)
+        self.assertEqual(symbols["Run"].parent, "RelayCommand")
+
     def test_records_and_interfaces_with_a_file_scoped_namespace(self):
         result = extract("File.cs", """
             namespace App.Domain;
@@ -355,7 +362,7 @@ class PhpTest(unittest.TestCase):
     def test_attributes_classes_and_methods(self):
         symbols = by_name(extract("Authenticate.php", """
             <?php
-            namespace App\Http\Middleware;
+            namespace App\\Http\\Middleware;
             #[Attr]
             final class Authenticate {
               public function handle($request, Closure $next) { return $next($request); }

@@ -379,7 +379,9 @@ def _spans(text: str, language: str) -> list:
 
 
 def _blank(segment: str) -> str:
-    return re.sub(r"[^\n]", " ", segment)
+    if "\n" not in segment:
+        return " " * len(segment)
+    return "\n".join(" " * len(part) for part in segment.split("\n"))
 
 
 def strip(text: str, language: str) -> Stripped:

@@ -7,6 +7,7 @@ Standard library only.
 from __future__ import annotations
 
 import ast
+import warnings
 from typing import Optional
 
 import source_lexer
@@ -96,7 +97,10 @@ class _Builder:
 
 def extract(path: str, text: str) -> symbol_model.FileSymbols:
     try:
-        tree = ast.parse(text)
+        with warnings.catch_warnings():
+            # The scanned file's own warnings (invalid escapes, say) are not ours to print.
+            warnings.simplefilter("ignore")
+            tree = ast.parse(text)
     except (SyntaxError, ValueError):
         return symbol_model.file_symbols(path, "python", "", text, [])
 
