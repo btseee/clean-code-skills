@@ -1,0 +1,36 @@
+{
+  "id": "flask-blueprint",
+  "pack": "frameworks/flask.md",
+  "prompt": "Add GET /reports/monthly returning totals per month.",
+  "expected_output": "A blueprint route for GET /reports/monthly exists; a service module computes the monthly totals; the app factory changes only to register the new blueprint; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "app/**",
+      "pattern": "/reports/monthly",
+      "text": "A route path for /reports/monthly exists somewhere in the app"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/**/services.py",
+      "pattern": "(?i)totals",
+      "text": "A service module computes the monthly totals"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/__init__.py",
+      "pattern": "(?i)totals|sum\\(|monthly",
+      "text": "The app factory gains no aggregation logic of its own"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No route or service lands outside its role's home"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

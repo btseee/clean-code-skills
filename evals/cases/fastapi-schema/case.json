@@ -1,0 +1,42 @@
+{
+  "id": "fastapi-schema",
+  "pack": "frameworks/fastapi.md",
+  "prompt": "Add PATCH /items/{id} to update the price.",
+  "expected_output": "A Pydantic schema models the price update; the PATCH route calls a crud module to apply it and never mutates the ORM object inline; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "app/schemas/**",
+      "pattern": "class \\w*Update\\w*",
+      "text": "A Pydantic schema models the price update"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/routers/**",
+      "pattern": "@router\\.patch\\(",
+      "text": "A PATCH route exists for updating an item"
+    },
+    {
+      "type": "file_contains",
+      "glob": "app/crud/**",
+      "pattern": "(?i)price",
+      "text": "A crud module handles the price update"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "app/routers/**",
+      "pattern": "\\.price_cents\\s*=",
+      "text": "The router does not mutate the item's price directly"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No router, schema, or crud module lands outside its role's home"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

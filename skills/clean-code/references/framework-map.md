@@ -28,7 +28,11 @@ drops the packs of a label that a detected framework already covers.
 # supersede <Label> > <Label>[, <Label>...]
 language JavaScript = languages/javascript.md
 language TypeScript = languages/typescript.md, languages/javascript.md
+language Python = languages/python.md
 framework React = frameworks/react.md
+framework Django = frameworks/django.md
+framework Flask = frameworks/flask.md
+framework FastAPI = frameworks/fastapi.md
 ```
 
 ## Roles

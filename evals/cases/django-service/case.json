@@ -1,0 +1,42 @@
+{
+  "id": "django-service",
+  "pack": "frameworks/django.md",
+  "prompt": "Cancelling an order must refund the payment and restock items.",
+  "expected_output": "The refund-and-restock rule lives in services.py (or a model method), not in the view; CancelOrderView delegates to it instead of mutating the order directly; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "orders/*.py",
+      "pattern": "(?i)refund",
+      "text": "The cancellation flow refunds the payment somewhere outside the view"
+    },
+    {
+      "type": "file_contains",
+      "glob": "orders/*.py",
+      "pattern": "(?i)restock",
+      "text": "The cancellation flow restocks items somewhere outside the view"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "orders/views.py",
+      "pattern": "(?i)refund",
+      "text": "CancelOrderView itself contains no refund logic"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "orders/views.py",
+      "pattern": "status\\s*=\\s*[\"']cancelled[\"']",
+      "text": "CancelOrderView no longer mutates order status inline; it delegates the rule"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No view, model, or service lands outside its role's home"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}
