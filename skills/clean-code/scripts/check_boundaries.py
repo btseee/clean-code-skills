@@ -37,12 +37,12 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
-import posixpath
 import re
 import sys
 from pathlib import Path
 
 import project_files
+import project_imports
 
 CONFIG_BLOCK_PATTERN = re.compile(
     r"```(?:clean-architecture|clean-arch|architecture)\s*\n(.*?)```",
@@ -52,54 +52,6 @@ CONFIG_BLOCK_PATTERN = re.compile(
 LAYER_PATTERN = re.compile(r"^layer\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 NAMESPACE_PATTERN = re.compile(r"^namespace\s+([\w.-]+)\s*=\s*(.+)$", re.IGNORECASE)
 RULE_PATTERN = re.compile(r"^(allow|deny)\s+([\w.-]+)\s*->\s*(.+)$", re.IGNORECASE)
-
-# Extension -> patterns that capture the imported module or path.
-IMPORT_PATTERNS = {
-    ".py": [r"^\s*from\s+([\w.]+)\s+import\b", r"^\s*import\s+([\w.]+)"],
-    ".pyi": [r"^\s*from\s+([\w.]+)\s+import\b", r"^\s*import\s+([\w.]+)"],
-    ".js": [r"""from\s+['"]([^'"]+)['"]""", r"""require\(\s*['"]([^'"]+)['"]""",
-            r"""import\s*\(\s*['"]([^'"]+)['"]"""],
-    ".jsx": [r"""from\s+['"]([^'"]+)['"]""", r"""require\(\s*['"]([^'"]+)['"]"""],
-    ".mjs": [r"""from\s+['"]([^'"]+)['"]""", r"""import\s*\(\s*['"]([^'"]+)['"]"""],
-    ".cjs": [r"""require\(\s*['"]([^'"]+)['"]"""],
-    ".ts": [r"""from\s+['"]([^'"]+)['"]""", r"""require\(\s*['"]([^'"]+)['"]""",
-            r"""import\s*\(\s*['"]([^'"]+)['"]"""],
-    ".tsx": [r"""from\s+['"]([^'"]+)['"]""", r"""require\(\s*['"]([^'"]+)['"]"""],
-    ".vue": [r"""from\s+['"]([^'"]+)['"]"""],
-    ".svelte": [r"""from\s+['"]([^'"]+)['"]"""],
-    ".cs": [r"^\s*global\s+using\s+(?:static\s+)?([\w.]+)\s*;",
-            r"^\s*using\s+(?:static\s+)?([\w.]+)\s*;"],
-    ".fs": [r"^\s*open\s+([\w.]+)"],
-    ".java": [r"^\s*import\s+(?:static\s+)?([\w.*]+)\s*;"],
-    ".kt": [r"^\s*import\s+([\w.*]+)"],
-    ".kts": [r"^\s*import\s+([\w.*]+)"],
-    ".scala": [r"^\s*import\s+([\w.{}, _]+)"],
-    ".go": [r"""^\s*(?:import\s+)?(?:[\w.]+\s+)?"([^"]+)"\s*$"""],
-    ".rs": [r"^\s*(?:pub\s+)?use\s+([\w:]+)"],
-    ".rb": [r"""require(?:_relative)?\s+['"]([^'"]+)['"]"""],
-    ".php": [r"^\s*use\s+([\w\\]+)"],
-    ".swift": [r"^\s*import\s+(\w+)"],
-    ".dart": [r"""import\s+['"]([^'"]+)['"]"""],
-    ".c": [r"""^\s*#\s*include\s*[<"]([^>"]+)[>"]"""],
-    ".h": [r"""^\s*#\s*include\s*[<"]([^>"]+)[>"]"""],
-    ".cc": [r"""^\s*#\s*include\s*[<"]([^>"]+)[>"]"""],
-    ".cpp": [r"""^\s*#\s*include\s*[<"]([^>"]+)[>"]"""],
-    ".hpp": [r"""^\s*#\s*include\s*[<"]([^>"]+)[>"]"""],
-    ".ex": [r"^\s*alias\s+([\w.]+)", r"^\s*import\s+([\w.]+)"],
-    ".exs": [r"^\s*alias\s+([\w.]+)"],
-    ".ml": [r"^\s*open\s+([\w.]+)"],
-    ".hs": [r"^\s*import\s+(?:qualified\s+)?([\w.]+)"],
-}
-
-COMPILED_IMPORT_PATTERNS = {
-    extension: [re.compile(pattern) for pattern in patterns]
-    for extension, patterns in IMPORT_PATTERNS.items()
-}
-
-RESOLVABLE_SUFFIXES = (
-    "", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte",
-    ".py", ".dart", ".rb",
-)
 
 DEFAULT_CONFIG_PATHS = (
     ".clean/architecture.md",
@@ -166,7 +118,7 @@ class Layering:
         so `from ..infra.db import Db` still lands in `infra`. Returns None when
         the import points outside every declared layer or cannot be placed.
         """
-        resolved = resolve_relative_import(source_path, module, exists)
+        resolved = project_imports.resolve_relative_import(source_path, module, exists)
         if resolved is not None:
             return self.layer_of_path(resolved)
         return self.layer_of_name(module)
@@ -278,49 +230,6 @@ def find_config(root: Path, explicit: str | None) -> Path:
     )
 
 
-def resolve_relative_import(source_path: str, module: str, exists) -> str | None:
-    """Turn `./x`, `../x`, or Python's `..pkg.mod` into a root-relative path.
-
-    `exists` answers whether a root-relative path is on disk. Returns None when
-    the import is not relative, escapes the root, or matches no file: an import
-    that cannot be found is unknown, never a guessed path.
-    """
-    if not module.startswith("."):
-        return None
-    base = posixpath.dirname(source_path)
-    if "/" in module:
-        target = posixpath.normpath(posixpath.join(base, module))
-    else:
-        dots = len(module) - len(module.lstrip("."))
-        for _ in range(dots - 1):
-            base = posixpath.dirname(base)
-        rest = module[dots:].replace(".", "/")
-        target = posixpath.normpath(posixpath.join(base, rest)) if rest else (base or ".")
-    if target.startswith(".."):
-        return None
-    for suffix in RESOLVABLE_SUFFIXES:
-        if exists(target + suffix):
-            return target + suffix
-    return None
-
-
-def extract_imports(path: Path):
-    patterns = COMPILED_IMPORT_PATTERNS.get(path.suffix.lower(), [])
-    if not patterns:
-        return
-    text = project_files.read_text(path)
-    if text is None:
-        return
-    for line_number, line in enumerate(text.splitlines(), 1):
-        if len(line) > 500:
-            continue
-        for pattern in patterns:
-            found = pattern.search(line)
-            if found:
-                yield line_number, found.group(1).strip(), line.strip()
-                break
-
-
 def check_project(root: Path, layering: Layering) -> dict:
     violations = []
     files_by_layer: dict = {}
@@ -330,7 +239,7 @@ def check_project(root: Path, layering: Layering) -> dict:
     def exists(relative_path: str) -> bool:
         return (root / relative_path).exists()
 
-    walk = project_files.walk(root, COMPILED_IMPORT_PATTERNS)
+    walk = project_files.walk(root, project_imports.COMPILED_IMPORT_PATTERNS)
     for relative_path in walk.paths:
         path = root / relative_path
         source_layer = layering.layer_of_path(relative_path)
@@ -338,7 +247,7 @@ def check_project(root: Path, layering: Layering) -> dict:
             continue
         files_by_layer[source_layer] = files_by_layer.get(source_layer, 0) + 1
 
-        for line_number, module, line_text in extract_imports(path):
+        for line_number, module, line_text in project_imports.extract_imports(path):
             target_layer = layering.layer_of_import(module, relative_path, exists)
             if target_layer is None:
                 imports_unplaced += 1
