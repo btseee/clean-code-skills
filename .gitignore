@@ -16,12 +16,13 @@ books/
 # Locally installed skills and local agent state
 # =============================================================================
 # This repo is the source of skills/clean-code/. These directories are install
-# targets and vendored copies, not repository content.
-.claude/skills/
-.claude/settings.local.json
-.agents/skills/
-agent/
-.serena/
+# targets and vendored copies, not repository content. Root-anchored, so an eval
+# fixture that happens to contain a folder of the same name is still committed.
+/.claude/skills/
+/.claude/settings.local.json
+/.agents/skills/
+/agent/
+/.serena/
 
 # Working state written by the clean-code skill itself. Root-anchored: eval fixtures
 # under evals/cases/*/repo/ carry their own .clean/ files, which must be committed.
@@ -30,7 +31,7 @@ agent/
 # =============================================================================
 # Build and release output
 # =============================================================================
-dist/
+/dist/
 *.zip
 
 # =============================================================================
