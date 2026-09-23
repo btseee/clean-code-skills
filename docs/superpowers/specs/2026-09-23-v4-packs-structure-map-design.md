@@ -336,14 +336,17 @@ Blocks live in `framework-map.md` (generic conventions), in each framework pack,
 the project's `.clean/roles.md`.
 
 ```text
-role <name>   = <glob>[, <glob>...]   files matching a glob are homes for <name>
-name <name>   = <regex>               symbols whose name matches get intrinsic role <name>
-signal <name> = <regex>               symbols whose declaration context matches get intrinsic role <name>
-ignore-name   = <regex>               names excluded from name-clash and synonym findings
+role <name>              = <glob>[, <glob>...]   files matching a glob are homes for <name>
+name <name> [<suffixes>] = <regex>               symbols whose name matches get intrinsic role <name>
+signal <name> [<suffixes>] = <regex>             symbols whose declaration context matches get intrinsic role <name>
+ignore-name              = <regex>               names excluded from name-clash and synonym findings
 ```
 
 - Role names match `[a-z][a-z0-9-]*`. Globs are root-relative posix paths, `**` spans directories,
   and matching ignores case. Regexes use Python `re` syntax.
+- The optional bracketed suffix list (`name component [tsx, jsx] = ^[A-Z]\w*$`) limits a `name` or
+  `signal` statement to files with those extensions, so a React pack's PascalCase rule never
+  touches a Go backend in the same repository.
 - Precedence: `.clean/roles.md`, then framework packs in `packs` order, then the generic block. A
   symbol's intrinsic role is the first matching `signal`, else the first matching `name`, scanning
   sources in precedence order and each block top to bottom. A file's home role comes from the
@@ -418,7 +421,13 @@ C-family includes with a unique-basename fallback); `baseUrl` and `paths` aliase
 and `jsconfig.json`; Python dotted modules; JVM `package` plus type name; C# namespaces, file-scoped
 or block; PHP namespace plus class; Go import paths under the `go.mod` module; Rust `crate::`,
 `self::`, and `super::`; Dart `package:<own name>/`. An import it cannot resolve is skipped, never
-guessed. Swift has no file-level imports, so Swift components show no edges, and the output says so.
+guessed.
+
+Some languages reference other files without importing them: Swift (one module, no file imports),
+Ruby under Rails autoloading, and same-namespace or same-package code in C#, Java, Kotlin, Scala, and
+PHP. For those languages `ModuleIndex` also resolves capitalized identifiers in comment- and
+string-free code against the project's type names, counting only names declared exactly once and at
+least three characters long, never the file's own names.
 
 ### 6.8 Outputs
 
