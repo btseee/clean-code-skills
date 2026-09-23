@@ -39,6 +39,11 @@ changes is that scope is agreed out loud, not silently sampled.
 - `scripts/scan_repo.py --json` — oversized files, sibling variants, junk drawers, debug output,
   commented-out code, comment blocks, skipped tests. The JSON is always complete; `--top` caps only
   the human summary. Manual equivalent: targeted searches for each.
+- `scripts/map_structure.py --write` — every source file's symbols, role, and purpose, with the
+  misplaced, mixed, duplicated, clashing, and synonymous code flagged, plus component metrics and
+  cycles, saved to `.clean/structure.md` and `.clean/structure.json`. Its file list is a ready-made
+  starting point for the Phase C read pass. Manual equivalent: per folder, list what each file
+  declares and compare it with the folder's role.
 - Run the project's own verification and record the result **verbatim** — this is the baseline, and
   a red baseline must be written down, not worked around.
 - `scripts/check_boundaries.py` — a Phase D step (it needs a declared layering), listed here only
@@ -52,10 +57,15 @@ Work through the inventory directory by directory, ticking files in the ledger a
 For every file, judge at least:
 
 - **Responsibility** — does it pass the one-sentence test; which actor owns it?
-- **Placement** — does its directory match its responsibility, per the declared layers and the
-  conventions in `framework-map.md`? A file in the wrong folder goes in the ledger as a **move
-  candidate** with its intended destination. This is where "the files are not in the right folders"
-  gets caught — placement is audited per file, not noticed incidentally.
+- **Placement** — does its directory match its responsibility, per the declared layers, the
+  framework pack's roles, and the conventions in `framework-map.md`? Start from the map's misplaced
+  and mixed findings, then judge each one: a file or symbol in the wrong place goes in the ledger as
+  a **move candidate** with its intended destination; a deliberate exception becomes a `role` line
+  in `.clean/roles.md` and a `decisions.md` entry. This is where "the files are not in the right
+  folders" gets caught — placement is audited per file, not noticed incidentally.
+- **Duplication** — for each duplicate group the map reports, decide whether it is true
+  duplication (the copies must change together) or accidental (different actors, different rates
+  of change). Only the first kind becomes a finding.
 - **Dependencies** — anything imported against the grain (details in policy, wrong-way layer
   imports, a package used against its documented intent for the installed version in
   `context.json`)?
@@ -68,10 +78,11 @@ not an omission.
 ## Phase D — Fill `.clean/` (the audit's second deliverable)
 
 1. `context.json` — already written by Phase B.
-2. `architecture.md` — from `assets/templates/architecture.md`: the detected layer candidates as a
-   starting point, **ordering confirmed with the user** — innermost-first order is a decision, not
-   an inference, and both a strict and a pragmatic reading can be legitimate. Once written, run
-   `check_boundaries.py` and add its violations to the ledger.
+2. `architecture.md` — only if the user wants layers enforced. Without a declaration the skill
+   follows the framework pack's idiomatic structure; with one, the layer rules become strict. Offer
+   the choice, and on a yes start from `assets/templates/architecture.md` with the detected layer
+   candidates, **ordering confirmed with the user** — innermost-first order is a decision, not an
+   inference. Once written, run `check_boundaries.py` and add its violations to the ledger.
 3. `decisions.md` — initial entries: the verify command, the layering choice and why, declared
    no-go zones, and any deliberate exception discovered during the read pass.
 4. `ledger.md` — convert the findings into the prioritized batch plan of
@@ -83,8 +94,8 @@ not an omission.
 After the first full pass, sweep again: re-run the scripts, re-check the ledger against the
 inventory, and re-examine every file the first pass flagged plus every file *adjacent* to a finding
 (same directory, same responsibility, callers and callees). New findings go in the ledger. Compare
-sweeps on the full `--json` output, never on the `--top`-capped summaries — a capped list turns
-"entry 16 became visible" into a phantom new finding.
+sweeps on the full JSON (`scan_repo.py --json`, `.clean/structure.json`), never on capped
+summaries — a capped list turns "entry 16 became visible" into a phantom new finding.
 
 - **The audit closes only when a complete sweep adds zero new findings.**
 - Minimum two full sweeps, always. If sweep N found anything new, sweep N+1 is mandatory.
@@ -122,15 +133,18 @@ codebase is currently safe to change quickly. No hedging.>
 - Fix: <specific change>   Effort: <estimate>   Risk: <low/med/high>
 
 ## Architecture assessment
-Declared layering; dependency direction with counts; boundaries present and missing; details
-leaking inward; testability without infrastructure; cycles.
+Declared layering, or "framework-first, no declaration"; dependency direction with counts;
+boundaries present and missing; details leaking inward; testability without infrastructure; cycles
+and the components furthest from the main sequence (D), from the structure map.
 
 ## Dependencies
 Installed versions from context.json; anything used against its documented intent; majors that
 look stale (verify currency yourself only where you have web access — never guess).
 
-## Placement
-Move candidates from the read pass: file, intended home, what re-wiring the move needs.
+## Placement and duplication
+Move candidates from the map and the read pass: file or symbol, intended home, what re-wiring the
+move needs. True duplicates and their single intended home. Concepts named several ways, with the
+term to keep.
 
 ## What is already good
 <Real strengths — they tell the next agent what to imitate.>

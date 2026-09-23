@@ -9,16 +9,19 @@ Everything lives in a `.clean/` directory at the project root. Templates are in
 
 | File | Holds | Written by | Read when |
 | --- | --- | --- | --- |
-| `context.json` | detected stack, frameworks, test command, layout, dependencies with versions; plus the interview's `confirmed` object | `scripts/detect_stack.py --write` (merges: detector keys refreshed, everything else preserved) and the `questions` interview; or hand-written | every session, first |
-| `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow — ordering confirmed with the user — or a human | every session; enforced by `check_boundaries.py` |
+| `context.json` | detected stack, frameworks, the packs they need, test command, layout, dependencies with versions; plus the interview's `confirmed` object | `scripts/detect_stack.py --write` (merges: detector keys refreshed, everything else preserved) and the `init` interview; or hand-written | every session, first |
+| `architecture.md` | declared layers and allowed dependencies; its absence means framework-first | `init` or `audit`, only when the user opts in, ordering confirmed with the user — or a human | every session; enforced by `check_boundaries.py` |
 | `decisions.md` | decisions made and why, append-only | any session that made a real choice | before proposing a design change |
 | `ledger.md` | the audit's coverage checklist and findings, then cleanup-campaign state | the `audit` workflow first; campaign sessions keep it current | before starting or resuming an audit or campaign |
+| `structure.md`, `structure.json` | every source file's symbols, role, and purpose; placement, duplication, naming, and cycle findings; component metrics | `scripts/map_structure.py --write`, run by `init`, `audit`, and sessions that add or move files; never hand-edited | before changing an area: grep its rows |
+| `roles.md` | the project's own `clean-roles` conventions and confirmed placement exceptions | `init`, `audit`, or a human; grammar in `framework-map.md` | read by `map_structure.py`; overrides the packs |
 
 ## Rules
 
-**Read before deciding.** All four files, at the start of the session, before touching code. A
-recorded decision is settled: do not re-open it because you would have chosen differently. If it now
-looks wrong, say so and let the user decide.
+**Read before deciding.** The context, architecture, decisions, and ledger files at the start of the
+session, and the structure rows for the area you will change, before touching code. A recorded
+decision is settled: do not re-open it because you would have chosen differently. If it now looks
+wrong, say so and let the user decide.
 
 **`architecture.md` outranks your instincts.** It is the project's stated intent. If the code
 disagrees with it, that is a finding to report, not a licence to follow the code.
@@ -34,9 +37,13 @@ entry, because the next session will trust it.
 **Append; do not rewrite.** `decisions.md` is a log. Supersede an entry with a new one that
 references it, rather than editing the past.
 
-**Who creates `.clean/`.** The `audit` and `questions` workflows create and populate it as part of
-their job — that is what they are for, and the user invoking them is the consent. A plain coding
-session still does not silently introduce the convention: it offers at the end.
+**Who creates `.clean/`.** The `init` and `audit` workflows create and populate it as part of their
+job — that is what they are for, and the user invoking them is the consent. A plain coding session
+still does not silently introduce the convention: it offers at the end.
+
+**The structure map is a cache, not a record.** Never edit `structure.md` or `structure.json` by
+hand; regenerate them. The header names the commit it was generated at — when that differs from
+`git rev-parse --short HEAD`, regenerate before trusting a row.
 
 **Default to untracked.** Add `.clean/` to the project's `.gitignore` unless the user wants the
 design intent committed. `architecture.md` is the one file usually worth committing, because it is a
@@ -67,8 +74,8 @@ Do not record:
 Two kinds of keys share the file. **Detector-owned keys** (`primary_language`, `frameworks`,
 `dependencies`, `suggested_verify_commands`, and the rest of what `detect_stack.py` emits) are a
 cache of what the project already says; `--write` refreshes them and preserves everything else.
-**`confirmed`** is a reserved top-level object owned by humans and the `questions` interview —
-facts detection cannot infer:
+**`confirmed`** is a reserved top-level object owned by humans and the `init` interview — facts
+detection cannot infer:
 
 ```json
 "confirmed": {

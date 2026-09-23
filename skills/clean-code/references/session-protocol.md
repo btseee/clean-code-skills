@@ -8,11 +8,12 @@ the next session — yours or another agent's — can pick up where you stopped.
 
 ## Before
 
-**1. Load context.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`,
-and `.clean/ledger.md` if they exist, then the project's own instructions (`AGENTS.md`,
-`CLAUDE.md`, `CONTRIBUTING.md`, `README.md`). Project instructions outrank this skill. If
-`.clean/` is absent, run `scripts/detect_stack.py` or derive the same facts by inspection: primary
-language, frameworks, test command, source and test layout.
+**1. Load context.** Read `.clean/context.json` and the packs it lists, then `.clean/architecture.md`,
+`.clean/decisions.md`, and `.clean/ledger.md` if they exist, then the project's own instructions
+(`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`). Project instructions outrank this
+skill. If `.clean/` is absent, run `scripts/detect_stack.py` or derive the same facts by
+inspection: primary language, frameworks, the packs they need (`framework-map.md`), test command,
+source and test layout.
 
 **2. Review previous decisions.** A recorded decision is settled. Do not re-open it because you
 would have chosen differently; if it now looks wrong, say so and let the user decide.
@@ -21,12 +22,15 @@ would have chosen differently; if it now looks wrong, say so and let the user de
 will prove it. If the request is ambiguous in a way that changes the implementation, ask. Otherwise
 state your assumption and proceed.
 
-**4. Check the constraints.** Note the declared layers and dependency rules, the naming conventions,
-and any no-go areas (generated code, vendored code, another person's in-flight work).
+**4. Check the constraints.** Note the declared layers and dependency rules — or, with no
+declaration, the framework pack's structure and roles — the naming conventions, and any no-go areas
+(generated code, vendored code, another person's in-flight work).
 
-**5. Inspect the related code.** Read the units you are about to change, their callers, and their
-tests. Search for an existing implementation of what you are about to write. Trace the behavior
-before altering it.
+**5. Inspect the related code.** Grep `.clean/structure.md` for the paths you are about to change,
+or run `scripts/map_structure.py --path <area>`: what each file declares, its role, and whether
+something nearby is already misplaced or duplicated. Then read the units themselves, their callers,
+and their tests. Search for an existing implementation of what you are about to write. Trace the
+behavior before altering it.
 
 **6. Plan the edit.** Decide which unit owns the responsibility, which side of which boundary the
 change sits on, and what the smallest diff looks like. For anything non-trivial, write the plan down
@@ -64,21 +68,22 @@ the project's real command, from `.clean/context.json` or the project's own docs
 **15. Review the impact.** Who calls what you changed? What did you orphan? Is anything now
 unreferenced, half-wired, or newly duplicated?
 
-**16. Verify architecture compliance.** Did every dependency you added point inward? Did any detail
-— an ORM type, a framework annotation, an HTTP object, a raw row — leak into a policy module? Run
-`scripts/check_boundaries.py` when the project declares layers, or check the imports you added by
-hand.
+**16. Verify architecture compliance.** When the project declares layers: did every dependency you
+added point inward, and did any detail — an ORM type, a framework annotation, an HTTP object, a raw
+row — leak into a policy module? Run `scripts/check_boundaries.py`, or check the imports you added
+by hand. Either way: does each new symbol sit in the home its role calls for?
 
 **17. Update documentation** that your change made wrong. Do not add new documentation nobody asked
-for.
+for. When `.clean/` exists and you added, moved, or deleted files, refresh the map with
+`scripts/map_structure.py --write`.
 
 **18. Leave it cleaner than you found it** — within the diff you already have, never by widening it.
 
 **19. Record decisions worth keeping.** When `.clean/` exists, append to `.clean/decisions.md`
 whenever you chose between real alternatives, deferred something deliberately, or discovered a
 constraint the next session would otherwise have to rediscover. When it does not exist, offer to
-create it at the end — creating `.clean/` is the `audit` and `questions` workflows' job, never a
-silent side effect (`memory-protocol.md`).
+create it at the end — creating `.clean/` is the `init` and `audit` workflows' job, never a silent
+side effect (`memory-protocol.md`).
 
 **20. Hand off cleanly.** Report: what changed and why; what command you ran and its result; what you
 did *not* run and what risk remains; what you found but deliberately left alone. If work is

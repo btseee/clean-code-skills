@@ -44,17 +44,21 @@ nothing.
 **7. Define module boundaries.** Draw them where the axes of change are, one boundary per axis. Give
 each component one public entry point.
 
-**8. Define the dependency rules explicitly.** Write them into `.clean/architecture.md` using the
-template in `assets/templates/architecture.md`, innermost layer first. This file is the project's
-constitution: it is what later sessions read, and what `scripts/check_boundaries.py` enforces.
+**8. Decide whether to enforce layers, then write the rules down.** Without a declaration the skill
+follows the framework pack's idiomatic structure; with one, the layer rules become strict. For a
+domain with real business rules, recommend declaring them: write `.clean/architecture.md` from
+`assets/templates/architecture.md`, innermost layer first (the pack's **Layers** section suggests a
+block). That file is the project's constitution: what later sessions read, and what
+`scripts/check_boundaries.py` enforces.
 
 **9. Choose the decoupling mode deliberately.** Start at source level — components in one address
 space, communicating by function calls. Structure it so a service *could* be extracted later, then
 do not extract one until something forces it. Keep the move reversible in both directions.
 
-**10. Create the project structure.** Top-level directories named for the domain and its use cases,
-not for the framework or for technical layers. A newcomer reading the directory listing should learn
-what the system is *for*.
+**10. Create the project structure.** Start from the framework pack's **Structure** section, so each
+role has its conventional home, and name top-level directories for the domain and its use cases, not
+for the framework or for technical layers. A newcomer reading the directory listing should learn what
+the system is *for*.
 
 ## Phase 2 — Set the standards
 
@@ -70,10 +74,11 @@ no decisions in it.
 dependency-direction check, all runnable with one command and wired into CI. Add the pre-commit hook
 from `assets/hooks/` if the team wants enforcement locally.
 
-**14. Set up the memory files.** Create `.clean/` from `assets/templates/`: `architecture.md`,
-`decisions.md`, and a `context.json` from `scripts/detect_stack.py --write` — or hand-write the same
-facts, since you are the one who just chose them. Record the Phase 0 and Phase 1 decisions in
-`decisions.md` while the reasoning is still fresh.
+**14. Set up the memory files.** Create `.clean/` from `assets/templates/`: `decisions.md`, the
+optional `architecture.md`, a `context.json` from `scripts/detect_stack.py --write`, and the first
+`structure.md` from `scripts/map_structure.py --write` — or hand-write the same facts, since you are
+the one who just chose them. Record the Phase 0 and Phase 1 decisions in `decisions.md` while the
+reasoning is still fresh.
 
 ## Phase 3 — Build
 

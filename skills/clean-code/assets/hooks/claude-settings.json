@@ -1,6 +1,6 @@
 {
   "//": "clean-code-skills hooks for Claude Code. Merge these entries into .claude/settings.json (or settings.local.json) rather than replacing the file. The PostToolUse hook probes the usual project and global install locations and the usual Python names, so it works unchanged for any profile. Every hook here is optional: the skill's prose protocol covers the same ground when hooks are unavailable, and no hook blocks an edit.",
-  "//sessionStart": "Prints the project's declared stack and layering at session start. This is the highest-value hook available, because it removes the chance that an agent simply forgets to read .clean/ before deciding anything.",
+  "//sessionStart": "Prints the project's stack, the packs to read, the declared layering, and the structure map's findings at session start. This is the highest-value hook available, because it removes the chance that an agent simply forgets to read .clean/ before deciding anything.",
   "//postToolUse": "After an edit or write, re-checks dependency direction so a wrong-way import is caught in the same turn that introduced it, not at review time.",
   "hooks": {
     "SessionStart": [
@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f .clean/context.json ]; then echo '--- project context (.clean/context.json) ---'; cat .clean/context.json; fi; if [ -f .clean/architecture.md ]; then echo '--- declared layering (.clean/architecture.md) ---'; sed -n '/```clean-architecture/,/```/p' .clean/architecture.md; fi; if [ -f .clean/ledger.md ]; then echo '--- cleanup campaign in progress: read .clean/ledger.md before starting ---'; fi"
+            "command": "if [ -f .clean/context.json ]; then echo '--- project context (.clean/context.json): read every pack under packs before editing ---'; cat .clean/context.json; fi; if [ -f .clean/architecture.md ]; then echo '--- declared layering (.clean/architecture.md): layer rules are strict ---'; sed -n '/```clean-architecture/,/```/p' .clean/architecture.md; else echo '--- no declared layering: follow the framework pack structure ---'; fi; if [ -f .clean/structure.md ]; then echo '--- structure map findings (.clean/structure.md; grep it for the paths you change) ---'; awk '/^## Tree/{exit} {print}' .clean/structure.md | head -60; fi; if [ -f .clean/ledger.md ]; then echo '--- cleanup campaign in progress: read .clean/ledger.md before starting ---'; fi"
           }
         ]
       }

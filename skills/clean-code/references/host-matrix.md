@@ -99,9 +99,9 @@ differs is the explicit form, and it differs more than most documentation admits
 | OpenCode | no user syntax — the agent calls a native `skill` tool |
 | Cursor, Antigravity, Factory Droid, pi | no documented syntax; name the skill in plain language |
 
-Every explicit form also takes the skill's arguments — `audit`, `new-project <description>`,
-`clean-up`, `questions` — after the name: `/clean-code audit`, `$clean-code audit`,
-`@clean-code audit`, `/skill:clean-code audit`.
+Every explicit form also takes the skill's arguments — `init` (alias `questions`), `audit`,
+`clean-up`, `new-project <description>` — after the name: `/clean-code init`,
+`$clean-code audit`, `@clean-code audit`, `/skill:clean-code audit`.
 
 Where there is no explicit form, "Use the clean-code skill for this" (or "run the clean-code
 audit") works everywhere, because it puts the skill's own name in the request the description is

@@ -13,9 +13,9 @@ Use these rules for every coding task in Cursor.
 
 These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
 
-**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Its `references/` folder holds the depth: `architecture.md`, `principles.md`, `smell-triage.md`, `session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md`.
+**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then read the language and framework packs it routes you to: `scripts/detect_stack.py` names them, or look them up in its `references/framework-map.md`.
 
-**Load project context first.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, and `.clean/ledger.md` if they exist, then the project's own instruction files. A recorded decision is settled. A declared architecture outranks your instincts. Project instructions outrank this block.
+**Load project context first.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, and the `.clean/structure.md` rows for the area you will change, if they exist; then the project's own instruction files. A recorded decision is settled. Project instructions outrank this block. `/clean-code init` sets `.clean/` up.
 
 ### Work Loop
 
@@ -26,43 +26,40 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 5. Verify: run the narrowest meaningful check, then broader checks as risk demands. Never claim success without evidence.
 6. Review the diff: dead code, duplication, mixed responsibilities, wrong-way dependencies, swallowed errors, wrong-place files, missing tests.
 
-### Dependency Direction
+### Layers
 
-- Source dependencies point inward, toward higher-level policy. Nothing in an inner layer may name anything in an outer one — no class, function, variable, annotation, or data format.
-- Business rules are the highest level. The database, web, UI, framework, and delivery mechanism are details. When policy needs something from a detail, declare the interface on the policy side and implement it outside.
-- All SQL stays in the data-access layer. Rows, result sets, ORM types, and framework request or response objects never travel inward — pass a simple structure shaped for the inner side.
-- Never derive a business object from a framework base class or annotate one. Keep dependency-injection wiring in `main`.
+- Without a layer declaration in `.clean/architecture.md`, follow the framework pack's idiomatic structure; every other rule here still applies.
+- With one, the Dependency Rule is strict: source dependencies point inward, toward higher-level policy, and nothing in an inner layer names anything in an outer one — no class, function, variable, annotation, or data format.
+- Business rules are the highest level; the database, web, UI, and framework are details. When policy needs a detail, declare the interface on the policy side and implement it outside.
+- SQL stays in the data-access layer. Rows, ORM types, and framework request or response objects never travel inward. Never derive a business object from a framework base class or annotate one; keep dependency-injection wiring in `main`.
 - Keep the component graph acyclic. Do not add a boundary, layer, or service you cannot justify now.
 
 ### File And Code Placement
 
-- Mirror where similar files already live. Resolve paths from the project root, never from the current working directory. Never default to the repository root.
+- A unit's role decides its folder: middleware lives with middleware, controllers with controllers, per the pack's roles and the project's layout. Mirror where similar files live. Resolve paths from the project root; never default to the repository root or the current directory.
 - Create a new file only when no cohesive home exists, then wire it in completely: imports, exports, index or barrel files, registration, build config. An unreferenced file is dead code, not a feature.
-- Never create sibling variants such as `_v2`, `_new`, `_final`, `_enhanced`, or `_copy`. Edit the original; version control keeps history.
-- Do not grow junk drawers (`utils`, `helpers`, `common`); name the domain concept instead.
+- Never create sibling variants such as `_v2`, `_new`, `_final`, `_enhanced`, or `_copy`. Never grow junk drawers (`utils`, `helpers`, `common`); name the domain concept instead.
 - Default to the narrowest access modifier the language offers. Keep scratch files and debug output out of the project tree.
 
 ### One Job Per Unit
 
 - Single responsibility at every scale: function, class, module, file, directory. If a unit's job cannot be described in one sentence without "and", split it.
-- Keep parsing, domain rules, persistence, external calls, presentation, and construction in their own established homes. Orchestrators sequence collaborators and hold no business rules of their own.
-- At module scale, ask which actor can demand the change. Code answering to different actors belongs apart, even when it looks identical today.
-- New behavior goes to the unit that owns that responsibility, not the file you happen to have open.
+- Keep parsing, domain rules, persistence, external calls, presentation, and construction in their own homes. Orchestrators sequence collaborators and hold no business rules of their own.
+- Code answering to different actors belongs apart, even when it looks identical today. New behavior goes to the unit that owns that responsibility, not the file you happen to have open.
 
 ### Quality Bars
 
 - Names reveal intent, use project vocabulary, and disclose side effects.
-- Functions do one thing at one abstraction level; comments explain why, never what or how, and stay short — a paragraph of comment is a design smell.
-- Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values and reserve exceptions for genuine failures; keep secrets out of logs.
+- Functions do one thing at one abstraction level; comments explain why, never what or how, and stay short.
+- Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values; keep secrets out of logs.
 - Tests are deterministic and behavior-focused. Never weaken, skip, or delete a failing test to get green, and never verify a business rule by driving the UI.
-- Verify that every API, function, option, and config key you reference actually exists in this codebase and its dependency versions — never trust memory.
-- Deduplicate only true duplication: copies that must always change together. Copies that change at different rates for different reasons are not duplicates.
+- Verify that every API, function, option, and config key you reference exists in this codebase and its installed dependency versions — never trust memory.
+- Deduplicate only true duplication: copies that must always change together.
 - Match local style everywhere; the project's formatter and linter own formatting.
 
 ### Scope And Honesty
 
-- Default mode is surgical: unrelated smells are reported, not silently fixed.
-- Whole-project or module-wide cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`: baseline verification first, small behavior-preserving batches, a written ledger, a checkpoint per batch.
+- Default mode is surgical: unrelated smells are reported, not silently fixed. Whole-project cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`.
 - Report honestly on completion: what was verified with what command, what was not run, and what risk remains. Never present a stub or placeholder as finished work.
 - Record decisions worth keeping in `.clean/decisions.md` so the next session inherits the reasoning.
 
