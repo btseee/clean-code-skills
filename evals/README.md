@@ -65,7 +65,7 @@ and ASP.NET Core), one run per configuration, Claude Sonnet 5 subagents in Claud
 graded by `grade.py` at commit `834430f`.
 
 | | With the skill | Without it |
-|---|---|---|
+| --- | --- | --- |
 | Pass rate, mean per run | 100% (48 of 48) | 95.5% (46 of 48) |
 | Tokens per run, mean | 124k | 84k |
 | Time per run, mean | 513 s | 284 s |
