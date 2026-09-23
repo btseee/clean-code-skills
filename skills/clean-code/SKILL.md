@@ -119,7 +119,8 @@ Beyond this file and your packs, read only what the task needs:
 | Task | Read in `references/` |
 | --- | --- |
 | Review or diff review | `review-checklist.md` |
-| New dependency, boundary, layer, framework, or database | `architecture.md`, via its contents |
+| New dependency | `framework-map.md`, section Dependencies And Package Idioms |
+| New boundary, layer, framework, or database | `architecture.md`, via its contents |
 | Writing or fixing tests | `tests.md` |
 | Concurrency | `concurrency.md` |
 | Naming or triaging a smell | `smell-triage.md`, and `chapter-map.md` for IDs (G17, N7, T5...) |
