@@ -32,6 +32,7 @@ class Pattern(NamedTuple):
     emit: bool = True
     on_raw: bool = False
     confirm: Optional[Callable] = None
+    require_body: bool = False
 
 
 # Multi-word declaration keywords, reduced to the kind the rest of the scanner uses.
@@ -58,9 +59,16 @@ class Grammar(NamedTuple):
     finish: Optional[Callable] = None
     purpose: Optional[Callable] = None
     indent_blocks: bool = False
+    regions: Optional[Callable] = None
 
 
-class _Container(NamedTuple):
+# member_indent: None for a brace body (members sit one brace deeper), a column for an
+# indentation body, or REGION for a keyword-delimited body such as Objective-C's
+# `@implementation ... @end`, whose members sit at the region's own brace depth.
+REGION = -1
+
+
+class Container(NamedTuple):
     open: int
     close: int
     name: str
@@ -184,7 +192,7 @@ def _effective_depth(source: Source, offset: int, transparent) -> int:
         1 for open_index, close in transparent if open_index < offset < close)
 
 
-def _innermost(containers, offset: int) -> Optional[_Container]:
+def _innermost(containers, offset: int) -> Optional[Container]:
     found = None
     for container in containers:
         if container.open < offset < container.close and (
@@ -220,10 +228,13 @@ class _Extraction:
             yield match, name
 
     def add(self, match, name: str, kind: str, parent: Optional[str], is_member: bool,
-            emit: bool = True, end_line: Optional[int] = None) -> Optional[int]:
+            emit: bool = True, end_line: Optional[int] = None,
+            require_body: bool = False) -> Optional[int]:
         source = self.source
         index = source.line_of(match.start()) - 1
         body = source.body_after(match.end(), match.start())
+        if require_body and body is None:
+            return None
         if end_line is None:
             end_line = source.line_of(source.braces[body]) if body is not None else index + 1
         if not emit or (index + 1, name) in self.seen:
@@ -267,9 +278,9 @@ class _Extraction:
                     self.containers.append(indented)
                 elif pattern.container and body is not None:
                     self.containers.append(
-                        _Container(body, self.source.braces[body], owner_name))
+                        Container(body, self.source.braces[body], owner_name))
 
-    def indented_container(self, match, name: str) -> Optional[_Container]:
+    def indented_container(self, match, name: str) -> Optional[Container]:
         """A container whose body is delimited by indentation, when the grammar allows it."""
         source = self.source
         if not self.grammar.indent_blocks:
@@ -283,7 +294,7 @@ class _Extraction:
         if member_indent is None:
             return None
         close = source.line_starts[last] + len(source.code_lines[last])
-        return _Container(source.line_starts[index + 1] - 1, close, name, member_indent)
+        return Container(source.line_starts[index + 1] - 1, close, name, member_indent)
 
     def functions(self, patterns, members_only: bool):
         for pattern in patterns:
@@ -292,21 +303,30 @@ class _Extraction:
                 owner = _innermost(self.containers, start)
                 explicit_parent = _group(match, "parent")
                 if owner is not None:
-                    if owner.member_indent is not None:
-                        if self.source.indent_of(start) != owner.member_indent:
-                            continue
-                    elif self.source.depth_before(start) != self.source.depth_before(owner.open) + 1:
+                    if not self.is_member_of(owner, start):
                         continue
-                    self.add(match, name, "method", owner.name, True)
+                    self.add(match, name, "method", owner.name, True,
+                             require_body=pattern.require_body)
                 elif not members_only and \
                         _effective_depth(self.source, start, self.transparent) == 0:
                     kind = "method" if explicit_parent else pattern.kind
-                    self.add(match, name, kind, explicit_parent, bool(explicit_parent))
+                    self.add(match, name, kind, explicit_parent, bool(explicit_parent),
+                             require_body=pattern.require_body)
+
+    def is_member_of(self, owner: Container, start: int) -> bool:
+        source = self.source
+        if owner.member_indent == REGION:
+            return source.depth_before(start) == source.depth_before(owner.open)
+        if owner.member_indent is not None:
+            return source.indent_of(start) == owner.member_indent
+        return source.depth_before(start) == source.depth_before(owner.open) + 1
 
 
 def extract(grammar: Grammar, path: str, text: str) -> symbol_model.FileSymbols:
     source = Source(text, grammar.lexer)
     extraction = _Extraction(grammar, source)
+    if grammar.regions is not None:
+        extraction.containers.extend(grammar.regions(source))
     extraction.types()
     extraction.functions(grammar.functions, members_only=False)
     extraction.functions(grammar.members, members_only=True)

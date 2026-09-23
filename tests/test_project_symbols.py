@@ -395,6 +395,144 @@ class DartTest(unittest.TestCase):
         self.assertEqual(symbols["shout"].parent, "StringX")
 
 
+def owners(file_symbols):
+    return {(symbol.name, symbol.parent) for symbol in file_symbols.symbols}
+
+
+class GoTest(unittest.TestCase):
+    def test_functions_receivers_interfaces_and_package_doc(self):
+        result = extract("auth.go", """
+            // Package auth verifies tokens.
+            package auth
+
+            // AuthMiddleware checks tokens.
+            func AuthMiddleware(next http.Handler) http.Handler { return next }
+
+            type Store interface {
+            	Get(id string) (User, error)
+            }
+
+            func (s *userStore) Get(id string) (User, error) { return User{}, nil }
+
+            func helper() {}
+            """)
+        symbols = by_name(result)
+        self.assertEqual(result.purpose, "Package auth verifies tokens.")
+        self.assertTrue(symbols["AuthMiddleware"].exported)
+        self.assertEqual(symbols["AuthMiddleware"].doc, "AuthMiddleware checks tokens.")
+        self.assertEqual((symbols["Store"].kind, symbols["Store"].abstract), ("interface", True))
+        self.assertEqual((symbols["Get"].kind, symbols["Get"].parent), ("method", "userStore"))
+        self.assertFalse(symbols["helper"].exported)
+
+
+class RustTest(unittest.TestCase):
+    def test_traits_impls_visibility_and_test_modules(self):
+        result = extract("lib.rs", """
+            pub trait Repo {
+                fn get(&self) -> u8;
+            }
+            pub struct Pg;
+            impl Repo for Pg {
+                fn get(&self) -> u8 { 1 }
+            }
+            fn private() {}
+            #[cfg(test)]
+            mod tests {
+                #[test]
+                fn t() {}
+            }
+            """)
+        symbols = by_name(result)
+        self.assertEqual((symbols["Repo"].kind, symbols["Repo"].abstract), ("trait", True))
+        self.assertEqual(symbols["Pg"].kind, "struct")
+        self.assertIn(("get", "Pg"), owners(result))
+        self.assertIn(("get", "Repo"), owners(result))
+        self.assertFalse(symbols["private"].exported)
+        self.assertNotIn("t", symbols)
+        self.assertNotIn("tests", symbols)
+
+
+class SwiftTest(unittest.TestCase):
+    def test_views_protocols_extensions_and_access(self):
+        result = extract("ContentView.swift", """
+            struct ContentView: View {
+                var body: some View { Text("") }
+            }
+            protocol Clock { func now() -> Date }
+            extension ContentView {
+                func refresh() {}
+            }
+            private func hidden() {}
+            final class Store {
+                init(name: String) {}
+                class func make() -> Store { Store(name: "") }
+            }
+            """)
+        symbols = by_name(result)
+        self.assertIn(": View", symbols["ContentView"].context)
+        self.assertEqual((symbols["Clock"].kind, symbols["Clock"].abstract), ("protocol", True))
+        self.assertEqual(symbols["refresh"].parent, "ContentView")
+        self.assertNotIn("func", symbols)
+        self.assertFalse(symbols["hidden"].exported)
+        self.assertEqual(symbols["init"].parent, "Store")
+        self.assertEqual(symbols["make"].parent, "Store")
+
+
+class CFamilyTest(unittest.TestCase):
+    def test_c_definitions_and_linkage(self):
+        symbols = by_name(extract("list.c", """
+            static int grow(list *l) {
+              return 0;
+            }
+            int
+            list_push(list *l, int v)
+            {
+              return grow(l);
+            }
+            """))
+        self.assertFalse(symbols["grow"].exported)
+        self.assertTrue(symbols["list_push"].exported)
+        self.assertEqual(symbols["list_push"].end_line, 8)
+
+    def test_headers_with_only_declarations_have_no_symbols(self):
+        result = extract("list.h", """
+            typedef struct list list;
+            int list_push(list *l, int v);
+            """)
+        self.assertEqual(result.symbols, [])
+
+    def test_cpp_classes_namespaces_and_qualified_methods(self):
+        result = extract("shape.cpp", """
+            namespace geo {
+            class Shape {
+            public:
+              virtual double area() const = 0;
+            };
+            double Circle::area() const { return 1; }
+            }
+            """)
+        symbols = by_name(result)
+        self.assertEqual(symbols["Shape"].kind, "class")
+        self.assertTrue(symbols["Shape"].abstract)
+        self.assertIn(("area", "Shape"), owners(result))
+        self.assertIn(("area", "Circle"), owners(result))
+
+    def test_objective_c_interfaces_and_implementations(self):
+        result = extract("OrderService.m", """
+            @interface OrderService : NSObject
+            - (void)place:(Order *)o;
+            @end
+            @implementation OrderService
+            - (void)place:(Order *)o {
+            }
+            @end
+            """)
+        symbols = by_name(result)
+        self.assertEqual(symbols["OrderService"].kind, "class")
+        self.assertEqual({parent for name, parent in owners(result) if name == "place"},
+                         {"OrderService"})
+
+
 class DispatchTest(unittest.TestCase):
     def test_unknown_extensions_are_not_extracted(self):
         self.assertIsNone(project_symbols.extract("notes.txt", "hello"))

@@ -349,3 +349,206 @@ DART = Grammar(
     exported=lambda match, name, kind, member: not name.startswith("_"),
     abstract=lambda match, kind, body: _has(match, "abstract", "interface", "sealed"),
 )
+
+
+# --- Go, Rust, Swift ------------------------------------------------------------------
+
+_PACKAGE_LINE = re.compile(r"^package[ \t]+\w+", re.M)
+
+
+def _go_purpose(source) -> str:
+    """Go documents a package in the comment directly above its `package` clause."""
+    match = _PACKAGE_LINE.search(source.code)
+    if match is None:
+        return ""
+    index = source.line_of(match.start()) - 1
+    return symbol_model.doc_above(source.raw_lines, index, C_DOC)
+
+
+GO = Grammar(
+    language="go",
+    lexer="go",
+    types=(
+        _pattern(rf"^[ \t]*(?:type[ \t]+)?(?P<name>{_WORD})(?:\[[^\]\n]*\])?[ \t]+"
+                 rf"(?P<kind>struct|interface)\b", "struct"),
+        _pattern(rf"^type[ \t]+(?P<name>{_WORD})(?:\[[^\]\n]*\])?[ \t]+(?!struct\b|interface\b)"
+                 rf"[\w*\[\].]", "type"),
+    ),
+    functions=(
+        _pattern(rf"^func[ \t]+(?P<name>{_WORD})[ \t]*[\[(]", "function"),
+        _pattern(rf"^func[ \t]*\([ \t]*(?:\w+[ \t]+)?\*?[ \t]*(?P<parent>{_WORD})(?:\[[^\]\n]*\])?"
+                 rf"[ \t]*\)[ \t]*(?P<name>{_WORD})[ \t]*[\[(]", "method"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=(),
+    doc_markers=C_DOC,
+    keywords=frozenset({"type", "var", "const", "func", "return", "if", "for", "switch",
+                        "select", "go", "defer", "package", "import", "map", "chan"}),
+    exported=lambda match, name, kind, member: name[:1].isupper(),
+    abstract=lambda match, kind, body: kind == "interface",
+    purpose=_go_purpose,
+)
+
+_RUST_VISIBILITY = r"(?:pub(?:\([^)\n]*\))?[ \t]+)?"
+
+RUST = Grammar(
+    language="rust",
+    lexer="rust",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>{_RUST_VISIBILITY}(?:unsafe[ \t]+)?)"
+                 rf"(?P<kind>struct|enum|trait|union|type)[ \t]+(?P<name>{_WORD})", "struct",
+                 container=True),
+        _pattern(rf"^[ \t]*(?:unsafe[ \t]+)?impl(?:[ \t]*<[^>\n]*>)?[ \t]+"
+                 rf"(?:[\w:<>, ]+?[ \t]+for[ \t]+)?(?P<name>{_WORD})", "struct",
+                 container=True, emit=False),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>{_RUST_VISIBILITY}(?:(?:const|async|unsafe|extern"
+                 r'(?:[ \t]+"[^"\n]*")?)[ \t]+)*)' rf"fn[ \t]+(?P<name>{_WORD})", "function"),
+    ),
+    members=(),
+    transparent=re.compile(rf"^[ \t]*{_RUST_VISIBILITY}mod[ \t]+\w+[ \t]*\{{", re.M),
+    decorators=("#[",),
+    doc_markers=C_DOC,
+    keywords=frozenset({"fn", "struct", "enum", "trait", "impl", "type", "mod", "use"}),
+    exported=lambda match, name, kind, member: "pub" in _mods(match),
+    abstract=lambda match, kind, body: kind == "trait",
+    skip=re.compile(rf"^[ \t]*(?:#\[cfg\(test\)\][ \t\r\n]*{_RUST_VISIBILITY}mod[ \t]+\w+|"
+                    rf"{_RUST_VISIBILITY}mod[ \t]+tests?)[ \t]*\{{", re.M),
+)
+
+_SWIFT_ATTRIBUTE = r"@\w+(?:\([^)\n]*\))?"
+_SWIFT_MODS = (r"(?:(?:public|private|fileprivate|internal|open|final|static|class|override|"
+               r"mutating|nonmutating|required|convenience|indirect|nonisolated|"
+               + _SWIFT_ATTRIBUTE + r")[ \t]+)*")
+
+SWIFT = Grammar(
+    language="swift",
+    lexer="swift",
+    types=(
+        _pattern(rf"^[ \t]*(?P<mods>{_SWIFT_MODS})(?P<kind>class|struct|enum|protocol|actor)"
+                 rf"[ \t]+(?P<name>{_WORD})", "class", container=True),
+        _pattern(rf"^[ \t]*(?:(?:public|private|fileprivate|internal)[ \t]+)?extension[ \t]+"
+                 rf"(?P<name>{_WORD})", "class", container=True, emit=False),
+    ),
+    functions=(
+        _pattern(rf"^[ \t]*(?P<mods>{_SWIFT_MODS})func[ \t]+(?P<name>{_WORD})", "function"),
+    ),
+    members=(
+        _pattern(rf"^[ \t]*(?P<mods>{_SWIFT_MODS})(?P<name>init)[?!]?[ \t]*[<(]", "method"),
+    ),
+    transparent=None,
+    decorators=("@",),
+    doc_markers=C_DOC,
+    keywords=frozenset({"func", "var", "let", "if", "for", "while", "switch", "return",
+                        "guard", "case", "import"}),
+    exported=lambda match, name, kind, member: not _has(match, "private", "fileprivate"),
+    abstract=lambda match, kind, body: kind == "protocol",
+)
+
+# --- C, C++, Objective-C ----------------------------------------------------------------
+
+_C_KEYWORDS = frozenset({"if", "for", "while", "switch", "return", "sizeof", "else", "do",
+                         "case", "typedef", "struct", "union", "enum", "defined", "catch",
+                         "alignof", "decltype", "static_assert", "operator", "new", "delete"})
+_C_RETURN_TYPE = r"(?:[A-Za-z_][\w \t\*&:<>,]*?[\s\*&]+)?"
+_C_TYPE = _pattern(rf"^[ \t]*(?:typedef[ \t]+)?(?P<kind>struct|union|enum)[ \t]+(?P<name>{_WORD})"
+                   rf"(?=[ \t\r\n]*\{{)", "struct")
+_C_FUNCTION = _pattern(
+    rf"^(?P<mods>(?:(?:static|inline|extern|const|unsigned|signed|volatile|register)[ \t]+)*)"
+    rf"{_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*\([^;{{}}]*\)(?=[ \t\r\n]*\{{)", "function",
+    require_body=True)
+_EXTERN_C = r'extern[ \t]+"[^"\n]*"'
+
+
+def _c_exported(match, name, kind, member) -> bool:
+    return member or "static" not in _mods(match).split()
+
+
+C = Grammar(
+    language="c",
+    lexer="c",
+    types=(_C_TYPE,),
+    functions=(_C_FUNCTION,),
+    members=(),
+    transparent=re.compile(rf"^[ \t]*{_EXTERN_C}[ \t\r\n]*\{{", re.M),
+    decorators=(),
+    doc_markers=C_DOC,
+    keywords=_C_KEYWORDS,
+    exported=_c_exported,
+    abstract=lambda match, kind, body: False,
+)
+
+_PURE_VIRTUAL = re.compile(r"=\s*0\s*;")
+
+CPP = Grammar(
+    language="cpp",
+    lexer="cpp",
+    types=(
+        _pattern(rf"^[ \t]*(?:template[ \t]*<[^>\n]*>[ \t\r\n]*)?(?P<kind>class|struct|union)"
+                 rf"[ \t]+(?:alignas\([^)\n]*\)[ \t]+)?(?P<name>{_WORD})(?:[ \t]+final)?[ \t]*"
+                 rf"(?::[^;{{]*)?(?=[ \t\r\n]*\{{)", "class", container=True),
+        _pattern(rf"^[ \t]*enum[ \t]+(?:class[ \t]+|struct[ \t]+)?(?P<name>{_WORD})[^;{{\n]*"
+                 rf"(?=[ \t\r\n]*\{{)", "enum"),
+    ),
+    functions=(
+        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|virtual)[ \t]+)*)"
+                 rf"{_C_RETURN_TYPE}(?P<parent>{_WORD})(?:<[^>\n]*>)?::(?P<name>~?{_WORD})"
+                 rf"[ \t]*\([^;{{}}]*\)[^;{{}}]*?(?=[ \t\r\n]*\{{)", "method", require_body=True),
+        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval)[ \t]+)*)"
+                 rf"{_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*\([^;{{}}]*\)[^;{{}}:]*?"
+                 rf"(?=[ \t\r\n]*\{{)", "function", require_body=True),
+    ),
+    members=(
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:virtual|static|inline|explicit|constexpr|consteval|"
+                 rf"friend)[ \t]+)*){_C_RETURN_TYPE}(?P<name>~?{_WORD})[ \t]*\([^;{{}}]*\)",
+                 "method"),
+    ),
+    transparent=re.compile(rf"^[ \t]*(?:(?:inline[ \t]+)?namespace[ \t]*[\w:]*|{_EXTERN_C})"
+                           rf"[ \t\r\n]*\{{", re.M),
+    decorators=("template", "[["),
+    doc_markers=C_DOC,
+    keywords=_C_KEYWORDS | {"public", "private", "protected", "class", "namespace", "template"},
+    exported=_c_exported,
+    abstract=lambda match, kind, body: bool(_PURE_VIRTUAL.search(body)),
+)
+
+_OBJC_REGION = re.compile(r"^@(?P<kind>interface|implementation|protocol)[ \t]+(?P<name>\w+)"
+                          r"(?P<rest>[^\n]*)", re.M)
+_OBJC_END = re.compile(r"^@end\b", re.M)
+
+
+def _objc_regions(source) -> list:
+    """`@interface`, `@implementation`, and `@protocol` bodies end at `@end`, not a brace."""
+    regions = []
+    for match in _OBJC_REGION.finditer(source.code):
+        if match.group("rest").strip().startswith((";", ",")):
+            continue
+        end = _OBJC_END.search(source.code, match.end())
+        if end is not None:
+            regions.append(symbols_braces.Container(
+                match.end(), end.start(), match.group("name"), symbols_braces.REGION))
+    return regions
+
+
+OBJC = Grammar(
+    language="objc",
+    lexer="objc",
+    types=(
+        _pattern(rf"^@interface[ \t]+(?P<name>{_WORD})(?![ \t]*\()", "class"),
+        _pattern(rf"^@protocol[ \t]+(?P<name>{_WORD})(?![ \t]*[;,])", "protocol"),
+        _C_TYPE,
+    ),
+    functions=(_C_FUNCTION,),
+    members=(
+        _pattern(rf"^[ \t]*(?P<mods>[-+])[ \t]*\([^)\n]*\)[ \t]*(?P<name>{_WORD})", "method"),
+    ),
+    transparent=None,
+    decorators=(),
+    doc_markers=C_DOC,
+    keywords=_C_KEYWORDS,
+    exported=lambda match, name, kind, member: True,
+    abstract=lambda match, kind, body: kind == "protocol",
+    regions=_objc_regions,
+)

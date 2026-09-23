@@ -25,6 +25,9 @@ LANGUAGE_BY_SUFFIX = {
     ".vue": "vue", ".svelte": "svelte",
     ".java": "java", ".kt": "kotlin", ".kts": "kotlin", ".scala": "scala",
     ".cs": "csharp", ".php": "php", ".dart": "dart",
+    ".go": "go", ".rs": "rust", ".swift": "swift",
+    ".c": "c", ".h": "cpp", ".cc": "cpp", ".cpp": "cpp", ".cxx": "cpp", ".hpp": "cpp",
+    ".hh": "cpp", ".m": "objc", ".mm": "objc",
 }
 
 SUPPORTED_SUFFIXES = frozenset(LANGUAGE_BY_SUFFIX)
@@ -38,6 +41,12 @@ _BRACE_GRAMMARS = {
     "csharp": brace_grammars.CSHARP,
     "php": brace_grammars.PHP,
     "dart": brace_grammars.DART,
+    "go": brace_grammars.GO,
+    "rust": brace_grammars.RUST,
+    "swift": brace_grammars.SWIFT,
+    "c": brace_grammars.C,
+    "cpp": brace_grammars.CPP,
+    "objc": brace_grammars.OBJC,
 }
 
 
