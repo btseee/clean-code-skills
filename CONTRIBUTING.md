@@ -26,17 +26,28 @@ This repository is behavior-shaping documentation for coding agents. Treat chang
 
 ## Releasing
 
-The steps live in one place, `README.md` under "Releases and versioning", so they cannot drift.
-The one rule worth repeating here: the git tag must be exactly `v$(cat VERSION)` — the release
-workflow compares them and fails otherwise.
+`VERSION` is the single source. To release: update `VERSION`, run `bash scripts/sync.sh` to
+propagate it everywhere, update the `CLEAN_CODE_REF` example in `docs/install.md` by hand (sync
+does not stamp it), validate, then tag:
+
+```bash
+git tag "v$(cat VERSION)"
+git push origin main --tags
+```
+
+The release workflow validates, checks that the tag equals `v$(cat VERSION)` exactly, and publishes
+a GitHub release with `clean-code.zip`, the skill packaged for Claude Desktop, claude.ai, and the
+Skills API. Before tagging, run the eval subset described in `evals/README.md` and record its
+results there.
 
 ## Skill Rules
 
 - `skills/clean-code/SKILL.md` must keep valid Agent Skills front matter.
 - The `name` must match the folder: `clean-code`.
 - The description should tell agents when to load the skill.
-- Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: both validators
-  fail it above 500 lines or roughly 5,000 tokens, because hosts load the whole body on activation.
+- Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: the validator
+  fails it above 500 lines or roughly 3,000 tokens, and the managed block above 1,200 tokens,
+  because hosts load them on activation and on every turn.
 - Bundled Python in `skills/clean-code/scripts/` must use only the standard library, and every
   workflow step that names a script must also name the manual equivalent — the skill has to work
   with no tooling at all.
@@ -121,16 +132,22 @@ bash -n scripts/install.sh
 bash -n scripts/validate.sh
 ```
 
-CI runs both validators, markdownlint, and a `skill-tools` job that executes the three bundled
-Python scripts against a fixture — including a boundary check that must fail and then pass — so a
-change to `skills/clean-code/scripts/` needs those scripts to keep working end to end.
+`validate.sh` also runs the unit tests in `tests/` (`python -m unittest discover -s tests`), which
+cover the scanners and the shape of the shipped content: pack templates and budgets, the pack
+index, role blocks, and contents lists.
+
+CI runs both validators, markdownlint, and a `skill-tools` job that executes the bundled Python
+scripts against fixtures — including a boundary check that must fail and then pass, and a structure
+map that must flag a misplaced middleware — plus `python evals/grade.py --self-test`, so a change
+to `skills/clean-code/scripts/` needs those scripts to keep working end to end.
 
 ## Pull Request Checklist
 
 - The change has one clear purpose.
 - Agent-facing files stay consistent (block sync passes).
 - Versions were bumped together when the block changed.
-- `SKILL.md` stays under its budget (500 lines / ~5,000 tokens; both validators fail above it).
+- `SKILL.md` stays under its budget (500 lines / ~3,000 tokens), the managed block under 1,200
+  tokens, and each pack under 2,000; the validator fails above any of them.
 - Examples are original and minimal.
 - Plugin JSON remains valid.
 - Validation passes on at least one platform, ideally both.

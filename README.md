@@ -8,96 +8,24 @@
 [![CI](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-Clean-code **and clean-architecture** discipline for AI coding agents — Claude Code, Antigravity, Codex App, Codex CLI, Cursor, Devin CLI, Factory Droid, Gemini CLI, GitHub Copilot, Grok Build CLI, Kimi Code, OpenCode, Pi, Hermes Agent, Amp, Windsurf, Cline, and any tool that reads Agent Skills or `AGENTS.md`.
+Clean code and clean architecture for AI coding agents: one skill, rule packs for 19 languages and
+21 frameworks, and a structure map that shows where every function and class lives and whether it
+belongs there. Works with Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, Windsurf, Cline,
+and any tool that reads Agent Skills or `AGENTS.md`.
 
-## Purpose
+## Why
 
-AI agents rarely fail at syntax. They fail by putting code in the wrong place, duplicating knowledge, mixing responsibilities, inventing APIs, wiring the shortest path between two points, and claiming success without running anything. They also forget everything between sessions.
+Coding agents rarely fail at syntax. They fail by:
 
-This package addresses those failures specifically. One language-agnostic `clean-code` skill is the source of truth; thin adapters carry an identical, versioned rules block into every agent's instruction file, so all your tools enforce the same behavior instead of each having its own opinion.
+- **putting code in the wrong place** — a middleware inside an auth service, a helper at the
+  repository root;
+- **duplicating knowledge and mixing responsibilities** until one file does five jobs;
+- **forgetting the project between sessions** and guessing its conventions all over again.
 
-Two things make it different from a style guide:
+This skill makes an agent load the project's context first, apply the rules of *Clean Code* and
+*Clean Architecture* for its exact stack, and prove what it claims.
 
-- **It covers both scales.** Naming and function size matter, but so does which direction a dependency crosses a boundary — and only one of those gets worse over years.
-- **It assumes the agent has no memory of your project.** Durable context lives on disk in a `.clean/` directory, so a cold session reconstructs the stack, the declared layering, and past decisions instead of guessing.
-
-## Capabilities
-
-### Code level
-
-Meaningful names, small focused functions, honest comments, formatting and ordering, data versus objects, error handling, boundaries, tests, concurrency, security, performance — plus correct file and code placement, one job per unit, and the full smell catalogue with stable citable IDs (`C`, `E`, `F`, `G1`–`G36`, `J`, `N`, `T`).
-
-### Architecture level
-
-The Dependency Rule, level as distance from I/O, the four circles and what may cross them, boundary costs and the three partial-boundary forms, SOLID stated as dependency rules, component cohesion and coupling with the instability / abstractness / distance metrics, policy versus detail, the Humble Object, the four packaging strategies, and the three decoupling modes.
-
-### Named vocabulary, on purpose
-
-The Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, DRY, the Law of Demeter and train wrecks, the Stepdown Rule, data/object anti-symmetry, the Special Case pattern, LeBlanc's law, Producer-Consumer / Readers-Writers / Dining Philosophers, REP / CCP / CRP / ADP / SDP / SAP. Precision is the point: an agent that can name F.I.R.S.T. can apply it and cite it, and a reviewer can check the citation.
-
-### What an agent using this does
-
-1. Load project context from `.clean/` and the project's own instruction files before deciding anything. The `audit` and `questions` commands are what *create* `.clean/`; a plain session reads it and offers to persist at the end.
-2. Frame the change: behavior, assumptions, smallest scope, and the check that proves it.
-3. Read local context and search for existing implementations before writing anything new.
-4. Put code and files where the project's conventions say they belong — and wire new files in completely.
-5. Keep one job per unit; route behavior to the module that owns the responsibility.
-6. Point every new dependency inward, and keep details — database, web, framework, ORM types — out of business rules.
-7. Verify every API call against the dependency versions recorded in `.clean/context.json` — never against memory of a version that may not be installed.
-8. Keep comments at one to three lines, explaining why — a paragraph of comment is knowledge in the wrong place.
-9. Edit surgically; never regenerate whole files when a targeted edit will do.
-10. Verify with real commands and report honestly what ran and what did not.
-
-### What ships
-
-| Piece | Path | Purpose |
-| --- | --- | --- |
-| Agent skill (canonical) | `skills/clean-code/SKILL.md` | Router and non-negotiables, kept inside the spec's 500-line / 5k-token budget |
-| Canon index | `references/canon.md` | Every named rule with its operational meaning — the fastest way in when you know the name |
-| Architecture rules | `references/architecture.md` | Dependency rule, SOLID, component principles, boundaries, systems, packaging, testability, decoupling modes |
-| Architecture map | `references/architecture-map.md` | Routing table: the question you face, and the rule that answers it |
-| Code principles | `references/principles.md` | Naming, functions, formatting, errors, data, security, performance in full |
-| Test discipline | `references/tests.md` | Three Laws of TDD, F.I.R.S.T., BUILD-OPERATE-CHECK, and the test failure modes |
-| Concurrency | `references/concurrency.md` | Execution models, the four deadlock conditions, and seven tactics that catch a race |
-| Chapter and smell map | `references/chapter-map.md` | Per-chapter coverage, the smell IDs, and the cross-reference table |
-| Smell triage | `references/smell-triage.md` | Every smell with its usual response and the order to fix them in |
-| Workflows | `references/session-protocol.md`, `new-project.md`, `project-refactor.md`, `audit-report.md` | One per situation: a session, a greenfield start, a cleanup campaign, an exhaustive audit that fills `.clean/` |
-| Interview | `references/questions.md` | `/clean-code questions` — turns your answers into durable `.clean/` state |
-| Review checklist | `references/review-checklist.md` | Finding-first review scan including placement and responsibility |
-| Framework map | `references/framework-map.md` | Per-language idioms and file-placement conventions |
-| Worked examples | `references/examples.md` | Before-and-after cases in Python, TypeScript, Go and SQL, plus output templates |
-| Memory protocol | `references/memory-protocol.md` | What to persist in `.clean/` so a memoryless session can resume |
-| Host matrix | `references/host-matrix.md` | Per-host skill paths, capabilities, and portable substitutes |
-| Tools | `skills/clean-code/scripts/*.py` | `detect_stack.py`, `scan_repo.py`, `check_boundaries.py` |
-| Templates and hooks | `skills/clean-code/assets/` | `.clean/` templates, a portable git pre-commit hook, Claude Code hook settings |
-| Managed rules block | `templates/agent-block.md` | The single text inserted into every agent's instruction file |
-| Host table | `templates/hosts.tsv` | Every profile, scope, and path the installers, sync, and validator know; a new host is one row |
-| Adapters | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/`, `.cursor/`, `.windsurf/`, `.clinerules/` | Per-client carriers of the same block |
-| Manifests | `.claude-plugin/`, `.codex-plugin/`, `gemini-extension.json` | Native packaging for Claude Code, Codex-style registries, Gemini CLI |
-| Installers | `scripts/install.{sh,ps1}`, `scripts/remote-install.{sh,ps1}` | Local and no-clone install, update, global mode, uninstall |
-| Validators and CI | `scripts/validate.sh`, `scripts/validate.ps1`, `.github/workflows/` | Repo integrity, block and version sync, installer behavior on Linux and Windows |
-
-`references/` paths above are relative to `skills/clean-code/`.
-
-## Requirements
-
-**The skill itself requires nothing.** It is Markdown that the agent reads, and every workflow works with zero tooling — each step that names a script also names its manual equivalent.
-
-Everything below is optional, and only for the piece it enables:
-
-| You need | To |
-| --- | --- |
-| bash, or PowerShell 7+ | run the installer locally |
-| `curl` and `tar`, or PowerShell `irm` | use the no-clone remote installer |
-| Python 3.8+ | run the three optional scripts (standard library only, no network) |
-| `git` | use the portable pre-commit hook |
-| Node / `npx` | contributors only: run markdownlint |
-
-Host support for hooks, slash commands, and permissions varies and is **never required for correctness** — see `references/host-matrix.md`.
-
-## Installation
-
-### Quick install, no clone
+## Install
 
 Run inside your project. Linux, macOS, Git Bash:
 
@@ -111,350 +39,93 @@ Windows PowerShell:
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.ps1))) all
 ```
 
-Replace `all` with just the agents you use: `claude cursor copilot`. Both commands fetch the latest release (falling back to `main`) and run the packaged installer against the current directory.
+Replace `all` with the agents you use, such as `claude cursor copilot`. As a Claude Code plugin:
+`/plugin marketplace add btseee/clean-code-skills`, then
+`/plugin install clean-code-skills@clean-code-skills`. The skill alone:
+`npx skills add btseee/clean-code-skills --skill clean-code`. Every host, global installs, updating,
+and uninstalling: [docs/install.md](docs/install.md).
 
-### Cross-host skills CLI
+## Use
 
-If you want the skill alone, without adapter blocks. It installs into `.agents/skills/` and symlinks into each agent directory it detects:
-
-```bash
-npx skills add btseee/clean-code-skills --skill clean-code
-```
-
-### Supported hosts
-
-Every path below comes from that vendor's own documentation. `.agents/skills/` is the shared
-cross-agent root, and the `agents` profile installs the whole skill there — not just an instruction
-block — which is what covers most of this table in one step.
-
-| Host | Install with | Reads |
-| --- | --- | --- |
-| Claude Code | `claude` profile, or `/plugin marketplace add btseee/clean-code-skills` then `/plugin install clean-code-skills@clean-code-skills` | `.claude/skills` |
-| Codex CLI | `agents` profile | `.agents/skills` |
-| Codex App | Upload in-product: Plugins → Skills, or the `clean-code.zip` release asset | in-product only |
-| Cursor | `agents` profile (also reads `.cursor/skills`) | `.agents/skills` |
-| Gemini CLI | `agents` profile, or `gemini extensions install https://github.com/btseee/clean-code-skills` | `.agents/skills`, `.gemini/skills` |
-| Antigravity | `agents` profile for a project; `antigravity` profile with `--global` | `.agents/skills`, `~/.gemini/config/skills` |
-| GitHub Copilot CLI | `copilot` profile, or `agents` | `.github/skills`, `.agents/skills` |
-| OpenCode | `agents` profile | `.opencode/skills`, `.agents/skills` |
-| Factory Droid | `agents` profile | `.factory/skills`, `.agents/skills` |
-| Devin CLI | `agents` profile | `.agents/skills`, `.devin/skills` |
-| Kimi Code | `agents` profile | `.kimi-code/skills`, `.agents/skills` |
-| Grok Build CLI | `grok` profile — its project root is **not** the shared one | `.grok/skills` |
-| Hermes Agent | `agents` profile | `.hermes/skills`, `.agents/skills` |
-| Pi | `agents` profile | `.pi/skills`, `.agents/skills` |
-| Amp | `agents` profile | `.agents/skills` |
-| Claude Desktop / claude.ai | Upload `clean-code.zip` from the [latest release](https://github.com/btseee/clean-code-skills/releases/latest): Settings → Capabilities → Skills. Works for the Skills API too | uploaded |
-| Windsurf / Cline | `windsurf` or `cline` profile — rules files, not skills | `.windsurf/rules`, `.clinerules` |
-| Anything else | Paste `templates/agent-block.md` into whatever instruction file it reads, and copy `skills/clean-code/` next to it | — |
-
-Three exceptions a generic installer gets wrong, and this one handles: Claude Code does not read the
-shared root; Grok Build CLI reads it personally but not inside a project; and Antigravity's personal
-root is `~/.gemini/config/skills`, not `~/.agents/skills`. Full detail, including how each host lets
-you invoke a skill explicitly, is in `references/host-matrix.md`.
-
-### Once for every project
-
-Global mode writes into the home-directory config that CLI agents read everywhere:
-
-```bash
-bash scripts/install.sh --global all      # ~/.claude, ~/.codex, ~/.config/opencode, ~/.gemini,
-                                          # ~/.agents/skills, ~/.grok/skills, ~/.gemini/config/skills
-```
-
-```powershell
-pwsh scripts/install.ps1 -Global all
-```
-
-Editor rules (Cursor, Windsurf, Cline, Copilot) and the bare `skill` profile are project-scoped by design and are skipped in global mode.
-
-## Usage
-
-Once installed, agents pick the skill up on their own — the `description` is what every host matches against, so a request about naming, structure, tests, or where a file belongs activates it without being asked.
-
-### The four commands
-
-The skill takes arguments — `/clean-code <argument>` in Claude Code, with the full per-host forms listed under **Forcing it** below. Plain language ("run the clean-code audit") works on every host.
+Agents pick the skill up by themselves when you ask for coding work. Four commands cover the rest —
+`/clean-code <command>` in Claude Code, or plain language anywhere:
 
 | Command | What happens |
 | --- | --- |
-| `/clean-code audit` | Exhaustive audit: every file inventoried and reviewed, sweeps repeated until one adds zero new findings. Fills `.clean/` (context, architecture, decisions, ledger) and produces a findings-first report. Changes no code |
-| `/clean-code new-project <description>` | Greenfield protocol seeded with your description: requirements, actors, layers, standards, then vertical slices |
-| `/clean-code clean-up` | The cleanup campaign, consuming `.clean/ledger.md` in small verified batches — placement moves, package idioms, structure, boundaries. No ledger? It proposes the audit, names the project's file count, and waits for your consent |
-| `/clean-code questions` | Interviews you — purpose, layers, verify command, no-go zones — and writes the answers into `.clean/` |
-| *(no argument)* | The default session protocol for any coding task |
+| `init` | Detects your stack and its packs, asks a few questions, and maps the structure into `.clean/`. Run it once. |
+| `audit` | Reviews every file, fills `.clean/`, and reports findings first. Changes no code. |
+| `clean-up` | Works through the audit's findings in small, verified batches. |
+| `new-project <description>` | Designs a new project before any code is written. |
 
-Cleanup never starts implicitly: it consumes the ledger the audit built, with a contract you approve first (`references/project-refactor.md`).
-
-### Prompt usage
-
-You do not need special syntax. Ask for what you want and name the concern — the skill is written so that naming a concern routes the agent to the right rule.
-
-**Forcing it, when the host did not pick it up.** The explicit form varies more than you would expect: `/clean-code` in Claude Code, Copilot CLI, Grok Build CLI, Devin CLI and Hermes Agent (or `/clean-code-skills:clean-code` as a Claude Code plugin); `$clean-code` in Codex CLI; `@clean-code` in the Codex App; `/skill:clean-code` in Kimi Code. Gemini CLI and OpenCode have no user syntax — the agent activates it through a tool call. Cursor, Antigravity, Factory Droid and Pi document none, so name it in plain language:
+Then just ask:
 
 ```text
-Use the clean-code skill for this.
+Add rate limiting to the login endpoint. Keep the change surgical and tell me what you did not run.
+
+Where does this currency formatter belong? Follow the project's conventions.
+
+Review my diff. Findings first, with smell IDs.
 ```
 
-That works everywhere, because it puts the skill's own name into the text the description is matched against. The per-host table is in `references/host-matrix.md`.
+## What You Get
 
-Starting a project:
+- **Rules at both scales.** Names, functions, errors, tests, one job per unit, and file placement —
+  plus the Dependency Rule, SOLID, and the component principles, enforced strictly once you declare
+  layers.
+- **Packs for your stack.** Languages: TypeScript, JavaScript, Python, Java, C#, C++, C, PHP, Go,
+  Rust, Swift, Kotlin, Ruby, Dart, Scala, R, Objective-C, Shell, PowerShell. Frameworks: React,
+  Next.js, Vue and Nuxt, Angular, Svelte and SvelteKit, Django, Flask, FastAPI, Express, NestJS,
+  Spring, ASP.NET Core, Laravel, Symfony, Rails, Gin and Beego, Strapi, Flutter, SwiftUI and UIKit,
+  Jetpack Compose, Ktor. An agent loads only the packs its project uses.
+- **A structure map.** Every file's functions and classes, its role and purpose, and what is
+  misplaced, mixed, duplicated, named two ways, or caught in a dependency cycle — in one file.
+- **Memory between sessions.** `.clean/` keeps the stack, the declared layers, past decisions, and
+  cleanup progress, so a new session resumes instead of guessing.
+- **A small footprint.** The always-loaded rules are under 1,200 tokens, the skill about 2,000, and
+  each pack under 2,000.
 
-```text
-Bootstrap a new payments service with clean architecture. Ask me whatever you
-need before you design anything.
-
-Set up the project structure and declare the layers in .clean/architecture.md
-before writing any code.
-```
-
-Working in an existing project — plain requests are enough, the skill loads itself:
-
-```text
-Add a retry with backoff to the invoice sync. Keep the change surgical and tell
-me what you did not run.
-
-Where should this currency formatter live? Follow the project's conventions and
-do not invent a new folder.
-
-This function validates, persists, sends mail, and renders. Split it along
-responsibilities -- but only if my task actually touches it.
-```
-
-Reviewing and auditing:
-
-```text
-Audit this project for clean code and architecture. Report only, change nothing.
-Cite file and line for every finding.
-
-Review my current diff. Findings first, cite smell IDs, and skip anything the
-formatter already owns.
-
-Does anything in src/domain import outward? Check the dependency direction and
-show me the violations.
-```
-
-Cleaning up, at scale:
-
-```text
-Clean up this whole project. Propose the contract first -- depth, breadth, and
-batch size -- and do not start editing until I agree.
-
-Resume the cleanup campaign from .clean/ledger.md. Re-read the baseline before
-the next batch.
-```
-
-Architecture questions:
-
-```text
-Should this be a service, or a module in the same address space? Argue it from
-the dependency rule, not from preference.
-
-Explain why this ORM type in the domain layer is a problem, and what the fix
-would cost.
-
-Is this true duplication or accidental? These two functions look identical.
-```
-
-Verification and handoff:
-
-```text
-Run the verification you would need to prove this works, then report exactly
-what passed, what failed, and what you skipped.
-
-Record this session's decisions in .clean/decisions.md and give me a clean
-handoff.
-```
-
-Two of these are worth knowing because they exercise what agents usually skip: asking for the **contract before a cleanup**, and asking what was **not run**. The skill is built to answer both honestly.
-
-### Optional enforcement
-
-Instructions are guidance, and a model can skip a step. Where determinism matters, let code do the checking:
-
-```bash
-python skills/clean-code/scripts/detect_stack.py --write       # cache project context
-cp skills/clean-code/assets/templates/architecture.md .clean/  # declare your layers
-python skills/clean-code/scripts/check_boundaries.py           # fail on outward dependencies
-cp skills/clean-code/assets/hooks/pre-commit .git/hooks/       # enforce it on every commit
-```
-
-The pre-commit hook is the only enforcement that behaves identically on every host, because it needs no agent support at all.
-
-### Updating
-
-Same one-liner you installed with, plus `--detect`, which refreshes exactly the pieces already present and leaves everything else alone:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/btseee/clean-code-skills/main/scripts/remote-install.sh | bash -s -- --detect
-```
-
-Native channels update natively: Claude Code through the plugin marketplace, Gemini CLI with `gemini extensions update`, Claude Desktop by uploading the new release zip.
-
-The rules block carries its version in its begin marker, so you can always see what a project is running. Agents are told **not** to fetch and execute remote update scripts on their own initiative — updating is your call.
-
-How installs and updates behave:
-
-- **Shared files** (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) get a managed block between `<!-- clean-code-skills:begin -->` markers. Everything outside the markers is preserved; updates replace only the block.
-- **Dedicated files and skill folders** (`.cursor/rules/clean-code.mdc`, `.windsurf/`, `.clinerules/`, `skills/clean-code/`, `.claude/skills/clean-code/`, `.github/skills/clean-code/`) are owned by this package and replaced on each run. A file that exists but was not created by this package is skipped unless you pass `--force`.
-- `--detect` inspects the target and operates only on profiles already installed — the right mode for updates.
-
-### Uninstalling
-
-```bash
-bash scripts/install.sh --target /path/to/project --uninstall all
-```
-
-Removes managed blocks while keeping your own content, and deletes package-owned files and folders. Works with `--global` too.
-
-### Validating the package
-
-For contributors, and after any change to the rules block:
-
-```bash
-bash scripts/validate.sh
-```
-
-On Windows, run the same command from Git Bash. `pwsh scripts/validate.ps1` exercises only `install.ps1`, so the two installers stay in step.
-
-The validator checks required files, front matter, version sync across every stamped location, managed-block consistency across all eight adapters, JSON and script syntax, the `SKILL.md` size budget, that the bundled Python imports nothing outside the standard library, that no shipped file carries an absolute machine path, that committed content is LF with a final newline, and full installer behavior — fresh install, content-preserving merge, idempotent re-install, a byte-identical install→uninstall round trip, `--detect`, global mode, and clean uninstall. CI runs the validator on Linux and on Windows (under Git Bash), exercises `install.ps1` with PowerShell, and adds markdownlint and a `skill-tools` job that executes all three bundled scripts against a fixture (including a boundary check that must fail, then pass) on every push and pull request.
-
-## Configuration
-
-### Project state: the `.clean/` directory
-
-The mechanism that lets a memoryless session resume. Templates are in `skills/clean-code/assets/templates/`, and the protocol has the agent add `.clean/` to `.gitignore` — `architecture.md` is the one file usually worth committing, because it is a shared decision that drives a check in CI. The `audit` and `questions` commands create and populate the directory; a plain session reads it and offers to persist at the end.
-
-| File | Holds | Written by |
-| --- | --- | --- |
-| `context.json` | detected stack, frameworks, test command, layout, dependencies with versions, plus the interview's `confirmed` answers | `detect_stack.py --write` (merges — `confirmed` survives) and the `questions` interview |
-| `architecture.md` | declared layers and allowed dependencies | the `audit` or `questions` workflow, ordering confirmed with you |
-| `decisions.md` | decisions and their reasoning, append-only | any session that made a real choice |
-| `ledger.md` | the audit's coverage checklist and findings, then campaign state | the `audit` first, campaign sessions after |
-
-Declare layers innermost first, in a fenced block the tools can read:
-
-````markdown
-```clean-architecture
-layer domain         = src/domain/**
-layer application    = src/application/**
-layer adapter        = src/adapter/**
-layer infrastructure = src/infrastructure/**
-
-# Optional. The default is inward-only, so most projects need none.
-# allow infrastructure -> domain
-```
-````
-
-The default rule is the Dependency Rule itself: a layer may depend on itself and on any layer declared before it, and on nothing declared after it.
-
-### Environment variables
-
-| Variable | Effect |
-| --- | --- |
-| `CLEAN_CODE_REF` | Pin the remote installer to a version, e.g. `CLEAN_CODE_REF=v3.2.0` |
-| `CLEAN_CODE_HOME` | Override the home directory global mode installs into |
-| `CLEAN_CODE_HOOK=off` | Disable the pre-commit hook for one commit |
-| `PYTHON_BIN` | Point the hook at a specific interpreter |
-
-### Install profiles
-
-`claude`, `agents`, `codex`, `opencode`, `jules`, `gemini`, `cursor`, `copilot`, `windsurf`, `cline`, `grok`, `antigravity`, `skill`, `all`. Pass any combination; `--detect` picks the ones already present.
-
-`agents` is the one that matters most: it writes the `AGENTS.md` block **and** installs the full skill into `.agents/skills/clean-code/`, the shared root that twelve of the supported hosts read project-side. `codex`, `opencode` and `jules` are aliases for it (Jules reads `AGENTS.md` and the shared root; it is not separately verified, hence the alias rather than a row of its own).
-
-### Hooks
-
-`skills/clean-code/assets/hooks/pre-commit` is portable and needs no host support. `claude-settings.json` adds a session-start context print and a post-edit boundary check for Claude Code — merge it into `.claude/settings.json` rather than replacing the file. Neither hook blocks an edit; only the pre-commit hook blocks a commit, and only when the declared architecture is violated — or cannot be checked at all, because the declaration matches no files. The hook finds the skill in any of the project or global install locations and probes for `python3`, `python`, or `py`.
-
-## Examples
-
-### Declare an architecture and enforce it
+## The Structure Map
 
 ```console
-$ python skills/clean-code/scripts/check_boundaries.py
-Dependency Rule check
+$ python .claude/skills/clean-code/scripts/map_structure.py --path src/services
+  Findings  : misplaced 1, mixed 0, duplicates 0, name clashes 0, synonyms 1, cycles 0 (under src/services)
 
-  Layers (innermost first): domain -> application -> adapter -> infrastructure
-  Files matched           : domain (5), application (149), adapter (8), infrastructure (12)
-  Cross-layer imports     : 304
+  Misplaced
+    src/services/auth.ts:7 authMiddleware is middleware in a service file; move it to src/middleware/.
 
-  FAIL: 1 dependency-rule violation(s).
+  Synonyms
+    user (retrieve): fetch x1 (src/services/users.ts:5), get x1 (src/services/users.ts:1)
 
-  src/domain/order.py:3: domain -> infrastructure (imports app.infrastructure.db)
-
-  Each line above is an outward dependency: an inner layer that knows
-  about an outer one. Fix by inverting it -- declare the interface in
-  the inner layer and implement it in the outer one -- not by widening
-  the rules.
+  Files under src/services
+    src/services/auth.ts [service] AuthService, authMiddleware !
+    src/services/users.ts [service] getUser, fetchUser
 ```
 
-### See what a cold session would find
+With `--write` it saves `.clean/structure.md`, ordered so a partial read gets the findings first,
+then the folder tree, the component metrics and a dependency graph, and one greppable row per file.
 
-```console
-$ python skills/clean-code/scripts/detect_stack.py
-Project context (inferred; confirm before relying on it)
-
-  Primary language : C#
-  Languages        : C# (509), SQL (20), Python (5), Shell (2)
-  Ecosystems       : .NET solution, C#/.NET
-  Frameworks       : ASP.NET Core
-  Test runners     : MSTest
-  Test files       : 74
-  Source roots     : src
-  Quality tools    : EditorConfig
-  Dependencies     : 13 declared (13 with versions): Dapper 2.1.35, Serilog 4.0.1, ...
-    Verify API usage against these versions, not memory;
-    the full list is in context.json.
-  Verify with      : dotnet test
-
-  Layer candidates (conventional names found in paths):
-    domain         Core (31)
-    infrastructure Persistence (18)
-    Direction of dependencies is NOT verified here. Declare the
-    intended layering in .clean/architecture.md, then run
-    check_boundaries.py to test whether the code obeys it.
-```
-
-### Ask for a report instead of changes
-
-> Audit this project for clean code and architecture.
-
-Produces a findings-first report with a coverage line (files inventoried / reviewed / sweeps to convergence), a verdict, the recorded test baseline, findings by severity with file and line, an architecture assessment, a dependency review against installed versions, placement move candidates, and a recommended sequence — while filling `.clean/` and changing no production code. See `references/audit-report.md`.
-
-### Report completion honestly
-
-The difference the skill insists on:
-
-> ~~This should work now.~~
->
-> I ran `npm test -- email-validator` and the empty-email regression test passes. I did not run the full suite.
-
-More before-and-after cases, in Python, TypeScript, Go and SQL, are in `references/examples.md`.
-
-## Constraints
-
-Worth knowing before you adopt it.
-
-- **`SKILL.md` is budget-locked** to 500 lines and roughly 5,000 tokens, because hosts load the whole body on activation. Depth lives in `references/`, which load on demand. The validator enforces the ceiling.
-- **Only five frontmatter fields are portable** — `name`, `description`, `license`, `compatibility`, `metadata`. `allowed-tools` is experimental and is never relied on for correctness.
-- **Hooks, slash commands, permissions, and memory are not part of the Agent Skills standard.** They are host-specific, so they live in `assets/` and `host-matrix.md` with a portable substitute for each.
-- **The bundled scripts are standard library only, with no network access.** They read your files and write only to `.clean/`. A validator check rejects any third-party import.
-- **Script output is evidence, not a verdict.** `scan_repo.py` measures; deciding what matters is the agent's job.
-- **The Boy Scout Rule is deliberately narrowed.** Agents clean the lines a task already touches and report the rest, because an agent applying the rule broadly produces unreviewable diffs. The departure from the source is documented in `references/chapter-map.md` rather than left implicit.
-- **No cross-host smoke test has been run.** Portability rests on conformance to the Agent Skills specification and the per-host audit in `host-matrix.md`, not on observed behavior in Copilot CLI, Codex, Cursor or Gemini CLI.
-- **No book text is reproduced here.** Principle names and their canonical one-line formulations are the established vocabulary of the field; all guidance around them is written for this project. Copyrighted study material used while writing it is gitignored and must never be committed or redistributed with this repo. If you clone this to study from, keep it that way.
-
-### Releases and versioning
-
-`VERSION` is the single source. To release: update `VERSION`, run `bash scripts/sync.sh` to propagate it everywhere, validate, then tag.
+## Optional Enforcement
 
 ```bash
-git tag "v$(cat VERSION)"
-git push origin main --tags
+python .claude/skills/clean-code/scripts/detect_stack.py --write    # stack and packs into .clean/
+python .claude/skills/clean-code/scripts/map_structure.py --write   # the structure map
+python .claude/skills/clean-code/scripts/check_boundaries.py        # fail on wrong-way dependencies
+cp .claude/skills/clean-code/assets/hooks/pre-commit .git/hooks/    # check on every commit
 ```
 
-The release workflow validates, checks the tag against `VERSION` — they must match exactly — and publishes a GitHub release with `clean-code.zip`, the skill packaged for Claude Desktop / claude.ai / Skills API upload. See [CHANGELOG.md](./CHANGELOG.md) and [CONTRIBUTING.md](./CONTRIBUTING.md).
+The scripts need only Python 3.8 or later, read your files, write only to `.clean/`, and never use
+the network. Declaring layers and roles, and the hooks: [docs/configuration.md](docs/configuration.md).
+
+## Documentation
+
+- [docs/install.md](docs/install.md) — every host, global installs, updating, uninstalling
+- [docs/configuration.md](docs/configuration.md) — the `.clean/` files, layers, roles, hooks, constraints
+- [skills/clean-code/SKILL.md](skills/clean-code/SKILL.md) — what the agent reads
+- [CONTRIBUTING.md](CONTRIBUTING.md) — writing a pack, validating, releasing
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each version
+
+No book text is reproduced here: principle names are the field's vocabulary, and everything around
+them is original.
 
 ## License
 

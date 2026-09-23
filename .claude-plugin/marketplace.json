@@ -14,7 +14,7 @@
     {
       "name": "clean-code-skills",
       "source": "./",
-      "description": "Clean code and clean architecture in one skill: readable names, focused functions, correct file placement, one job per unit, the Dependency Rule and SOLID, tests, errors, agent failure modes — with /clean-code audit, new-project, clean-up, and questions commands and durable .clean/ project memory.",
+      "description": "Clean code and clean architecture in one skill: readable names, focused functions, correct file placement, one job per unit, the Dependency Rule and SOLID, tests, errors — with packs for 19 languages and 21 frameworks, a structure map that flags misplaced, mixed, and duplicated code, /clean-code init, audit, clean-up, and new-project commands, and durable .clean/ project memory.",
       "version": "3.2.0",
       "author": {
         "name": "Battseren Badral",
