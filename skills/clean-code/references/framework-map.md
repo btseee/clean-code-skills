@@ -17,10 +17,12 @@ your stack needs before the first edit.
   at least a tenth of its files. Editing a file in another language? Read that language's pack too.
 - A framework pack describes the framework's own idiomatic structure: this skill is
   framework-first. Its **Layers** section applies only when `.clean/architecture.md` declares layers.
+- In a monorepo, a framework pack speaks only for the project whose manifest named the framework:
+  `context.json` records those folders as `pack_scopes`.
 - No pack for your stack? Use the adaptation questions at the end of this file.
 
 The index, read by `detect_stack.py`. Labels are spelled exactly as it reports them; `supersede`
-drops the packs of a label that a detected framework already covers.
+drops the packs of a label that a detected framework already covers in the same manifest.
 
 ```clean-packs
 # language <Label> = <pack>[, <pack>...]
