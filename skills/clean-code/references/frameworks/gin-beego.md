@@ -19,7 +19,7 @@ role handler = **/handler/**, **/handlers/**
 signal controller [go] = (?:web|beego)\.Controller
 signal middleware [go] = \)\s*gin\.HandlerFunc
 signal handler [go] = \(\s*\w+\s+\*gin\.Context\s*\)
-role router = **/routers/**, **/router/**
+role route = **/routers/**, **/router/**
 ```
 
 ## Rules

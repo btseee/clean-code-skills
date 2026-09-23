@@ -60,6 +60,26 @@ class MisplacedTest(unittest.TestCase):
             "home_role": None, "suggestion": "src/guards/",
         }])
 
+    def test_the_nearest_home_wins_over_a_busier_one_in_another_project(self):
+        files = [
+            file("web/src/services/auth.ts", "service", [
+                (sym("AuthService", "class"), "service"),
+                (sym("authMiddleware", line=12), "middleware"),
+            ]),
+            file("web/src/middleware/log.ts", "middleware", [(sym("logMiddleware"), "middleware")]),
+        ] + [file(f"api/src/middleware/m{n}.ts", "middleware", [(sym(f"m{n}Middleware"), "middleware")])
+             for n in range(3)]
+        self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"],
+                         "web/src/middleware/")
+
+    def test_an_entry_point_is_never_told_to_move_whole(self):
+        files = [
+            file("lib/main.dart", None, [(sym("LoginApp", "class"), "guard")], language="dart"),
+            file("lib/guards/role.dart", "guard", [(sym("RoleGuard", "class"), "guard")],
+                 language="dart"),
+        ]
+        self.assertEqual(findings.find_misplaced(files, GENERIC), [])
+
     def test_feature_folders_are_not_told_to_move_to_a_distant_home(self):
         files = [
             file("src/app/users/user.guard.ts", None, [(sym("UserGuard", "class"), "guard")]),

@@ -16,9 +16,9 @@
 ## Roles
 
 ```clean-roles
-role page = app/**/page.*, src/app/**/page.*
-role layout = app/**/layout.*, src/app/**/layout.*
-role route-handler = app/**/route.*, src/app/**/route.*
+role component = app/**/page.*, app/**/layout.*, app/**/template.*, app/**/loading.*, app/**/error.*, app/**/not-found.*
+role component = src/app/**/page.*, src/app/**/layout.*, src/app/**/template.*, src/app/**/loading.*, src/app/**/error.*, src/app/**/not-found.*
+role endpoint = app/**/route.*, src/app/**/route.*
 role middleware = middleware.*, src/middleware.*, proxy.*, src/proxy.*
 role server-action = **/actions/**, **/*.actions.*
 ignore-name = ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|default|generateMetadata|generateStaticParams|metadata|revalidate|dynamic|runtime|config)$

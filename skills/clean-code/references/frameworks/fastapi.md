@@ -16,8 +16,8 @@
 ## Roles
 
 ```clean-roles
-role router = **/routers/**, **/routes/**
-signal router = @\w+\.(?:get|post|put|patch|delete|api_route)\(
+role route = **/routers/**, **/routes/**
+signal route = @\w+\.(?:get|post|put|patch|delete|api_route)\(
 role schema = **/schemas/**
 signal schema = \(\s*BaseModel\s*\)
 role model = **/models/**

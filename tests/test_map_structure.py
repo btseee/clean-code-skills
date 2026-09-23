@@ -116,6 +116,17 @@ class MapStructureTest(unittest.TestCase):
         self.assertIn("src/services/auth.js", output)
         self.assertNotIn("src/app.js", output)
 
+    def test_recorded_pack_scopes_travel_with_the_recorded_packs(self):
+        (self.root / ".clean" / "context.json").write_text(json.dumps({
+            "packs": ["references/frameworks/react.md"],
+            "pack_scopes": {"references/frameworks/react.md": ["web"]},
+        }), encoding="utf-8")
+        self.assertEqual(map_structure.stack_for(self.root, None),
+                         (["references/frameworks/react.md"],
+                          {"references/frameworks/react.md": ["web"]}))
+        self.assertEqual(map_structure.stack_for(self.root, "frameworks/react.md"),
+                         (["references/frameworks/react.md"], {}))
+
     def test_a_malformed_roles_file_is_an_error(self):
         (self.root / ".clean" / "roles.md").write_text("```clean-roles\nnonsense\n```\n",
                                                        encoding="utf-8")

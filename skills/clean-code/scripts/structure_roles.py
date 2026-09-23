@@ -44,6 +44,19 @@ class Statement(NamedTuple):
     suffixes: tuple
     value: object
     source: str
+    scope: tuple = ()           # project folders the statement speaks for; empty means everywhere
+
+    def _folder_of(self, relative_path: str) -> Optional[str]:
+        folders = [folder for folder in self.scope if relative_path.startswith(folder + "/")]
+        return max(folders, key=len) if folders else None
+
+    def applies_to(self, relative_path: Optional[str]) -> bool:
+        return not self.scope or relative_path is None or self._folder_of(relative_path) is not None
+
+    def project_path(self, relative_path: str) -> str:
+        """The path as seen from the statement's own project folder, where its globs start."""
+        folder = self._folder_of(relative_path) if self.scope else None
+        return relative_path[len(folder) + 1:] if folder else relative_path
 
 
 def _compile(pattern: str, where: str) -> re.Pattern:
@@ -101,21 +114,23 @@ class Roles:
         best_key = None
         best_role = None
         for index, statement in enumerate(self.statements):
-            if statement.kind != "role":
+            if statement.kind != "role" or not statement.applies_to(relative_path):
                 continue
+            project_path = statement.project_path(relative_path)
             for glob in statement.value:
-                if project_files.glob_match(glob, relative_path):
+                if project_files.glob_match(glob, project_path):
                     key = (project_files.literal_weight(glob), -index)
                     if best_key is None or key > best_key:
                         best_key, best_role = key, statement.role
         return best_role
 
-    def intrinsic_role(self, name: str, context: str, suffix: str) -> Optional[str]:
+    def intrinsic_role(self, name: str, context: str, suffix: str,
+                       relative_path: Optional[str] = None) -> Optional[str]:
         """The role a symbol's own declaration shows, whatever file it sits in."""
         suffix = suffix.lstrip(".").lower()
         for kind, text in (("signal", context), ("name", name)):
             for statement in self.statements:
-                if statement.kind != kind:
+                if statement.kind != kind or not statement.applies_to(relative_path):
                     continue
                 if statement.suffixes and suffix not in statement.suffixes:
                     continue
@@ -127,22 +142,37 @@ class Roles:
         return any(statement.value.search(name) for statement in self.statements
                    if statement.kind == "ignore-name")
 
-    def home_globs(self, role: str) -> list:
-        return [glob for statement in self.statements
-                if statement.kind == "role" and statement.role == role for glob in statement.value]
+    def home_globs(self, role: str, relative_path: Optional[str] = None) -> list:
+        """The globs that are homes for role, as seen from the repository root."""
+        globs = []
+        for statement in self.statements:
+            if statement.kind != "role" or statement.role != role:
+                continue
+            if not statement.applies_to(relative_path):
+                continue
+            folder = statement._folder_of(relative_path) if statement.scope and relative_path else None
+            globs += [glob if folder is None or glob.startswith("**/") else f"{folder}/{glob}"
+                      for glob in statement.value]
+        return globs
 
 
-def load_roles(skill_root: Path, packs, project_root: Path) -> Roles:
-    """Project roles, then each pack's, then the generic conventions."""
-    sources = [(Path(project_root) / PROJECT_ROLES, PROJECT_ROLES)]
+def load_roles(skill_root: Path, packs, project_root: Path, scopes=None) -> Roles:
+    """Project roles, then each pack's, then the generic conventions.
+
+    `scopes` maps a pack to the folders its framework lives in, so in a monorepo the
+    Flutter pack's `pages/` never claims the React app's `pages/`.
+    """
+    sources = [(Path(project_root) / PROJECT_ROLES, PROJECT_ROLES, ())]
     for pack in packs:
         relative = pack if pack.startswith("references/") else "references/" + pack
-        sources.append((Path(skill_root) / relative, relative))
-    sources.append((Path(skill_root) / GENERIC_ROLES, GENERIC_ROLES))
+        folders = tuple((scopes or {}).get(relative, ()))
+        sources.append((Path(skill_root) / relative, relative, () if "" in folders else folders))
+    sources.append((Path(skill_root) / GENERIC_ROLES, GENERIC_ROLES, ()))
     statements = []
-    for path, label in sources:
+    for path, label, scope in sources:
         if path.is_file():
-            statements += parse_roles(path.read_text(encoding="utf-8", errors="replace"), label)
+            statements += [statement._replace(scope=scope) for statement in
+                           parse_roles(path.read_text(encoding="utf-8", errors="replace"), label)]
     return Roles(statements)
 
 
@@ -168,7 +198,8 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
     """A file's home role, and an intrinsic role for each of its top-level symbols."""
     suffix = Path(file_symbols.path).suffix.lower().lstrip(".")
     symbols = [
-        RoledSymbol(symbol, roles.intrinsic_role(symbol.name, symbol.context, suffix)
+        RoledSymbol(symbol, roles.intrinsic_role(symbol.name, symbol.context, suffix,
+                                                 file_symbols.path)
                     if symbol.parent is None else None)
         for symbol in file_symbols.symbols
     ]

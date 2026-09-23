@@ -20,7 +20,7 @@ role use-case = **/usecase/**, **/usecases/**
 name use-case = UseCase$
 name data-source = DataSource$
 signal di-module [kt] = @Module\b
-signal composable [kt] = @Composable\b
+signal component [kt] = @Composable\b
 ignore-name = Preview$
 ```
 

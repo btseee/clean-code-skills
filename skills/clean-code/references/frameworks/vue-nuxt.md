@@ -22,7 +22,7 @@ name composable [ts, js, vue] = ^use[A-Z]
 role page = **/pages/**
 role layout = **/layouts/**
 role middleware = **/middleware/**
-role server-route = server/api/**, server/routes/**
+role endpoint = server/api/**, server/routes/**
 role server-middleware = server/middleware/**
 role plugin = **/plugins/**
 ```

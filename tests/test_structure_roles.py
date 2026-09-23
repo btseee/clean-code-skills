@@ -106,6 +106,29 @@ class LoadAndAssignTest(unittest.TestCase):
             roles = structure_roles.load_roles(skill, ["frameworks/nest.md"], project)
             self.assertEqual(roles.intrinsic_role("AuthService", "", "ts"), "guard")
 
+    def test_a_scoped_pack_speaks_only_for_files_under_its_folders(self):
+        with tempfile.TemporaryDirectory() as directory:
+            skill = Path(directory) / "skill"
+            (skill / "references" / "frameworks").mkdir(parents=True)
+            (skill / "references" / "framework-map.md").write_text(
+                block("role component = **/components/**"), encoding="utf-8")
+            (skill / "references" / "frameworks" / "flutter.md").write_text(
+                block("role widget = **/pages/**", "name widget = Page$"), encoding="utf-8")
+            roles = structure_roles.load_roles(
+                skill, ["references/frameworks/flutter.md"], Path(directory),
+                {"references/frameworks/flutter.md": ["mobile"]})
+        self.assertEqual(roles.home_role("mobile/lib/pages/login.dart"), "widget")
+        self.assertIsNone(roles.home_role("web/src/pages/Profile.tsx"))
+        self.assertEqual(roles.intrinsic_role("LoginPage", "", "dart", "mobile/lib/a.dart"), "widget")
+        self.assertIsNone(roles.intrinsic_role("ProfilePage", "", "tsx", "web/src/a.tsx"))
+
+    def test_a_scoped_pack_matches_its_globs_from_its_own_project_folder(self):
+        statements = structure_roles.parse_roles(block("role entity = src/Entity/**"), "symfony.md")
+        roles = structure_roles.Roles([statement._replace(scope=("services/billing",))
+                                       for statement in statements])
+        self.assertEqual(roles.home_role("services/billing/src/Entity/User.php"), "entity")
+        self.assertIsNone(roles.home_role("src/Entity/User.php"))
+
     def test_assign_gives_top_level_symbols_a_role(self):
         roles = roles_from(["role service = **/services/**", "name middleware = Middleware$",
                             "name service = Service$"])

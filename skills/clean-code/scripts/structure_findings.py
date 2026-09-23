@@ -27,6 +27,11 @@ EXPORT_AWARE_LANGUAGES = frozenset({"javascript", "typescript", "python", "go", 
 
 SOURCE_ROOTS = frozenset({"src", "lib", "app", "source", "sources", "pkg", "internal"})
 
+# Files that start a program or a package stay where the toolchain expects them,
+# whatever roles they hold.
+ENTRY_POINT_STEMS = frozenset({"main", "index", "app", "program", "application", "server",
+                               "__main__", "__init__", "manage", "wsgi", "asgi", "mod", "lib"})
+
 # Two `User` classes confuse every reader; two `parse` functions in different modules
 # do not, because a module-scoped language keeps them apart. Where every function
 # shares one namespace, a repeated function name is a real clash.
@@ -81,8 +86,25 @@ def role_bearing(roled_file) -> list:
 
 
 def _source_root(path: str) -> str:
-    first = path.split("/", 1)[0]
-    return first if first in SOURCE_ROOTS and "/" in path else ""
+    """The folder holding a project's sources: `src`, or `web/src` in a monorepo."""
+    segments = path.split("/")[:-1]
+    for index, segment in enumerate(segments):
+        if segment in SOURCE_ROOTS:
+            return "/".join(segments[:index + 1])
+    return ""
+
+
+def _shared_depth(folder: str, directory: str) -> int:
+    shared = 0
+    for mine, theirs in zip(folder.split("/"), directory.split("/")):
+        if mine != theirs:
+            break
+        shared += 1
+    return shared
+
+
+def _is_entry_point(path: str) -> bool:
+    return posixpath.basename(path).split(".")[0].lower() in ENTRY_POINT_STEMS
 
 
 def _home_folders(files) -> dict:
@@ -97,19 +119,18 @@ def _suggest(role: str, path: str, homes: dict, roles) -> Optional[str]:
     root = _source_root(path)
     folders = homes.get(role)
     if folders:
-        same_root = {folder: count for folder, count in folders.items()
-                     if _source_root(folder + "/") == root}
-        pool = same_root or folders
-        folder = max(pool, key=lambda name: (pool[name], -len(name)))
+        # The nearest home, so a monorepo never sends code into another project.
+        here = posixpath.dirname(path)
+        folder = max(folders, key=lambda name: (_shared_depth(name, here), folders[name], -len(name)))
         return (folder + "/") if folder else "./"
-    for glob in roles.home_globs(role):
+    for glob in roles.home_globs(role, path):
         conventional = _FOLDER_GLOB.match(glob)
         if conventional:
             return (root + "/" if root else "") + conventional.group(1) + "/"
         literal = _LITERAL_FOLDER_GLOB.match(glob)
         if literal:
             return literal.group(1) + "/"
-    globs = roles.home_globs(role)
+    globs = roles.home_globs(role, path)
     return f"a file matching {globs[0]}" if globs else None
 
 
@@ -145,7 +166,7 @@ def find_misplaced(files, roles) -> list:
                     })
             continue
         distinct = {item.role for item in bearing}
-        if len(distinct) == 1:
+        if len(distinct) == 1 and not _is_entry_point(roled_file.path):
             role = distinct.pop()
             sibling = _sibling_home(roled_file.path, homes.get(role, {}))
             if sibling is not None:

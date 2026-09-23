@@ -126,7 +126,8 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
 
 def _map_finding_absent(workspace: Path, expectation: dict):
     import map_structure
-    data = map_structure.build_map(workspace, map_structure.packs_for(workspace, None), 2)
+    packs, scopes = map_structure.stack_for(workspace, None)
+    data = map_structure.build_map(workspace, packs, 2, scopes)
     prefix = expectation.get("path")
     items = data["findings"][expectation["kind"]]
     if prefix:

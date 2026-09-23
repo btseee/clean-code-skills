@@ -52,20 +52,25 @@ def _commit(root: Path):
     return completed.stdout.strip() or None
 
 
-def packs_for(root: Path, explicit) -> list:
-    """Packs whose role conventions apply: --packs, else .clean/context.json, else detection."""
+def stack_for(root: Path, explicit) -> tuple:
+    """Packs whose role conventions apply, and the folders each framework pack is scoped to.
+
+    From --packs (everywhere), else .clean/context.json, else a fresh detection.
+    """
     if explicit is not None:
         return [pack.strip() if pack.strip().startswith("references/") else
-                "references/" + pack.strip() for pack in explicit.split(",") if pack.strip()]
+                "references/" + pack.strip() for pack in explicit.split(",") if pack.strip()], {}
     context = root / ".clean" / "context.json"
     if context.is_file():
         try:
-            recorded = json.loads(context.read_text(encoding="utf-8")).get("packs")
-        except (OSError, ValueError, AttributeError):
+            recorded = json.loads(context.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
             recorded = None
-        if isinstance(recorded, list):
-            return recorded
-    return detect_stack.build_context(root).get("packs", [])
+        if isinstance(recorded, dict) and isinstance(recorded.get("packs"), list):
+            scopes = recorded.get("pack_scopes")
+            return recorded["packs"], scopes if isinstance(scopes, dict) else {}
+    detected = detect_stack.build_context(root)
+    return detected.get("packs", []), detected.get("pack_scopes", {})
 
 
 def _file_role(roled_file) -> str:
@@ -96,9 +101,9 @@ def _file_entry(roled_file, imports: list) -> dict:
     }
 
 
-def build_map(root: Path, packs, depth: int) -> dict:
+def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     """The whole structure map of the project at root, as JSON-ready data."""
-    roles = structure_roles.load_roles(SKILL_ROOT, packs, root)
+    roles = structure_roles.load_roles(SKILL_ROOT, packs, root, scopes)
     walk = project_files.walk(root, project_symbols.SUPPORTED_SUFFIXES)
     index = import_resolution.ModuleIndex(root)
     roled_files = []
@@ -184,7 +189,8 @@ def main(argv=None) -> int:
         print(f"error: not a directory: {root}", file=sys.stderr)
         return 2
     try:
-        data = build_map(root, packs_for(root, arguments.packs), max(1, arguments.depth))
+        packs, scopes = stack_for(root, arguments.packs)
+        data = build_map(root, packs, max(1, arguments.depth), scopes)
     except structure_roles.RolesError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

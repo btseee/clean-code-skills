@@ -293,29 +293,43 @@ def match_signatures(text: str, matchers) -> list:
 
 
 def scan_manifest_contents(root: Path, manifests: list) -> tuple:
-    frameworks: set = set()
+    """Frameworks and test runners the manifests name, and which manifests named each framework."""
+    evidence: dict = {}
     test_runners: set = set()
     for manifest in manifests[:40]:
         text = read_text_safely(root / manifest["path"])
         if not text:
             continue
         text = strip_comments(text)
-        frameworks.update(match_signatures(text, FRAMEWORK_MATCHERS))
+        for label in match_signatures(text, FRAMEWORK_MATCHERS):
+            evidence.setdefault(label, []).append(manifest["path"])
         test_runners.update(match_signatures(text, TEST_RUNNER_MATCHERS))
-    return sorted(frameworks), sorted(test_runners)
+    return sorted(evidence), sorted(test_runners), {label: sorted(paths) for label, paths in evidence.items()}
 
 
-def scan_source_signatures(root: Path, relative_paths) -> list:
-    """Frameworks revealed only by imports in the sources, from a bounded sample."""
-    found = set()
+def scan_source_signatures(root: Path, relative_paths) -> dict:
+    """Frameworks revealed only by imports in the sources, each with the file that showed it."""
+    found = {}
     for suffixes, pattern, label in SOURCE_FRAMEWORK_SIGNATURES:
         candidates = [path for path in relative_paths if path.lower().endswith(suffixes)]
         for relative in candidates[:SOURCE_SCAN_FILES]:
             text = project_files.read_text(root / relative)
             if text and pattern.search("\n".join(text.split("\n", SOURCE_SCAN_LINES)[:SOURCE_SCAN_LINES])):
-                found.add(label)
+                found[label] = [relative]
                 break
-    return sorted(found)
+    return found
+
+
+def enclosing_manifests(paths, manifests) -> list:
+    """For each source path, the nearest manifest whose folder contains it."""
+    found = []
+    for path in paths:
+        owners = [manifest["path"] for manifest in manifests
+                  if "/" not in manifest["path"]
+                  or path.startswith(manifest["path"].rpartition("/")[0] + "/")]
+        if owners:
+            found.append(max(owners, key=lambda owner: owner.count("/")))
+    return found
 
 
 # --- packs: which references/ files the detected stack needs -------------------------
@@ -377,7 +391,37 @@ def load_pack_index(path: Path = None) -> Optional[PackIndex]:
     return parse_pack_index(read_text_safely(path, limit=1_000_000))
 
 
-def select_packs(languages: dict, frameworks, index: PackIndex) -> list:
+def _superseded(framework: str, frameworks, index: PackIndex, evidence) -> bool:
+    """A framework drops out only where a framework that covers it shows up too.
+
+    Strapi's admin panel puts React in every Strapi manifest; a React app with its own
+    manifest beside the CMS keeps the React pack.
+    """
+    covering = [other for other in frameworks if framework in index.supersedes.get(other, ())]
+    if not covering:
+        return False
+    if evidence is None or not evidence.get(framework):
+        return True
+    return all(any(path in evidence.get(other, ()) for other in covering)
+               for path in evidence[framework])
+
+
+def pack_scopes(languages: dict, frameworks, index: PackIndex, evidence) -> dict:
+    """The folders each framework pack's role conventions apply to: where its manifests are.
+
+    Packs a language reaches, or a manifest at the root, apply everywhere and are left out.
+    """
+    everywhere = set(select_packs(languages, [], index))
+    folders: dict = {}
+    for framework in frameworks:
+        where = {path.rpartition("/")[0] for path in evidence.get(framework, [])} or {""}
+        for pack in index.frameworks.get(framework, []):
+            folders.setdefault("references/" + pack, set()).update(where)
+    return {pack: sorted(where) for pack, where in folders.items()
+            if pack not in everywhere and "" not in where}
+
+
+def select_packs(languages: dict, frameworks, index: PackIndex, evidence=None) -> list:
     """Pack paths for a stack: its main languages, then its frameworks, each once."""
     indexed = [(label, count) for label, count in languages.items() if label in index.languages]
     chosen = []
@@ -386,9 +430,8 @@ def select_packs(languages: dict, frameworks, index: PackIndex) -> list:
         top = max(indexed, key=lambda item: item[1])[0]
         chosen = [label for label, count in indexed
                   if label == top or count / total >= MINOR_LANGUAGE_SHARE]
-    dropped = set()
-    for framework in frameworks:
-        dropped |= index.supersedes.get(framework, set())
+    dropped = {framework for framework in frameworks
+               if _superseded(framework, frameworks, index, evidence)}
     paths = [path for label in chosen for path in index.languages[label]]
     paths += [path for framework in frameworks
               if framework in index.frameworks and framework not in dropped
@@ -705,8 +748,10 @@ def build_context(root: Path) -> dict:
     files = [(Path(relative), Path(relative).name) for relative in walk.paths]
     languages = count_languages(files)
     manifests = find_manifests(root, files)
-    frameworks, test_runners = scan_manifest_contents(root, manifests)
-    frameworks = sorted(set(frameworks) | set(scan_source_signatures(root, walk.paths)))
+    frameworks, test_runners, framework_evidence = scan_manifest_contents(root, manifests)
+    for label, paths in scan_source_signatures(root, walk.paths).items():
+        framework_evidence.setdefault(label, []).extend(enclosing_manifests(paths, manifests))
+    frameworks = sorted(set(frameworks) | set(framework_evidence))
     tests = find_test_locations(files)
     pack_index = load_pack_index()
 
@@ -727,7 +772,9 @@ def build_context(root: Path) -> dict:
         "ecosystems": sorted({item["ecosystem"] for item in manifests}),
         "manifests": manifests[:25],
         "frameworks": frameworks,
-        "packs": select_packs(languages, frameworks, pack_index) if pack_index else [],
+        "packs": select_packs(languages, frameworks, pack_index, framework_evidence) if pack_index else [],
+        "pack_scopes": (pack_scopes(languages, frameworks, pack_index, framework_evidence)
+                        if pack_index else {}),
         "test_runners": test_runners,
         "tests": tests,
         "dependencies": parse_dependencies(root, manifests),
