@@ -1,0 +1,37 @@
+{
+  "id": "gin-middleware",
+  "pack": "frameworks/gin-beego.md",
+  "prompt": "Add request-ID middleware and use the ID in the order service logs.",
+  "expected_output": "A new file under internal/middleware defines a gin.HandlerFunc that generates or forwards a request ID and is registered with r.Use(...) in main.go. The handler reads the ID from the gin context and passes it into the order service as a plain value; the service logs include it, and the service still takes no *gin.Context parameter.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "internal/middleware/**",
+      "pattern": "gin\\.HandlerFunc",
+      "text": "A file under internal/middleware defines a gin.HandlerFunc"
+    },
+    {
+      "type": "file_contains",
+      "glob": "main.go",
+      "pattern": "\\.Use\\(",
+      "text": "The new middleware is registered on the router with .Use(...)"
+    },
+    {
+      "type": "file_contains",
+      "glob": "internal/service/**",
+      "pattern": "func CreateOrder\\([^)]*,",
+      "text": "The order service function now takes the request ID as an added parameter"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "internal/service/**",
+      "pattern": "\\*gin\\.Context",
+      "text": "The order service still takes no *gin.Context parameter"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

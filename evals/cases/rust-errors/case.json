@@ -1,0 +1,31 @@
+{
+  "id": "rust-errors",
+  "pack": "languages/rust.md",
+  "prompt": "Parse config values and report bad input to the caller.",
+  "expected_output": "parse_config returns a Result instead of panicking. A dedicated error enum names each way the input can be bad (a missing '=', an unparsable port, an unparsable timeout), and library code no longer calls .unwrap() on the input path.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/**",
+      "pattern": "enum\\s+\\w*Error",
+      "text": "An error enum exists for bad config input"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/**",
+      "pattern": "\\.unwrap\\(\\)",
+      "text": "Library code contains no .unwrap()"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/**",
+      "pattern": "Result<",
+      "text": "parse_config reports failure through a Result instead of panicking"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

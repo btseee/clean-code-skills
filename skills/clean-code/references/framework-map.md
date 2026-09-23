@@ -29,10 +29,17 @@ drops the packs of a label that a detected framework already covers.
 language JavaScript = languages/javascript.md
 language TypeScript = languages/typescript.md, languages/javascript.md
 language Python = languages/python.md
+language Go = languages/go.md
+language Rust = languages/rust.md
+language Kotlin = languages/kotlin.md
 framework React = frameworks/react.md
 framework Django = frameworks/django.md
 framework Flask = frameworks/flask.md
 framework FastAPI = frameworks/fastapi.md
+framework Gin = frameworks/gin-beego.md
+framework Beego = frameworks/gin-beego.md
+framework Ktor = frameworks/ktor.md
+framework Jetpack Compose = frameworks/jetpack-compose.md
 ```
 
 ## Roles

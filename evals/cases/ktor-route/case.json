@@ -1,0 +1,43 @@
+{
+  "id": "ktor-route",
+  "pack": "frameworks/ktor.md",
+  "prompt": "Add POST /orders with validation.",
+  "expected_output": "A POST /orders endpoint is added to the existing routes file as part of the Route extension function, delegating creation to the OrderService rather than mutating storage inline; the request is validated and rejected with a client error when invalid; the existing GET /orders endpoint keeps working; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/routes/**",
+      "pattern": "post\\(\\s*\"/orders\"",
+      "text": "A POST handler for /orders is added to the routes file"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/routes/**",
+      "pattern": "get\\(\\s*\"/orders\"",
+      "text": "The existing GET /orders endpoint is preserved"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/plugins/**",
+      "pattern": "post\\(\\s*\"/orders\"",
+      "text": "The new endpoint is not embedded directly in the plugin configuration"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/service/**",
+      "pattern": "fun\\s+\\w*(?:[Cc]reate|[Aa]dd|[Ss]ave)\\w*\\(",
+      "text": "The service gains the order-creation logic, not the route"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/main/kotlin/**",
+      "pattern": "(?i)requestvalidation|require\\(|badrequest",
+      "text": "The new endpoint validates its input"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "compose-view-model",
+  "pack": "frameworks/jetpack-compose.md",
+  "prompt": "The screen reads the repository directly. Add a loading state.",
+  "expected_output": "An OrdersViewModel is added that extends Android's ViewModel, holds the OrderRepository, and exposes UI state including a loading flag; OrdersScreen no longer references OrderRepository at all, instead obtaining its state from the ViewModel and rendering a loading indicator; nothing new lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "src/main/kotlin/**",
+      "pattern": "class\\s+\\w*ViewModel\\b",
+      "text": "A ViewModel class exists"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/main/kotlin/**",
+      "pattern": ":\\s*ViewModel\\(\\)",
+      "text": "The new class extends Android's ViewModel"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/ui/**",
+      "pattern": "OrderRepository",
+      "text": "The composable no longer references the repository type"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/ui/**",
+      "pattern": "(?i)isLoading|Loading",
+      "text": "The screen renders a loading state"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/ui/**",
+      "pattern": "ViewModel",
+      "text": "The screen obtains its state from a ViewModel"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}
