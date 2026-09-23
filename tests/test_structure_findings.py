@@ -60,6 +60,13 @@ class MisplacedTest(unittest.TestCase):
             "home_role": None, "suggestion": "src/guards/",
         }])
 
+    def test_feature_folders_are_not_told_to_move_to_a_distant_home(self):
+        files = [
+            file("src/app/users/user.guard.ts", None, [(sym("UserGuard", "class"), "guard")]),
+            file("src/app/core/guards/role.ts", "guard", [(sym("RoleGuard", "class"), "guard")]),
+        ]
+        self.assertEqual(findings.find_misplaced(files, GENERIC), [])
+
     def test_private_helpers_interfaces_and_tests_are_left_alone(self):
         files = [
             file("src/routes/users.ts", "route", [(sym("validate", exported=False), "middleware")]),

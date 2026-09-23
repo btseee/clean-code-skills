@@ -113,6 +113,17 @@ def _suggest(role: str, path: str, homes: dict, roles) -> Optional[str]:
     return f"a file matching {globs[0]}" if globs else None
 
 
+def _sibling_home(path: str, folders) -> Optional[str]:
+    """A home folder beside the file, as `src/guards/` is beside `src/guards.ts`.
+
+    A distant home is not evidence: feature folders keep a role's files together on
+    purpose, far from any shared folder for that role.
+    """
+    here = posixpath.dirname(path)
+    beside = [folder for folder in folders if posixpath.dirname(folder) == here]
+    return max(beside, key=lambda folder: folders[folder]) if beside else None
+
+
 def find_misplaced(files, roles) -> list:
     """Symbols whose role differs from where they live, with a suggested home."""
     homes = _home_folders(files)
@@ -136,10 +147,11 @@ def find_misplaced(files, roles) -> list:
         distinct = {item.role for item in bearing}
         if len(distinct) == 1:
             role = distinct.pop()
-            if role in homes:
+            sibling = _sibling_home(roled_file.path, homes.get(role, {}))
+            if sibling is not None:
                 found.append({
                     "path": roled_file.path, "line": 1, "symbol": None, "role": role,
-                    "home_role": None, "suggestion": _suggest(role, roled_file.path, homes, roles),
+                    "home_role": None, "suggestion": sibling + "/",
                 })
     return sorted(found, key=lambda item: (item["path"], item["line"]))
 
