@@ -117,7 +117,9 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
     if kind == "transcript_reads":
         if transcript is None:
             return None, "no transcript supplied"
-        hit = re.search(expectation["pattern"], _read(Path(transcript)))
+        # Windows paths appear as `a\\b` in a JSON transcript; patterns are written with `/`.
+        text = re.sub(r"\\+", "/", _read(Path(transcript)))
+        hit = re.search(expectation["pattern"], text)
         return bool(hit), hit.group(0) if hit else "not read"
     raise ValueError(f"unknown expectation type {kind!r}")
 

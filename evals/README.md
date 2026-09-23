@@ -29,7 +29,7 @@ the skill's own matcher: `**` spans folders, matching ignores case.
 | `no_new_files` | `glob` | no file matching the glob was added |
 | `map_finding_absent` | `kind`, optional `path` | `map_structure.py` reports no finding of that kind (mentioning the path) |
 | `boundaries_pass` | — | `check_boundaries.py` exits 0 |
-| `transcript_reads` | `pattern` | the run's transcript matches; skipped when there is none |
+| `transcript_reads` | `pattern` | the run's transcript matches, with backslashes read as `/`; skipped when there is none |
 
 `grade.py --self-test` rejects a case whose expectations all pass on the untouched fixture: such a
 case cannot tell a good run from a do-nothing run.

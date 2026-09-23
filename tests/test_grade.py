@@ -71,6 +71,13 @@ class GradeTest(unittest.TestCase):
                               encoding="utf-8")
         self.assertTrue(self.grade_one(expectation, transcript))
 
+    def test_transcript_reads_matches_windows_paths_in_a_json_transcript(self):
+        expectation = {"type": "transcript_reads", "pattern": r"frameworks/express\.md"}
+        transcript = self.workspace.parent / "transcript.jsonl"
+        transcript.write_bytes(
+            b'{"input": {"file_path": "D:\\\\skills\\\\references\\\\frameworks\\\\express.md"}}\n')
+        self.assertTrue(self.grade_one(expectation, transcript))
+
     def test_the_summary_counts_skips_apart(self):
         case = {"id": "demo", "pack": "core", "prompt": "p", "expected_output": "e", "expectations": [
             {"type": "file_exists", "glob": "src/app.js", "text": "a"},
