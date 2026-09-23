@@ -223,6 +223,12 @@ def export_evals(cases_dir: Path = CASES_DIR) -> dict:
     return {"skill_name": "clean-code", "evals": evals}
 
 
+def _write_lf(path: Path, text: str) -> None:
+    """Write with LF endings on every platform: the file may be committed."""
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def parse_arguments(argv) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Grade clean-code eval runs.")
     parser.add_argument("--case", help="case folder, evals/cases/<id>")
@@ -247,8 +253,7 @@ def main(argv=None) -> int:
         print(f"{count} case(s) checked, {len(problems)} problem(s)")
         return 1 if problems else 0
     if arguments.export_evals:
-        Path(arguments.export_evals).write_text(json.dumps(export_evals(), indent=2) + "\n",
-                                                encoding="utf-8")
+        _write_lf(Path(arguments.export_evals), json.dumps(export_evals(), indent=2) + "\n")
         return 0
     if not (arguments.case and arguments.workspace):
         print("error: --case and --workspace are required (or use --self-test)", file=sys.stderr)
@@ -256,7 +261,7 @@ def main(argv=None) -> int:
     result = json.dumps(grade(Path(arguments.case), Path(arguments.workspace), arguments.transcript),
                         indent=2)
     if arguments.output:
-        Path(arguments.output).write_text(result + "\n", encoding="utf-8")
+        _write_lf(Path(arguments.output), result + "\n")
     else:
         print(result)
     return 0
