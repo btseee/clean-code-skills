@@ -2,8 +2,9 @@
 """Detect a project's stack, layout, and verification commands.
 
 Answers the questions an agent must know before editing code it has never seen:
-which languages and frameworks are in play, where source and tests live, what
-command proves a change, and which directories look like architectural layers.
+which languages and frameworks are in play, which packs to read for them, where
+source and tests live, what command proves a change, and which directories look
+like architectural layers.
 
 Writes the result to .clean/context.json so a later session, or an agent with
 no memory of this one, can read the answers instead of re-deriving them.
@@ -24,6 +25,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple, Optional
 
 import project_files
 from project_files import TEST_DIR_NAMES, TEST_FILE_PATTERN, is_skippable
@@ -76,6 +78,7 @@ MANIFESTS = {
     "rebar.config": ("Erlang", "rebar3 eunit"),
     "Package.swift": ("Swift", "swift test"),
     "pubspec.yaml": ("Dart/Flutter", "dart test"),
+    "libs.versions.toml": ("Gradle version catalog", "gradle test"),
     "CMakeLists.txt": ("C/C++ (CMake)", "ctest"),
     "Makefile": ("Make", "make test"),
     "build.zig": ("Zig", "zig build test"),
@@ -100,21 +103,38 @@ MANIFEST_SUFFIXES = {
 # one table serves every ecosystem's manifest format.
 FRAMEWORK_SIGNATURES = [
     ("react", "React"), ("next", "Next.js"), ("vue", "Vue"), ("nuxt", "Nuxt"),
-    ("@angular/core", "Angular"), ("svelte", "Svelte"), ("solid-js", "SolidJS"),
+    ("@angular/core", "Angular"), ("svelte", "Svelte"), ("@sveltejs/kit", "SvelteKit"),
+    ("solid-js", "SolidJS"),
     ("express", "Express"), ("fastify", "Fastify"), ("nestjs", "NestJS"),
-    ("@nestjs/core", "NestJS"), ("hono", "Hono"),
+    ("@nestjs/core", "NestJS"), ("hono", "Hono"), ("@strapi/strapi", "Strapi"),
     ("django", "Django"), ("flask", "Flask"), ("fastapi", "FastAPI"),
     ("sqlalchemy", "SQLAlchemy"), ("pydantic", "Pydantic"), ("celery", "Celery"),
-    ("spring-boot", "Spring Boot"), ("quarkus", "Quarkus"), ("micronaut", "Micronaut"),
-    ("microsoft.aspnetcore", "ASP.NET Core"), ("microsoft.entityframeworkcore", "EF Core"),
+    ("spring-boot", "Spring Boot"), ("org.springframework", "Spring"),
+    ("quarkus", "Quarkus"), ("micronaut", "Micronaut"),
+    ("microsoft.aspnetcore", "ASP.NET Core"), ("microsoft.net.sdk.web", "ASP.NET Core"),
+    ("microsoft.entityframeworkcore", "EF Core"),
     ("akka", "Akka"), ("mediatr", "MediatR"), ("dapper", "Dapper"),
     ("rails", "Ruby on Rails"), ("sinatra", "Sinatra"),
     ("laravel", "Laravel"), ("symfony", "Symfony"),
-    ("gin-gonic", "Gin"), ("gofiber/fiber", "Fiber"), ("labstack/echo", "Echo"),
+    ("gin-gonic", "Gin"), ("beego", "Beego"), ("gofiber/fiber", "Fiber"),
+    ("labstack/echo", "Echo"),
     ("actix", "Actix"), ("axum", "Axum"), ("rocket", "Rocket"), ("tokio", "Tokio"),
     ("phoenix", "Phoenix"), ("flutter", "Flutter"),
+    ("androidx.compose", "Jetpack Compose"), ("io.ktor", "Ktor"), ("ktor-server", "Ktor"),
+    ("ktor.server", "Ktor"),
     ("tensorflow", "TensorFlow"), ("torch", "PyTorch"), ("pandas", "pandas"),
 ]
+
+# Frameworks that no manifest names: Apple's UI frameworks ship with the platform,
+# so only the sources' imports reveal them. (suffixes, pattern, label)
+SOURCE_FRAMEWORK_SIGNATURES = (
+    ((".swift",), re.compile(r"^[ \t]*import[ \t]+SwiftUI\b", re.M), "SwiftUI"),
+    ((".swift",), re.compile(r"^[ \t]*import[ \t]+UIKit\b", re.M), "UIKit"),
+    ((".m", ".mm", ".h"), re.compile(r"^[ \t]*(?:#import[ \t]*<UIKit/|@import[ \t]+UIKit\b)", re.M),
+     "UIKit"),
+)
+SOURCE_SCAN_FILES = 200
+SOURCE_SCAN_LINES = 60
 
 # Dependency name fragment -> test runner label.
 TEST_RUNNER_SIGNATURES = [
@@ -283,6 +303,101 @@ def scan_manifest_contents(root: Path, manifests: list) -> tuple:
         frameworks.update(match_signatures(text, FRAMEWORK_MATCHERS))
         test_runners.update(match_signatures(text, TEST_RUNNER_MATCHERS))
     return sorted(frameworks), sorted(test_runners)
+
+
+def scan_source_signatures(root: Path, relative_paths) -> list:
+    """Frameworks revealed only by imports in the sources, from a bounded sample."""
+    found = set()
+    for suffixes, pattern, label in SOURCE_FRAMEWORK_SIGNATURES:
+        candidates = [path for path in relative_paths if path.lower().endswith(suffixes)]
+        for relative in candidates[:SOURCE_SCAN_FILES]:
+            text = project_files.read_text(root / relative)
+            if text and pattern.search("\n".join(text.split("\n", SOURCE_SCAN_LINES)[:SOURCE_SCAN_LINES])):
+                found.add(label)
+                break
+    return sorted(found)
+
+
+# --- packs: which references/ files the detected stack needs -------------------------
+
+PACK_INDEX_PATH = Path(__file__).resolve().parent.parent / "references" / "framework-map.md"
+PACKS_BLOCK_PATTERN = re.compile(r"```clean-packs[ \t]*\n(.*?)```", re.DOTALL)
+PACK_LINE_PATTERN = re.compile(r"^(language|framework)[ \t]+(.+?)[ \t]*=[ \t]*(.+)$")
+SUPERSEDE_LINE_PATTERN = re.compile(r"^supersede[ \t]+(.+?)[ \t]*>[ \t]*(.+)$")
+# A language covering less than this share of the indexed files gets no pack of its
+# own: a few build scripts do not make a TypeScript project a Shell project.
+MINOR_LANGUAGE_SHARE = 0.10
+
+EMITTABLE_LANGUAGES = frozenset(LANGUAGE_BY_EXTENSION.values())
+EMITTABLE_FRAMEWORKS = frozenset(
+    [label for _, label in FRAMEWORK_SIGNATURES]
+    + [label for _, _, label in SOURCE_FRAMEWORK_SIGNATURES]
+)
+
+
+class PackIndex(NamedTuple):
+    languages: dict
+    frameworks: dict
+    supersedes: dict
+
+
+def _split_list(raw: str) -> list:
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def parse_pack_index(text: str) -> PackIndex:
+    """The clean-packs block in text; empty when there is none."""
+    index = PackIndex({}, {}, {})
+    match = PACKS_BLOCK_PATTERN.search(text)
+    if match is None:
+        return index
+    for raw in match.group(1).split("\n"):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        pack = PACK_LINE_PATTERN.match(line)
+        if pack:
+            kind, label, paths = pack.groups()
+            target = index.languages if kind == "language" else index.frameworks
+            target[label.strip()] = _split_list(paths)
+            continue
+        supersede = SUPERSEDE_LINE_PATTERN.match(line)
+        if supersede:
+            index.supersedes.setdefault(supersede.group(1).strip(), set()).update(
+                _split_list(supersede.group(2)))
+            continue
+        raise ValueError(f"pack index: cannot parse {line!r}")
+    return index
+
+
+def load_pack_index(path: Path = None) -> Optional[PackIndex]:
+    path = path or PACK_INDEX_PATH
+    if not path.is_file():
+        return None
+    return parse_pack_index(read_text_safely(path, limit=1_000_000))
+
+
+def select_packs(languages: dict, frameworks, index: PackIndex) -> list:
+    """Pack paths for a stack: its main languages, then its frameworks, each once."""
+    indexed = [(label, count) for label, count in languages.items() if label in index.languages]
+    chosen = []
+    if indexed:
+        total = sum(count for _, count in indexed)
+        top = max(indexed, key=lambda item: item[1])[0]
+        chosen = [label for label, count in indexed
+                  if label == top or count / total >= MINOR_LANGUAGE_SHARE]
+    dropped = set()
+    for framework in frameworks:
+        dropped |= index.supersedes.get(framework, set())
+    paths = [path for label in chosen for path in index.languages[label]]
+    paths += [path for framework in frameworks
+              if framework in index.frameworks and framework not in dropped
+              for path in index.frameworks[framework]]
+    unique = []
+    for path in paths:
+        if path not in unique:
+            unique.append(path)
+    return ["references/" + path for path in unique]
 
 
 MAX_DEPENDENCIES = 120
@@ -591,7 +706,9 @@ def build_context(root: Path) -> dict:
     languages = count_languages(files)
     manifests = find_manifests(root, files)
     frameworks, test_runners = scan_manifest_contents(root, manifests)
+    frameworks = sorted(set(frameworks) | set(scan_source_signatures(root, walk.paths)))
     tests = find_test_locations(files)
+    pack_index = load_pack_index()
 
     primary_language = next(iter(languages), None)
     verify_commands = []
@@ -600,7 +717,7 @@ def build_context(root: Path) -> dict:
         if command not in verify_commands:
             verify_commands.append(command)
 
-    return {
+    context = {
         "schema_version": SCHEMA_VERSION,
         "generated_by": "clean-code skill / detect_stack.py",
         "root": str(root),
@@ -610,6 +727,7 @@ def build_context(root: Path) -> dict:
         "ecosystems": sorted({item["ecosystem"] for item in manifests}),
         "manifests": manifests[:25],
         "frameworks": frameworks,
+        "packs": select_packs(languages, frameworks, pack_index) if pack_index else [],
         "test_runners": test_runners,
         "tests": tests,
         "dependencies": parse_dependencies(root, manifests),
@@ -622,11 +740,20 @@ def build_context(root: Path) -> dict:
         "files_scanned": len(files),
         "scan_truncated": walk.truncated,
     }
+    if pack_index is None:
+        context["packs_note"] = ("pack index not found (references/framework-map.md); "
+                                 "look the stack up there by hand")
+    return context
 
 
 def format_mapping(mapping: dict, limit: int) -> str:
     items = list(mapping.items())[:limit]
     return ", ".join(f"{key} ({value})" for key, value in items) or "none detected"
+
+
+def _no_packs(context: dict) -> str:
+    return context.get("packs_note") or ("no pack for this stack; use the adaptation questions "
+                                         "in references/framework-map.md")
 
 
 def render_summary(context: dict) -> str:
@@ -637,6 +764,7 @@ def render_summary(context: dict) -> str:
         f"  Languages        : {format_mapping(context['languages'], 6)}",
         f"  Ecosystems       : {', '.join(context['ecosystems']) or 'none detected'}",
         f"  Frameworks       : {', '.join(context['frameworks']) or 'none detected'}",
+        f"  Read next        : {', '.join(context['packs']) or _no_packs(context)}",
         f"  Test runners     : {', '.join(context['test_runners']) or 'none detected'}",
         f"  Test files       : {context['tests']['test_file_count']}",
         f"  Source roots     : {', '.join(context['source_roots']) or 'repository root'}",
