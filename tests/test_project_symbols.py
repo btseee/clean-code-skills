@@ -533,6 +533,95 @@ class CFamilyTest(unittest.TestCase):
                          {"OrderService"})
 
 
+class RubyTest(unittest.TestCase):
+    def test_classes_modules_methods_and_docs(self):
+        result = extract("order_service.rb", """
+            # frozen_string_literal: true
+
+            # Places orders.
+            class OrderService < BaseService
+              def call(order)
+                save(order)
+              end
+            end
+            module Billing
+              def self.charge; end
+            end
+            """)
+        symbols = by_name(result)
+        self.assertEqual(result.purpose, "")
+        self.assertEqual(symbols["OrderService"].kind, "class")
+        self.assertIn("< BaseService", symbols["OrderService"].context)
+        self.assertEqual(symbols["OrderService"].doc, "Places orders.")
+        self.assertEqual(symbols["OrderService"].end_line, 8)
+        self.assertEqual(symbols["call"].parent, "OrderService")
+        self.assertEqual(symbols["Billing"].kind, "module")
+        self.assertEqual((symbols["charge"].parent, symbols["charge"].end_line), ("Billing", 10))
+
+    def test_classes_inside_namespacing_modules_are_top_level(self):
+        symbols = by_name(extract("users_controller.rb", """
+            module Admin
+              class UsersController < ApplicationController
+                def index
+                  @users = User.all
+                end
+              end
+            end
+            """))
+        self.assertIsNone(symbols["UsersController"].parent)
+        self.assertEqual(symbols["index"].parent, "UsersController")
+
+
+class ScriptTest(unittest.TestCase):
+    def test_shell_functions_and_heredocs(self):
+        symbols = by_name(extract("deploy.sh", """
+            #!/usr/bin/env bash
+            # Deploys the app.
+            log() {
+              echo "$1" >&2
+            }
+            function main {
+              cat <<EOF
+            }
+            EOF
+              log hi
+            }
+            """))
+        self.assertEqual(symbols["log"].kind, "function")
+        self.assertEqual(symbols["main"].end_line, 11)
+
+    def test_powershell_functions_help_and_classes(self):
+        symbols = by_name(extract("Tools.psm1", """
+            function Get-Thing {
+              <#
+              .SYNOPSIS
+              Returns things.
+              #>
+              [CmdletBinding()] param()
+            }
+            class Cache {
+              [string] Get([string]$k) { return $k }
+            }
+            """))
+        self.assertEqual(symbols["Get-Thing"].doc, "Returns things.")
+        self.assertEqual(symbols["Cache"].kind, "class")
+        self.assertEqual(symbols["Get"].parent, "Cache")
+
+    def test_r_functions_roxygen_and_classes(self):
+        symbols = by_name(extract("clean.R", """
+            #' Clean the data.
+            #' @param df a frame
+            clean_data <- function(df) {
+              df
+            }
+            .hidden <- function() NULL
+            setClass("Person", representation(name = "character"))
+            """))
+        self.assertEqual(symbols["clean_data"].doc, "Clean the data.")
+        self.assertFalse(symbols[".hidden"].exported)
+        self.assertEqual(symbols["Person"].kind, "class")
+
+
 class DispatchTest(unittest.TestCase):
     def test_unknown_extensions_are_not_extracted(self):
         self.assertIsNone(project_symbols.extract("notes.txt", "hello"))

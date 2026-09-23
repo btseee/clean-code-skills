@@ -552,3 +552,95 @@ OBJC = Grammar(
     abstract=lambda match, kind, body: kind == "protocol",
     regions=_objc_regions,
 )
+
+
+# --- Shell, PowerShell, R ------------------------------------------------------------------
+
+SHELL = Grammar(
+    language="shell",
+    lexer="shell",
+    types=(),
+    functions=(
+        _pattern(r"^[ \t]*(?:function[ \t]+)?(?P<name>[A-Za-z_][\w:.-]*)[ \t]*\(\)", "function"),
+        _pattern(r"^[ \t]*function[ \t]+(?P<name>[A-Za-z_][\w:.-]*)[ \t]*(?=\{|$)", "function"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=(),
+    doc_markers=HASH_DOC,
+    keywords=frozenset({"if", "then", "else", "elif", "fi", "for", "while", "until", "do",
+                        "done", "case", "esac", "function", "select", "time"}),
+    exported=lambda match, name, kind, member: True,
+    abstract=lambda match, kind, body: False,
+)
+
+_SYNOPSIS = re.compile(r"^\s*\.SYNOPSIS\s*$", re.I)
+
+
+def _powershell_finish(symbols, source):
+    """Comment-based help: the line after `.SYNOPSIS`, inside or just above a function."""
+    lines = source.raw_lines
+    documented = []
+    for symbol in symbols:
+        if symbol.doc or symbol.kind not in {"function", "method"}:
+            documented.append(symbol)
+            continue
+        doc = ""
+        for index in range(max(0, symbol.line - 15), min(symbol.end_line, len(lines))):
+            if _SYNOPSIS.match(lines[index]):
+                for follow in lines[index + 1:index + 6]:
+                    text = follow.strip()
+                    if text and not text.startswith((".", "#>")):
+                        doc = symbol_model.first_sentence(text)
+                        break
+                break
+        documented.append(symbol._replace(doc=doc))
+    return documented
+
+
+POWERSHELL = Grammar(
+    language="powershell",
+    lexer="powershell",
+    types=(
+        _pattern(rf"^[ \t]*(?i:(?P<kind>class|enum))[ \t]+(?P<name>{_WORD})", "class",
+                 container=True),
+    ),
+    functions=(
+        _pattern(r"^[ \t]*(?i:function|filter|workflow)[ \t]+(?:(?i:global|script|private):)?"
+                 r"(?P<name>[A-Za-z_][\w-]*)", "function"),
+    ),
+    members=(
+        _pattern(rf"^[ \t]*(?:(?i:hidden|static)[ \t]+)*(?:\[[^\]\n]+\][ \t]*)?(?P<name>{_WORD})"
+                 rf"[ \t]*\(", "method"),
+    ),
+    transparent=None,
+    decorators=("[",),
+    doc_markers=HASH_DOC,
+    keywords=frozenset({"if", "else", "elseif", "foreach", "for", "while", "switch", "return",
+                        "param", "begin", "process", "end", "try", "catch", "finally",
+                        "trap", "throw", "do", "until"}),
+    exported=lambda match, name, kind, member: True,
+    abstract=lambda match, kind, body: False,
+    finish=_powershell_finish,
+)
+
+R = Grammar(
+    language="r",
+    lexer="r",
+    types=(
+        _pattern(r"""^[ \t]*(?:[\w.]+[ \t]*(?:<-|=)[ \t]*)?(?:methods::)?set(?:Ref)?Class\([ \t]*"""
+                 r"""["'](?P<name>[\w.]+)["']""", "class", on_raw=True),
+        _pattern(r"^[ \t]*(?P<name>[\w.]+)[ \t]*(?:<-|=)[ \t]*(?:R6::)?R6Class\(", "class"),
+    ),
+    functions=(
+        _pattern(r"^[ \t]*(?P<name>[A-Za-z.][\w.]*)[ \t]*(?:<-|=)[ \t]*function[ \t]*\(",
+                 "function"),
+    ),
+    members=(),
+    transparent=None,
+    decorators=(),
+    doc_markers=HASH_DOC,
+    keywords=frozenset({"if", "else", "for", "while", "repeat", "function", "return"}),
+    exported=lambda match, name, kind, member: not name.startswith("."),
+    abstract=lambda match, kind, body: False,
+)

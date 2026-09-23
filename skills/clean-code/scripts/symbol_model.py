@@ -22,6 +22,11 @@ MIN_FINGERPRINT_LINES = 5
 
 LICENSE_WORDS = re.compile(r"copyright|licen[cs]e|spdx|all rights reserved", re.IGNORECASE)
 
+# Tool directives that sit where a file description would: not a purpose.
+MAGIC_COMMENT = re.compile(
+    r"^(?:frozen_string_literal|encoding|coding|typed|warn_indent|shellcheck|eslint|prettier|"
+    r"@ts-|-\*-|#region|region\b|pylint|mypy|noqa|type:)", re.IGNORECASE)
+
 
 class Symbol(NamedTuple):
     """One declaration: where it is, what it is, and what it is for."""
@@ -132,7 +137,7 @@ def file_purpose(raw_lines: list, markers: tuple) -> str:
         return ""
     stands_apart = cursor >= len(raw_lines) or not raw_lines[cursor].strip()
     text = comment_text(block)
-    if not stands_apart or LICENSE_WORDS.search(text):
+    if not stands_apart or LICENSE_WORDS.search(text) or MAGIC_COMMENT.match(text):
         return ""
     return first_sentence(text)
 

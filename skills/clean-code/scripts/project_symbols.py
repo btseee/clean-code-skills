@@ -16,6 +16,7 @@ from typing import Optional
 import brace_grammars
 import symbols_braces
 import symbols_python
+import symbols_ruby
 from symbol_model import FileSymbols, Symbol  # noqa: F401  (re-exported for callers)
 
 LANGUAGE_BY_SUFFIX = {
@@ -28,6 +29,8 @@ LANGUAGE_BY_SUFFIX = {
     ".go": "go", ".rs": "rust", ".swift": "swift",
     ".c": "c", ".h": "cpp", ".cc": "cpp", ".cpp": "cpp", ".cxx": "cpp", ".hpp": "cpp",
     ".hh": "cpp", ".m": "objc", ".mm": "objc",
+    ".rb": "ruby", ".sh": "shell", ".bash": "shell", ".zsh": "shell",
+    ".ps1": "powershell", ".psm1": "powershell", ".r": "r",
 }
 
 SUPPORTED_SUFFIXES = frozenset(LANGUAGE_BY_SUFFIX)
@@ -47,6 +50,9 @@ _BRACE_GRAMMARS = {
     "c": brace_grammars.C,
     "cpp": brace_grammars.CPP,
     "objc": brace_grammars.OBJC,
+    "shell": brace_grammars.SHELL,
+    "powershell": brace_grammars.POWERSHELL,
+    "r": brace_grammars.R,
 }
 
 
@@ -62,6 +68,8 @@ def extract(path: str, text: str) -> Optional[FileSymbols]:
         return None
     if language == "python":
         return symbols_python.extract(path, text)
+    if language == "ruby":
+        return symbols_ruby.extract(path, text)
     if language in {"vue", "svelte"}:
         return brace_grammars.extract_component(path, text, language)
     return symbols_braces.extract(_BRACE_GRAMMARS[language], path, text)
