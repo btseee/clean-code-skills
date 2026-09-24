@@ -1,4 +1,5 @@
 import textwrap
+import time
 import unittest
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
@@ -508,6 +509,46 @@ class CFamilyTest(unittest.TestCase):
             """)
         self.assertEqual(result.symbols, [])
 
+    def test_attribute_lines_are_not_functions(self):
+        source = """
+            __attribute__((noinline))
+            static int parse_header(const char *buf, size_t len)
+            {
+                return 0;
+            }
+
+            __declspec(dllexport)
+            int compute_checksum(const unsigned char *data, int n)
+            {
+                return n;
+            }
+
+            __attribute__((unused)) static void trace(void) {
+            }
+            """
+        for path in ("parse.c", "parse.cpp"):
+            with self.subTest(path=path):
+                symbols = by_name(extract(path, source))
+                self.assertEqual(sorted(symbols), ["compute_checksum", "parse_header", "trace"])
+                self.assertEqual((symbols["parse_header"].line, symbols["parse_header"].end_line),
+                                 (2, 5))
+                self.assertFalse(symbols["parse_header"].exported)
+                self.assertTrue(symbols["compute_checksum"].exported)
+                self.assertFalse(symbols["trace"].exported)
+
+    def test_cpp_constructors_with_initializer_lists(self):
+        result = extract("point.cpp", """
+            Point::Point(int x, int y)
+                : x_(x),
+                  y_{y}
+            {
+            }
+
+            Point::Point(const Point& other) : x_(std::move(other.x_)), y_(other.y_) {}
+            """)
+        self.assertEqual([(s.name, s.parent, s.line, s.end_line) for s in result.symbols],
+                         [("Point", "Point", 1, 5), ("Point", "Point", 7, 7)])
+
     def test_cpp_classes_namespaces_and_qualified_methods(self):
         result = extract("shape.cpp", """
             namespace geo {
@@ -627,6 +668,48 @@ class ScriptTest(unittest.TestCase):
         self.assertEqual(symbols["clean_data"].doc, "Clean the data.")
         self.assertFalse(symbols[".hidden"].exported)
         self.assertEqual(symbols["Person"].kind, "class")
+
+
+class LinearTimeTest(unittest.TestCase):
+    """Declaration patterns run over every line, so none may backtrack superlinearly.
+
+    The bound is generous so a slow runner never flakes: each input took seconds, some
+    minutes, while a pattern could split one run of spaces or parentheses many ways.
+    """
+
+    def extract_quickly(self, path, text):
+        start = time.perf_counter()
+        result = project_symbols.extract(path, text)
+        self.assertLess(time.perf_counter() - start, 1.0, f"{path} took too long")
+        return result
+
+    def test_an_asset_inlined_in_a_template_literal(self):
+        # The lexer blanks the literal, which leaves one long line of spaces.
+        asset = "iVBORw0KGgoAAAANSUhEUgAA" * 850
+        result = self.extract_quickly("src/assets/logo.ts", "export const logo = `\n" + asset +
+                                      "\n`;\n\nexport function useLogo() {\n  return logo;\n}\n")
+        self.assertEqual([symbol.name for symbol in result.symbols], ["useLogo"])
+
+    def test_long_runs_after_a_keyword_or_a_name(self):
+        blank = " " * 20000
+        cases = [
+            ("src/a.ts", f"function{blank}\n  handler{blank}\nmodule.exports = function{blank}\n"),
+            ("src/a.php", f"<?php\nfunction {blank}\n"),
+            ("src/a.go", f"package a\nfunc ({blank}\n"),
+            ("src/a.rs", f"impl{blank[:2000]}\n"),
+            ("src/A.kt", f"fun{blank}{blank}x\n"),
+            ("src/A.java", "class A {\n  A" + "b" * 20000 + "\n}\n"),
+            ("src/A.cs", "class A {\n  A" + "b" * 20000 + "\n}\n"),
+            ("src/a.cpp", f"namespace{blank}{blank}\nFoo::bar(x){blank}{blank}\n"),
+        ]
+        for path, text in cases:
+            with self.subTest(path=path):
+                self.extract_quickly(path, text)
+
+    def test_a_macro_table_without_a_body(self):
+        table = "".join(f'ERROR_CODE(E_{n}, {n}, "message {n}")\n' for n in range(1000))
+        self.assertEqual(self.extract_quickly("src/errors.h", table).symbols, [])
+        self.assertEqual(self.extract_quickly("src/errors.c", table * 5).symbols, [])
 
 
 class DispatchTest(unittest.TestCase):

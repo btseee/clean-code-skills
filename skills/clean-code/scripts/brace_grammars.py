@@ -109,10 +109,14 @@ def _js_grammar(language: str) -> Grammar:
                 rf"^[ \t]*(?P<mods>(?:export[ \t]+)?(?:declare[ \t]+)?(?:const[ \t]+)?)enum[ \t]+"
                 rf"(?P<name>{_JS_IDENT})", re.M), "enum"),
         ),
+        # No two runs of spaces may meet with only optional parts between them: the lexer
+        # blanks comments and strings into long space runs, and every split of such a run
+        # between two `[ \t]*` is a way to backtrack. So `(?:[ \t]*\*)?[ \t]*`, never
+        # `[ \t]*\*?[ \t]*`.
         functions=(
             Pattern(re.compile(
                 rf"^[ \t]*(?P<mods>(?:export[ \t]+)?(?:default[ \t]+)?(?:async[ \t]+)?)function"
-                rf"[ \t]*\*?[ \t]*(?P<name>{_JS_IDENT})[ \t]*[<(]", re.M), "function"),
+                rf"(?:[ \t]*\*)?[ \t]*(?P<name>{_JS_IDENT})[ \t]*[<(]", re.M), "function"),
             Pattern(re.compile(
                 rf"^[ \t]*(?P<mods>(?:export[ \t]+)?)(?:const|let|var)[ \t]+(?P<name>{_JS_IDENT})"
                 rf"[ \t]*(?::[^=\n]+)?=[ \t]*(?:async[ \t]+)?"
@@ -123,17 +127,17 @@ def _js_grammar(language: str) -> Grammar:
                 rf"(?:async[ \t]+)?(?P<start>function\b|\(|{_JS_IDENT}[ \t]*=>)", re.M),
                 "function", confirm=_arrow_or_function),
             Pattern(re.compile(
-                rf"^[ \t]*(?P<cjs>module\.exports)[ \t]*=[ \t]*(?:async[ \t]+)?function[ \t]*\*?"
-                rf"[ \t]*(?P<name>{_JS_IDENT})", re.M), "function"),
+                rf"^[ \t]*(?P<cjs>module\.exports)[ \t]*=[ \t]*(?:async[ \t]+)?function"
+                rf"(?:[ \t]*\*)?[ \t]*(?P<name>{_JS_IDENT})", re.M), "function"),
         ),
         members=(
             Pattern(re.compile(
                 rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|static|async|readonly|override|"
-                rf"abstract|declare|get|set|accessor)[ \t]+)*)\*?[ \t]*(?P<name>#?{_JS_IDENT})"
-                rf"[ \t]*(?:<[^>\n]*>)?[ \t]*\(", re.M), "method"),
+                rf"abstract|declare|get|set|accessor)[ \t]+)*)(?:\*[ \t]*)?(?P<name>#?{_JS_IDENT})"
+                rf"(?:[ \t]*<[^>\n]*>)?[ \t]*\(", re.M), "method"),
             Pattern(re.compile(
                 rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|static|readonly|override)[ \t]+)*)"
-                rf"(?P<name>#?{_JS_IDENT})[ \t]*[?!]?[ \t]*(?::[^=\n]+)?=[ \t]*(?:async[ \t]+)?"
+                rf"(?P<name>#?{_JS_IDENT})(?:[ \t]*[?!])?[ \t]*(?::[^=\n]+)?=[ \t]*(?:async[ \t]+)?"
                 rf"(?P<start>function\b|\(|{_JS_IDENT}[ \t]*=>)", re.M), "method",
                 confirm=_arrow_or_function),
         ),
@@ -208,6 +212,10 @@ if for while switch catch return new throw else do try synchronized assert super
 when is in as typeof yield await
 """.split())
 
+# A capitalized name with a lowercase letter after the first. The lookahead checks for
+# the lowercase letter once; `[A-Z]\w*[a-z]\w*` tried every split of a long name.
+_CONSTRUCTOR_NAME = r"[A-Z](?=\w*[a-z])\w*"
+
 JAVA = Grammar(
     language="java",
     lexer="java",
@@ -221,8 +229,8 @@ JAVA = Grammar(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|abstract|final|static|"
                  rf"synchronized|native|default|strictfp)[ \t]+)*)(?:<[^>\n]+>[ \t]+)?"
                  rf"{_TYPE}[ \t]+(?P<name>[a-zA-Z_]\w*)[ \t]*\(", "method"),
-        _pattern(r"^[ \t]*(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
-                 r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
+                 rf"(?P<name>{_CONSTRUCTOR_NAME})[ \t]*\(", "method"),
     ),
     transparent=None,
     decorators=("@",),
@@ -245,7 +253,7 @@ KOTLIN = Grammar(
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|internal|protected|open|abstract|override|"
                  rf"suspend|inline|operator|infix|tailrec|external|actual|expect|final)[ \t]+)*)"
-                 rf"fun[ \t]+(?:<[^>\n]+>[ \t]*)?(?:[\w.<>?, ]+\.)?(?P<name>{_WORD})[ \t]*\(",
+                 rf"fun[ \t]+(?:<[^>\n]+>[ \t]*)?(?:[\w<>?][\w.<>?, ]*\.)?(?P<name>{_WORD})[ \t]*\(",
                  "function"),
     ),
     members=(),
@@ -293,10 +301,10 @@ CSHARP = Grammar(
     members=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static|virtual|override|"
                  rf"abstract|sealed|async|extern|unsafe|new|partial|readonly)[ \t]+)*)"
-                 rf"{_TYPE}[ \t]+(?P<name>{_WORD})[ \t]*(?:<[^>\n]*>)?[ \t]*\(",
+                 rf"{_TYPE}[ \t]+(?P<name>{_WORD})(?:[ \t]*<[^>\n]*>)?[ \t]*\(",
                  "method"),
-        _pattern(r"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static)[ \t]+)*)"
-                 r"(?P<name>[A-Z]\w*[a-z]\w*)[ \t]*\(", "method"),
+        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static)[ \t]+)*)"
+                 rf"(?P<name>{_CONSTRUCTOR_NAME})[ \t]*\(", "method"),
     ),
     transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w.]+[ \t\r\n]*\{", re.M),
     decorators=("[",),
@@ -318,7 +326,7 @@ PHP = Grammar(
     ),
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|static|abstract|final)[ \t]+)*)"
-                 rf"function[ \t]+&?[ \t]*(?P<name>{_WORD})[ \t]*\(", "function"),
+                 rf"function[ \t]+(?:&[ \t]*)?(?P<name>{_WORD})[ \t]*\(", "function"),
     ),
     members=(),
     transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w\]+[ \t\r\n]*\{", re.M),
@@ -342,7 +350,7 @@ DART = Grammar(
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:static|external|factory|abstract|const|late|covariant)"
                  rf"[ \t]+)*)(?:{_TYPE}[ \t]+)?(?P<name>{_WORD})"
-                 rf"(?:\.{_WORD})?[ \t]*(?:<[^>\n]*>)?[ \t]*\(", "function"),
+                 rf"(?:\.{_WORD})?(?:[ \t]*<[^>\n]*>)?[ \t]*\(", "function"),
     ),
     members=(),
     transparent=None,
@@ -381,8 +389,8 @@ GO = Grammar(
     ),
     functions=(
         _pattern(rf"^func[ \t]+(?P<name>{_WORD})[ \t]*[\[(]", "function"),
-        _pattern(rf"^func[ \t]*\([ \t]*(?:\w+[ \t]+)?\*?[ \t]*(?P<parent>{_WORD})(?:\[[^\]\n]*\])?"
-                 rf"[ \t]*\)[ \t]*(?P<name>{_WORD})[ \t]*[\[(]", "method"),
+        _pattern(rf"^func[ \t]*\([ \t]*(?:\w+[ \t]+)?(?:\*[ \t]*)?(?P<parent>{_WORD})"
+                 rf"(?:\[[^\]\n]*\])?[ \t]*\)[ \t]*(?P<name>{_WORD})[ \t]*[\[(]", "method"),
     ),
     members=(),
     transparent=None,
@@ -396,6 +404,9 @@ GO = Grammar(
 )
 
 _RUST_VISIBILITY = r"(?:pub(?:\([^)\n]*\))?[ \t]+)?"
+# One word of an impl header, such as `fmt::Display` or `Vec<T>`. Words are separated by
+# spaces, never contain them, so a header splits only one way.
+_RUST_HEADER_WORD = r"[\w:<>,]+"
 
 RUST = Grammar(
     language="rust",
@@ -405,8 +416,8 @@ RUST = Grammar(
                  rf"(?P<kind>struct|enum|trait|union|type)[ \t]+(?P<name>{_WORD})", "struct",
                  container=True),
         _pattern(rf"^[ \t]*(?:unsafe[ \t]+)?impl(?:[ \t]*<[^>\n]*>)?[ \t]+"
-                 rf"(?:[\w:<>, ]+?[ \t]+for[ \t]+)?(?P<name>{_WORD})", "struct",
-                 container=True, emit=False),
+                 rf"(?:{_RUST_HEADER_WORD}(?:[ \t]+{_RUST_HEADER_WORD})*?[ \t]+for[ \t]+)?"
+                 rf"(?P<name>{_WORD})", "struct", container=True, emit=False),
     ),
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>{_RUST_VISIBILITY}(?:(?:const|async|unsafe|extern"
@@ -458,13 +469,49 @@ _C_KEYWORDS = frozenset({"if", "for", "while", "switch", "return", "sizeof", "el
                          "case", "typedef", "struct", "union", "enum", "defined", "catch",
                          "alignof", "decltype", "static_assert", "operator", "new", "delete"})
 _C_RETURN_TYPE = r"(?:[A-Za-z_][\w:]*(?:<[^;{}()\n]*?>)?[\s\*&]+)*"
+# A parenthesised list, nested up to three deep, which may hold `{...}` (a default `= {}`,
+# an initializer `x_({n})`). It is balanced, so it matches one way only: `\([^;{}]*\)`
+# could end at any `)`, and in a run of macro calls the engine tried each one --
+# quadratic, cubic with a qualifier part after it. It also let `__attribute__((noinline))`
+# swallow the definition on the next line.
+_C_ATOM = r"(?:[^;{}()]|\{[^;{}()]*\})"
+_C_PARAMS = rf"\((?:{_C_ATOM}|\((?:{_C_ATOM}|\({_C_ATOM}*\))*\))*\)"
+_C_ATTRIBUTE = (r"(?:__attribute__[ \t]*\(\((?:[^()\n]|\([^()\n]*\))*\)\)|__declspec[ \t]*\([^()\n]*\)"
+                r"|\[\[[^\]\n]*\]\])")
+_C_DECORATORS = ("__attribute__", "__declspec", "[[")
 _C_TYPE = _pattern(rf"^[ \t]*(?:typedef[ \t]+)?(?P<kind>struct|union|enum)[ \t]+(?P<name>{_WORD})"
                    rf"(?=[ \t\r\n]*\{{)", "struct")
 _C_FUNCTION = _pattern(
-    rf"^(?P<mods>(?:(?:static|inline|extern|const|unsigned|signed|volatile|register)[ \t]+)*)"
-    rf"{_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*\([^;{{}}]*\)(?=[ \t\r\n]*\{{)", "function",
+    rf"^(?P<mods>(?:(?:static|inline|extern|const|unsigned|signed|volatile|register|{_C_ATTRIBUTE})"
+    rf"[ \t]+)*){_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*{_C_PARAMS}(?=[ \t\r\n]*\{{)", "function",
     require_body=True)
 _EXTERN_C = r'extern[ \t]+"[^"\n]*"'
+
+# Between a C++ parameter list and its body: `const`, `noexcept(false)`, `-> decltype(x)`,
+# and a constructor's initializers `: x_(x), y_{y}`. It continues onto indented lines only,
+# so a run of column-0 macro calls never reads as one declaration. Spaces are matched one
+# at a time, never as a run, so no run of them can be split two ways.
+_CPP_GAP = r"(?:[ \t]|\r?\n(?=[ \t]))*"
+_CPP_BRACED = r"\{(?:[^;{}]|\{[^;{}]*\})*\}"
+_CPP_TRAILER = rf"(?:{_CPP_GAP}(?:[^;{{}}()\s]|{_C_PARAMS}|{_CPP_BRACED}))*?"
+# A free function takes a parenthesised part only after its keyword, so the `MACRO(x)` in
+# `MACRO(x) f(y) {` is not read as a function whose qualifiers are `f(y)`.
+_CPP_KEYWORD_ARGS = rf"(?:noexcept|throw|decltype|requires|__attribute__)[ \t]*{_C_PARAMS}"
+_CPP_FREE_TRAILER = rf"(?:{_CPP_GAP}(?:::|{_CPP_KEYWORD_ARGS}|[^;{{}}():\s]))*?"
+# The body's `{`, not an initializer's: `y_{y}` touches a name.
+_CPP_BODY = r"(?:(?<!\w)|(?=\s))(?=\s*\{)"
+# The initializers of a constructor declared in its class, which the member pattern
+# consumes so that `x_(x),` on a later line is not read as a method.
+_CPP_INITIALIZER = rf"[\w:]+(?:<[^;{{}}()\n]*>)?(?:{_C_PARAMS}|{_CPP_BRACED})"
+_CPP_INITIALIZERS = (rf"(?:{_CPP_GAP}:{_CPP_GAP}{_CPP_INITIALIZER}"
+                     rf"(?:{_CPP_GAP},{_CPP_GAP}{_CPP_INITIALIZER})*)?")
+_LIST_CONTINUES = re.compile(r"(?:,|\)\s*:)\s*$")
+
+
+def _starts_declaration(source, match) -> bool:
+    """False for a line that continues a list, as an unparsed `x_(x),` initializer does."""
+    line_start = source.code.rfind("\n", 0, match.start("name")) + 1
+    return not _LIST_CONTINUES.search(source.code, max(0, line_start - 200), line_start)
 
 
 def _c_exported(match, name, kind, member) -> bool:
@@ -478,7 +525,7 @@ C = Grammar(
     functions=(_C_FUNCTION,),
     members=(),
     transparent=re.compile(rf"^[ \t]*{_EXTERN_C}[ \t\r\n]*\{{", re.M),
-    decorators=(),
+    decorators=_C_DECORATORS,
     doc_markers=C_DOC,
     keywords=_C_KEYWORDS,
     exported=_c_exported,
@@ -492,27 +539,27 @@ CPP = Grammar(
     lexer="cpp",
     types=(
         _pattern(rf"^[ \t]*(?:template[ \t]*<[^>\n]*>[ \t\r\n]*)?(?P<kind>class|struct|union)"
-                 rf"[ \t]+(?:alignas\([^)\n]*\)[ \t]+)?(?P<name>{_WORD})(?:[ \t]+final)?[ \t]*"
-                 rf"(?::[^;{{]*)?(?=[ \t\r\n]*\{{)", "class", container=True),
-        _pattern(rf"^[ \t]*enum[ \t]+(?:class[ \t]+|struct[ \t]+)?(?P<name>{_WORD})[^;{{\n]*"
-                 rf"(?=[ \t\r\n]*\{{)", "enum"),
+                 rf"[ \t]+(?:alignas\([^)\n]*\)[ \t]+)?(?P<name>{_WORD})(?:[ \t]+final)?"
+                 rf"(?:[ \t]*:(?:[ \t\r\n]*[^;{{\s])*)?(?=[ \t\r\n]*\{{)", "class", container=True),
+        _pattern(rf"^[ \t]*enum[ \t]+(?:class[ \t]+|struct[ \t]+)?(?P<name>{_WORD})"
+                 rf"(?:[ \t]*[^;{{\s])*(?=[ \t\r\n]*\{{)", "enum"),
     ),
     functions=(
-        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|virtual)[ \t]+)*)"
-                 rf"{_C_RETURN_TYPE}(?P<parent>{_WORD})(?:<[^>\n]*>)?::(?P<name>~?{_WORD})"
-                 rf"[ \t]*\([^;{{}}]*\)[^;{{}}]*?(?=[ \t\r\n]*\{{)", "method", require_body=True),
-        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval)[ \t]+)*)"
-                 rf"{_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*\([^;{{}}]*\)[^;{{}}:]*?"
+        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|virtual|{_C_ATTRIBUTE})"
+                 rf"[ \t]+)*){_C_RETURN_TYPE}(?P<parent>{_WORD})(?:<[^>\n]*>)?::(?P<name>~?{_WORD})"
+                 rf"[ \t]*{_C_PARAMS}{_CPP_TRAILER}{_CPP_BODY}", "method", require_body=True),
+        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|{_C_ATTRIBUTE})"
+                 rf"[ \t]+)*){_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*{_C_PARAMS}{_CPP_FREE_TRAILER}"
                  rf"(?=[ \t\r\n]*\{{)", "function", require_body=True),
     ),
     members=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:virtual|static|inline|explicit|constexpr|consteval|"
-                 rf"friend)[ \t]+)*){_C_RETURN_TYPE}(?P<name>~?{_WORD})[ \t]*\([^;{{}}]*\)",
-                 "method"),
+                 rf"friend)[ \t]+)*){_C_RETURN_TYPE}(?P<name>~?{_WORD})[ \t]*{_C_PARAMS}"
+                 rf"{_CPP_INITIALIZERS}", "method", confirm=_starts_declaration),
     ),
-    transparent=re.compile(rf"^[ \t]*(?:(?:inline[ \t]+)?namespace[ \t]*[\w:]*|{_EXTERN_C})"
+    transparent=re.compile(rf"^[ \t]*(?:(?:inline[ \t]+)?namespace(?:[ \t]+[\w:]+)?|{_EXTERN_C})"
                            rf"[ \t\r\n]*\{{", re.M),
-    decorators=("template", "[["),
+    decorators=("template",) + _C_DECORATORS,
     doc_markers=C_DOC,
     keywords=_C_KEYWORDS | {"public", "private", "protected", "class", "namespace", "template"},
     exported=_c_exported,
@@ -550,7 +597,7 @@ OBJC = Grammar(
         _pattern(rf"^[ \t]*(?P<mods>[-+])[ \t]*\([^)\n]*\)[ \t]*(?P<name>{_WORD})", "method"),
     ),
     transparent=None,
-    decorators=(),
+    decorators=_C_DECORATORS,
     doc_markers=C_DOC,
     keywords=_C_KEYWORDS,
     exported=lambda match, name, kind, member: True,
