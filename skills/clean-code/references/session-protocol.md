@@ -82,8 +82,8 @@ for. When `.clean/` exists and you added, moved, or deleted files, refresh the m
 **19. Record decisions worth keeping.** When `.clean/` exists, append to `.clean/decisions.md`
 whenever you chose between real alternatives, deferred something deliberately, or discovered a
 constraint the next session would otherwise have to rediscover. When it does not exist, offer to
-create it at the end — creating `.clean/` is the `init` and `audit` workflows' job, never a silent
-side effect (`memory-protocol.md`).
+create it at the end — creating `.clean/` is the job of the `init`, `audit`, and `new-project`
+workflows, never a silent side effect (`memory-protocol.md`).
 
 **20. Hand off cleanly.** Report: what changed and why; what command you ran and its result; what you
 did *not* run and what risk remains; what you found but deliberately left alone. If work is

@@ -37,8 +37,8 @@ entry, because the next session will trust it.
 **Append; do not rewrite.** `decisions.md` is a log. Supersede an entry with a new one that
 references it, rather than editing the past.
 
-**Who creates `.clean/`.** The `init` and `audit` workflows create and populate it as part of their
-job — that is what they are for, and the user invoking them is the consent. A plain coding session
+**Who creates `.clean/`.** The `init`, `audit`, and `new-project` workflows create and populate it
+as part of their job — that is what they are for, and the user invoking them is the consent. A plain coding session
 still does not silently introduce the convention: it offers at the end.
 
 **The structure map is a cache, not a record.** Never edit `structure.md` or `structure.json` by

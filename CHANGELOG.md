@@ -38,7 +38,8 @@ must read before its first edit stays small on any model.
 - **`map_structure.py`**, the structure map: one table of every file with its purpose, symbols,
   and roles, plus findings for misplaced symbols (middleware declared in `auth.ts` is reported with
   a move to `middleware/`), files mixing several roles, duplicated bodies, clashing names, synonym
-  verbs, component coupling metrics (Ca, Ce, I, A, D), and folder cycles. `--write` saves
+  verbs, component coupling metrics (Ca, Ce, I, A, D), and folder cycles; C#, JVM, and PHP
+  dependencies follow the type names code uses, not namespace imports. `--write` saves
   `.clean/structure.md` and `.clean/structure.json`; the SessionStart hook prints the findings.
   Symbol extraction covers all 19 languages with the standard library only.
 - **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
