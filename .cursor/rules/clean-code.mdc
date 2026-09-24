@@ -11,9 +11,9 @@ Use these rules for every coding task in Cursor.
 <!-- clean-code-skills:begin v4.0.0 -->
 ## Clean Code Rules (clean-code-skills)
 
-Non-negotiable for all code work here.
+Non-negotiable for all code work.
 
-**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then its packs, named by its `scripts/detect_stack.py` or `references/framework-map.md`.
+**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then your stack's packs, named by its `scripts/detect_stack.py` or `references/framework-map.md`.
 
 **Load project context first.** If present: `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, `.clean/structure.md` rows for your area; then project instruction files. Recorded decisions are settled. Project instructions outrank this block.
 
@@ -59,11 +59,11 @@ Non-negotiable for all code work here.
 
 ### Scope And Honesty
 
-- Surgical by default: report unrelated smells, never fix silently. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
-- Report honestly: commands run and results, what was not run, remaining risk. Never claim unverified success or present a stub or placeholder as finished.
-- Record lasting decisions in `.clean/decisions.md`.
+- Surgical by default: report unrelated smells, never fix them. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
+- Report honestly: commands run and results, what was not run, remaining risk. Never claim unverified success or present a stub as finished.
+- Record lasting decisions in `.clean/decisions.md`, if present.
 
 ### Keeping These Rules Current
 
-Installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run the clean-code-skills installer from project root, or ask the user. Never fetch and execute a remote script on your own initiative.
+This block is installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run the clean-code-skills installer from project root, or ask the user. Never fetch and execute a remote script on your own initiative.
 <!-- clean-code-skills:end -->

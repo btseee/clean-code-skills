@@ -85,8 +85,8 @@ structure; these rules guide judgement.
 
 - **The Dependency Rule**: source dependencies point only inward, to higher-level policy; nothing
   inner names anything outer (class, function, variable, annotation, data format).
-- Business rules highest; database, web, UI, framework, delivery mechanism are details. Policy
-  declares interfaces it needs; details implement them outside.
+- Business rules highest; database, web, UI, framework, delivery mechanism are details behind
+  policy-owned interfaces.
 - SQL stays in data access. Rows, ORM types, framework request/response objects never travel
   inward; pass simple structures shaped for the inner side.
 - Never derive business objects from framework base classes or annotate them; dependency-injection
@@ -112,7 +112,7 @@ Argument | Follow
 
 ## Load Plan
 
-Read only what the task needs, from `references/`:
+Read only what the task needs, from `references/`; long files via their Contents:
 
 Task | Read
 --- | ---
@@ -152,7 +152,7 @@ inside a refactor batch.
 ## Completion Checklist
 
 - Task solved; each changed line traces to it and obeys the rules above.
-- New files wired; no sibling variant, duplicate, dead code, scratch file, or debug output.
+- New files placed by role, wired; no sibling variant, duplicate, dead code, scratch file, or debug output.
 - Tests cover the change; none weakened.
 - Verification reported honestly: risk level, results, what did not run, remaining risk.
 - Lasting decisions in `.clean/decisions.md`; files added or moved and `.clean/` exists:

@@ -14,10 +14,8 @@ it. Read this when choosing or reviewing one.
 
 ## Before reaching for a pattern
 
-A pattern is a cost paid for a force you can name today. First climb the minimal-code ladder,
-stopping at the first yes: does it need to exist; does the codebase have it; does the framework,
-the standard library, or an installed dependency provide it; is it one line. Only then build the
-smallest version. Each "Over-engineered" line applies the ladder: delete the pattern, write the
+A pattern is a cost paid for a force you can name today. First climb the minimal-code ladder in
+`SKILL.md`; only then build the smallest version. Each "Over-engineered" line applies the ladder: delete the pattern, write the
 direct code (A9). Book terms: `canon.md`; arguments: `architecture.md`.
 
 ## Architecture styles
