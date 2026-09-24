@@ -42,10 +42,14 @@ must read before its first edit stays small on any model.
   `.clean/structure.md` and `.clean/structure.json`; the SessionStart hook prints the findings.
   Symbol extraction covers all 19 languages with the standard library only.
 - **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
-  signal), overridable per project in `.clean/roles.md`.
+  signal), overridable per project in `.clean/roles.md`. In a monorepo, a framework pack speaks
+  only for the project whose manifest named its framework (`pack_scopes` in `context.json`), and
+  `supersede` applies within one manifest, so a Strapi CMS never hides the React app beside it.
 - **An eval harness**: `evals/grade.py` grades a run against a case's deterministic expectations
   and exports `evals/evals.json` in skill-creator's layout; 33 cases, one per pack plus four core
-  cases, and `evals/triggers.json` for description tuning.
+  cases, and `evals/triggers.json` for description tuning. `evals/README.md` records the first
+  benchmark on ten cases: every expectation passed with the skill, 95.5% without it, at about
+  48% more tokens per task.
 - **A unit test suite** (`tests/`, standard library `unittest`), run by `validate.sh` and CI.
 - `docs/install.md`, `docs/configuration.md`, and `docs/pack-sources.md`, the sources each pack was
   checked against.
