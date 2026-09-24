@@ -4,11 +4,13 @@
 
 ## Names
 
-- Use MixedCaps for exported names and mixedCaps for unexported ones; never underscores (N3, G24).
+- Case marks visibility: MixedCaps (exported) or mixedCaps (unexported); never underscores (N3, G24).
 - Keep package names short, lowercase, and single-word; never `util`, `common`, or `base` (G17).
 - Never stutter the package name inside an exported identifier: `user.New`, not `user.NewUser` (N6).
-- Name a single-method interface for the behavior it grants, with an `-er` suffix (`Reader`, `Notifier`) (N1).
+- Name a single-method interface for the behavior it grants, with an `-er` suffix (`Reader`, `Notifier`), never an `I` prefix (`IReader`) (N1, N6).
 - Keep a method's receiver name short (one or two letters) and identical across every method of that type (N5).
+- Never prefix a getter with `Get`: name it for the value it returns (`Owner`, not `GetOwner`) (N1).
+- Never write a vague name (`data`, `info`, `obj`, `ret`) or a bare-verb function with no object (`handle`, `process`); never number or version one instead of replacing it (`user2`, `dataV2`) (N1, N4).
 
 ## Functions And Types
 
@@ -17,7 +19,7 @@
 - Keep exported functions to a handful of parameters; past three related values, group them into a struct (F1).
 - Never switch behavior on a `bool` parameter; write two functions or a small typed enum instead (F3).
 - Use named returns only to document a short function's intent, never to smuggle a late, hidden mutation (G16).
-- Guard a type whose zero value is unsafe to use behind a constructor (`NewX`), and document the zero value when it is safe.
+- Guard a type whose zero value is unsafe to use behind a constructor (`NewX`), document the zero value when it is safe.
 
 ## Errors
 
@@ -38,12 +40,12 @@
 
 - `cmd/<app>/main.go` is the composition root: read configuration, construct dependencies, start — no business rules (G17).
 - Keep `<name>_test.go` beside the file it tests; a test belongs to the unit it exercises.
-- Never add to a `utils` or `common` package; name the concept the code actually implements (G17).
+- Never add to a `utils` or `common` package; name the concept the code implements (G17).
 - Mirror the module's existing layout (`internal/`, `pkg/`, or flat) instead of introducing a second convention (G11).
 
 ## Tests
 
-- Write table-driven tests with `t.Run(tt.name, func(t *testing.T) {...})`; name each case for the behavior, not the input shape.
+- Write table-driven tests with `t.Run(tt.name, func(t *testing.T) {...})`; name each case for behavior, not the input shape.
 - Call `t.Helper()` in every test helper so a failure reports the caller's line.
 - Run with `-race` whenever a test touches a goroutine or shared state; a flake there is a bug to fix, not noise to rerun (G3).
 - Reach for `t.Parallel()` only once a test's fixtures are verified independent of its siblings'.
@@ -60,9 +62,9 @@
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- Domain packages import nothing from `net/http`, a database driver, or a specific web framework (the Dependency Rule).
+- Domain packages import nothing from `net/http`, a database driver, or a web framework (the Dependency Rule).
 - Declare a port as a small interface in the package that consumes it; the adapter package implements it, never the reverse.
-- `cmd/<app>/main.go` is the only place that constructs an adapter and injects it into the domain or application layer.
+- `cmd/<app>/main.go` is the only place that constructs an adapter, injects it into the domain or application layer.
 
 ```clean-architecture
 layer domain      = internal/domain/**

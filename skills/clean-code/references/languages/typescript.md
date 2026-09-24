@@ -11,7 +11,7 @@
 ## Functions And Types
 
 - Enable `strict`, `noUncheckedIndexedAccess`, and `noImplicitOverride`; never relax a flag to silence an error (G4).
-- Never use `any`. Take `unknown` and narrow it; confine an unavoidable `any` to one adapter, with the reason beside it.
+- Never use `any`. Take `unknown` and narrow it; confine an unavoidable `any` to one adapter, reason beside it.
 - Model alternatives as discriminated unions and end every `switch` over them with a `never` check (G23).
 - Mark fields `readonly` and inputs `readonly T[]` when you do not mutate them.
 - Use `satisfies` to check a literal against a type without widening it.
@@ -24,13 +24,13 @@
 
 - Treat `catch (error)` as `unknown`: narrow with `instanceof` before reading anything from it.
 - Return expected outcomes as a discriminated union — `{ ok: true; value: T } | { ok: false; reason: Reason }` — and keep `throw` for genuine failures.
-- Validate external data at the boundary with a schema (Zod, Valibot, or the project's choice) and derive the type from the schema; a cast validates nothing.
+- Validate external data at the boundary with a schema (Zod, Valibot, or project's choice) and derive the type from the schema; a cast validates nothing.
 
 ## Modules And Visibility
 
 - Use `import type` for type-only imports and enable `verbatimModuleSyntax`, so erased imports never turn into runtime dependencies.
 - Export only the types consumers need; implementation types stay module-private (G8).
-- Use `paths` aliases only where the project defines them. TypeScript 6 deprecates `baseUrl` and 7 removes it: write `paths` relative to the tsconfig.
+- Use `paths` aliases only where project defines them. TypeScript 6 deprecates `baseUrl` and 7 removes it: write `paths` relative to the tsconfig.
 - Keep `.d.ts` files for ambient declarations; types for your own code live beside that code.
 
 ## Placement
@@ -49,13 +49,13 @@
 Applies only when `.clean/architecture.md` declares layers.
 
 - Domain types never import framework, ORM, or HTTP types; map DTOs to domain types in the adapter (the Dependency Rule).
-- Declare ports as interfaces in the inner layer (`interface OrderRepository`); adapters implement them, and the composition root wires them.
+- Declare ports as interfaces in the inner layer (`interface OrderRepository`); adapters implement them, the composition root wires them.
 - Keep schema libraries at the boundary; the domain receives validated plain types.
 
 ## Enforce
 
 - `tsc --noEmit` in CI with `strict` and `noUncheckedIndexedAccess`.
-- typescript-eslint `strict-type-checked`, including `no-explicit-any`, `no-floating-promises`, `no-misused-promises`, `consistent-type-imports`, and `switch-exhaustiveness-check`.
+- typescript-eslint `strict-type-checked`, including `no-explicit-any`, `no-floating-promises`, `no-misused-promises`, `consistent-type-imports`, `switch-exhaustiveness-check`.
 - dependency-cruiser or eslint-plugin-boundaries for dependency direction.
 
 ## Smells

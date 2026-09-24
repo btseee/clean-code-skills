@@ -8,12 +8,14 @@
 - Prefix interfaces with `I` (`IOrderRepository`) — idiomatic C# convention, not the N6 encoding smell to avoid here.
 - Suffix an async method with `Async`; name booleans as predicates (`IsArchived`, `HasExpired`); name every method for what it returns or does (G20).
 - Make the namespace mirror the folder path below the project root, so a reader can find a type from its name alone.
+- Never write a vague name (`data`, `info`, `obj`, `temp`) or a bare-verb method with no object (`Handle`, `Process`); a loop index or one-line lambda parameter may stay short, nothing else should (N1, N5).
+- Never number or version a name instead of replacing it (`order2`, `OrderV2`); never suffix a class with a noise word (`Manager`, `Helper`, `Util`) or name it after a verb (`ProcessOrder`) (N1, N4, G17).
 
 ## Functions And Types
 
-- Enable `<Nullable>enable</Nullable>` and treat a `?` as a contract you checked, not a warning to silence; never use `!` to dismiss one you have not verified (G4).
+- Enable `<Nullable>enable</Nullable>`, treat a `?` as a contract you checked, not a warning to silence; never use `!` to dismiss one you have not verified (G4).
 - Prefer `record`/`record struct` for immutable data carriers; keep `class` for identity and behavior (data/object anti-symmetry).
-- Leave a class `sealed` unless the project deliberately designs it for inheritance.
+- Leave a class `sealed` unless the project designs it for inheritance.
 - Use file-scoped namespaces (`namespace Orders;`) — one file, one namespace, one less indent level.
 - Guard arguments with `ArgumentNullException.ThrowIfNull(order)` instead of a hand-written `if`/`throw` block (G24).
 - Keep parameters niladic to triadic; group related ones into a record before adding a fourth (F1).
@@ -23,8 +25,8 @@
 
 - `throw;` to rethrow — never `throw ex;`, which resets the stack trace and hides where the failure began.
 - Never write `async void` outside an event handler: the caller cannot catch what it throws, so a failure crashes the process instead of failing one request.
-- Never block on async code with `.Result`, `.Wait()`, or `GetAwaiter().GetResult()` in library or request code; it can deadlock under a synchronization context and hides the real call graph.
-- Accept a `CancellationToken` on every async method that can wait, and pass it to every call that accepts one (CA2016); never swap in `CancellationToken.None` partway down the chain.
+- Never block on async code with `.Result`, `.Wait()`, or `GetAwaiter().GetResult()` in library or request code; it can deadlock under a synchronization context, hides the real call graph.
+- Accept a `CancellationToken` on every async method that can wait, pass it to every call that accepts one (CA2016); never swap in `CancellationToken.None` partway down the chain.
 - Throw for genuine failures; model an expected alternate outcome — not found, declined, already archived — as a nullable return or a small result type (Special Case pattern).
 - Chain the cause across a boundary (`throw new OrderException("archive failed", innerException)`); never leave a `catch` block empty (G4).
 
@@ -40,21 +42,21 @@
 
 - New code goes in the project that already owns the responsibility; a new project is a new component boundary, not a folder shortcut (SRP).
 - Mirror the source project's folder structure in its test project, one for one.
-- Never add to a catch-all `Common`, `Shared`, or `Utils` project; name the concept it actually holds (G17).
+- Never add to a catch-all `Common`, `Shared`, or `Utils` project; name the concept it holds (G17).
 - Keep configuration and options classes beside the feature they configure, not in one shared configuration project.
 
 ## Tests
 
-- Use the project's existing runner — xUnit, NUnit, or MSTest — and do not add a second one; xUnit's current major (v3) runs on Microsoft Testing Platform, so check which the project already targets.
-- Name a test for the behavior it proves (`Archive_ProjectCompletedOverAYearAgo_MarksItArchived`) and assert the outcome through the public surface, not internals.
+- Use the project's existing runner — xUnit, NUnit, or MSTest — never a second; xUnit's current major (v3) runs on Microsoft Testing Platform, so check which project already targets.
+- Name a test for behavior it proves (`Archive_ProjectCompletedOverAYearAgo_MarksItArchived`) and assert the outcome through the public surface, not internals.
 - Inject the clock; a test that reads `DateTime.Now`/`UtcNow` through production code is not repeatable (F.I.R.S.T.).
-- Cover the boundary explicitly: exactly one year old, one day short, one day over (T5).
+- Cover the boundary: exactly one year old, one day short, one day over (T5).
 
 ## Layers
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- The domain project references no `Microsoft.EntityFrameworkCore` and no `Microsoft.AspNetCore.*` package; when a domain type needs a capability from one, declare an interface in the domain and implement it outside (the Dependency Rule).
+- The domain project references no `Microsoft.EntityFrameworkCore` and no `Microsoft.AspNetCore.*` package; when a domain type needs a capability from one, declare an interface in the domain, implement it outside (the Dependency Rule).
 - Never let an EF Core entity or an ASP.NET Core request/response type cross into the domain or application project; map between them at the boundary.
 - Wire every concrete dependency in `Program.cs` or a dedicated composition module; the domain and application projects never call `AddScoped` on themselves (Main as the ultimate detail).
 

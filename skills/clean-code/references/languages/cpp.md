@@ -4,22 +4,24 @@
 
 ## Names
 
-- Match the project's existing casing for types versus functions and variables; never introduce a second convention in the same header (G11).
-- Name a RAII wrapper for the resource it owns (`FileHandle`, `ScopedFd`), never `Manager` or `Wrapper` (N1, G12).
+- Match the project's existing casing for types versus functions and variables — PascalCase types with camelCase functions, or the standard library's snake_case, are both common; never introduce a second convention in the same header (G11).
+- Name a RAII wrapper for the resource it owns (`FileHandle`, `ScopedFd`), never `Manager` or `Wrapper`; the same goes for any type — never a noise word (`Helper`, `Util`) or a verb like `ProcessOrder` (N1, G12, G17).
 - Name a concept for the constraint it guarantees (`Sortable`, `Hashable`), not for its syntax.
 - Name a template parameter for its role when there are several (`TKey`, `TValue`); a lone `T` is fine.
+- Never add a Hungarian or scope-encoding prefix (`strName`, `iCount`, `m_x`) — a reader can already see the type and the scope (N6).
+- Never write a vague name (`data`, `info`, `obj`, `temp`) or a bare-verb function with no object (`handle`, `process`); never number or version one instead of replacing it (`item2`, `_old`); a loop index or short-lived iterator may stay short, nothing wider in scope should (N1, N4, N5).
 
 ## Functions And Types
 
-- Follow the rule of zero: let special members default once every member already manages its own resource; write a destructor only when one is truly needed.
+- Follow the rule of zero: let special members default once every member already manages its own resource; write a destructor only when one is needed.
 - Never pair a raw `new` with `delete` in application code; use `std::make_unique`/`std::make_shared` or a container, so the destructor is the only release path (RAII).
 - Take `std::span` or `std::string_view` for a non-owning view over contiguous data instead of a pointer-and-length pair.
 - Mark a function `[[nodiscard]]` when ignoring its result is a likely bug; prefer `enum class` over a plain `enum`; constrain templates with concepts instead of unconstrained `typename`.
-- Make every object and member function that does not mutate state `const` (Con.1, Con.2); leave `const` off by-value parameters in declarations, where it tells a caller nothing.
+- Make every object and member function that does not mutate state `const` (Con.1, Con.2); leave `const` off by-value parameters in declarations — it tells callers nothing.
 
 ## Errors
 
-- Pick one error model per API boundary — exceptions, or `std::expected<T, E>` for an expected alternate outcome — and keep it consistent across that boundary (Special Case pattern).
+- Pick one error model per API boundary — exceptions, or `std::expected<T, E>` for an expected alternate outcome — keep it consistent across that boundary (Special Case pattern).
 - Never let an exception cross an `extern "C"` or plugin boundary; catch and translate to a status there.
 - Catch by `const&`, never by value; preserve the cause with `std::throw_with_nested` or as `std::expected`'s error value.
 - Never write an empty `catch (...)` that discards the failure (G4).
@@ -33,13 +35,13 @@
 
 ## Placement
 
-- Mirror `include/<project>/foo.hpp` with `src/foo.cpp`; one primary type, or one small family of related types, per pair.
+- Mirror `include/<project>/foo.hpp` with `src/foo.cpp`; one primary type, or a small related family, per pair.
 - Split a header that every translation unit includes and every actor edits for a different reason; a god header is a misplaced-responsibility smell (G17).
 - Put tests under `tests/`, mirroring `include/`/`src/` by name.
 
 ## Tests
 
-- Use whichever the project already depends on — GoogleTest, Catch2, or doctest — never a second (G11).
+- Use whichever project already depends on — GoogleTest, Catch2, or doctest — never a second (G11).
 - Test through the public header only; reaching into a private member to assert couples the test to implementation.
 - Cover ownership edge cases: moved-from state, self-move, self-assignment, an empty span or string_view (T5).
 - Run the suite under the sanitizers in CI, not only locally.
@@ -47,7 +49,7 @@
 ## Concurrency
 
 - Prefer `std::jthread` over `std::thread`: it joins automatically and carries a `std::stop_token` for cooperative cancellation.
-- Lock more than one mutex at once only with `std::scoped_lock`, never nested individual locks — that breaks circular wait, one of the four deadlock conditions.
+- Lock more than one mutex at once only with `std::scoped_lock`, never nested individual locks — that breaks circular wait, a deadlock condition.
 - Keep a critical section to the minimum work that must be atomic; copy data out and compute outside the lock.
 - Run race-prone code under ThreadSanitizer (`-fsanitize=thread`) before trusting it.
 
@@ -55,9 +57,9 @@
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- The core never includes a framework, ORM, socket, or GUI header; declare a pure-virtual interface or a concept there, and implement it in the adapter (the Dependency Rule, DIP).
+- The core never includes a framework, ORM, socket, or GUI header; declare a pure-virtual interface or a concept there, implement it in the adapter (the Dependency Rule, DIP).
 - Compose the object graph — construct adapters, inject them into the core's interfaces — in `main.cpp` only (Main as the ultimate detail).
-- Let CMake enforce the direction: link adapters `PRIVATE` to the core, never the reverse, and never link one adapter target to another (ADP).
+- Let CMake enforce the direction: link adapters `PRIVATE` to the core, never the reverse, never one adapter target to another (ADP).
 
 ```clean-architecture
 layer domain      = include/*/domain/**, src/domain/**
