@@ -89,7 +89,8 @@ def _find_urls(text: str):
         spans.append(match.span())
     masked = _mask(text, spans)
     for match in URL_BARE_PATTERN.finditer(masked):
-        found.append((match.group(0), match.start()))
+        url = match.group(0).rstrip(".,;:!?)]}'\"")
+        found.append((url, match.start()))
     return found
 
 
@@ -104,6 +105,8 @@ def _extract(text: str):
 
     in_fence = False
     fence_open_offset = 0
+    fence_marker_char = None
+    fence_marker_length = 0
     block_lines = []
     block_offset = None
     offset = 0
@@ -118,14 +121,29 @@ def _extract(text: str):
         offset += len(line)
         stripped = body.strip()
 
-        if FENCE_MARKER.match(stripped):
+        fence_match = FENCE_MARKER.match(stripped)
+        if fence_match:
+            marker_text = fence_match.group(1)
+            marker_char = marker_text[0]
+            marker_length = len(marker_text)
+
             if in_fence:
-                close_block()
+                # Close fence only if same character and at least as long
+                if marker_char == fence_marker_char and marker_length >= fence_marker_length:
+                    # Also check that there's nothing but whitespace after the marker
+                    after_marker = stripped[marker_length:]
+                    if not after_marker or after_marker.isspace():
+                        close_block()
+                        in_fence = False
+                        fence_marker_char = None
+                        fence_marker_length = 0
             else:
                 fence_open_offset = line_offset
                 block_lines = []
                 block_offset = None
-            in_fence = not in_fence
+                in_fence = True
+                fence_marker_char = marker_char
+                fence_marker_length = marker_length
             continue
 
         if in_fence:
@@ -135,7 +153,7 @@ def _extract(text: str):
             continue
 
         if stripped.startswith("#"):
-            record("heading", stripped.lstrip("#").strip(), line_offset)
+            record("heading", stripped.strip("# "), line_offset)
         for match in INLINE_CODE_PATTERN.finditer(body):
             record("inline code", match.group(1), line_offset + match.start())
 

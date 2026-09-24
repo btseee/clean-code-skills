@@ -88,6 +88,41 @@ class CompareTest(unittest.TestCase):
         report = cc.compare(original, compressed)
         self.assertEqual(report.losses, ["url: https://example.com/a", "rule id: G17"])
 
+    def test_heading_with_trailing_hashes_normalizes_correctly(self):
+        # CommonMark allows trailing # marks in headings; they should be stripped
+        # so "## Placement ##" normalizes the same as "## Placement".
+        original = "## Placement ##\n\nText.\n"
+        compressed = "## Placement\n\nText.\n"
+        report = cc.compare(original, compressed)
+        self.assertEqual(report.losses, [])
+
+    def test_url_with_trailing_sentence_punctuation_is_not_lost(self):
+        # A bare URL at sentence end picks up incidental punctuation from the regex.
+        # "https://example.com/a." should be treated as "https://example.com/a"
+        # when comparing, so moving it out of sentence position is not a loss.
+        original = "Read https://example.com/a.\n"
+        compressed = "Read https://example.com/a\n"
+        report = cc.compare(original, compressed)
+        self.assertEqual(report.losses, [])
+
+    def test_removing_a_url_entirely_is_still_a_loss(self):
+        # Stripping trailing punctuation should not mask actual URL removal.
+        original = "Read https://example.com/a.\n"
+        compressed = "Read the docs.\n"
+        report = cc.compare(original, compressed)
+        self.assertIn("url: https://example.com/a", report.losses)
+
+    def test_fenced_block_with_nested_marker_does_not_close_early(self):
+        # A backtick-fenced block containing a tilde marker should not close on the tilde.
+        # CommonMark requires the same marker character (backtick or tilde) to close a fence.
+        # Without the fix, a ``` block with ~~~ inside gets split into two blocks.
+        original = "```python\nline1\n~~~\nline3\n```\n"
+        # Remove the tilde line that would incorrectly close the fence in buggy code.
+        # With the fix, both should be recognized as a single block, so no loss.
+        compressed = "```python\nline1\nline3\n```\n"
+        report = cc.compare(original, compressed)
+        self.assertEqual(report.losses, [])
+
 
 class CliTest(unittest.TestCase):
     def setUp(self):
