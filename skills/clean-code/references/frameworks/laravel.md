@@ -82,7 +82,7 @@ layer main           = app/Providers/**, bootstrap/**
 
 - Business logic inside a Blade template — an `@if` chain deciding a business rule, or a query call in the view (G17).
 - `protected $guarded = [];` on a model, making every column mass-assignable (G4).
-- An N+1 query hiding in a loop over a relationship the query never eager-loaded (G3, G26).
+- An N+1 query hiding in a loop over a relationship the query never eager-loaded.
 - A "Service" class that is a bag of static methods with no cohesive state — a facade wearing a service's name (G18, G11).
 - A Form Request whose `rules()` duplicates a check already enforced by a Policy or a database constraint, drifting out of sync over time (G5).
 - A fat controller method validating, querying, and formatting the response all at once (G30).

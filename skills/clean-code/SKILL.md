@@ -18,13 +18,15 @@ are how your work survives you.
 ## Before The First Edit: Load Context
 
 This file's folder is the skill root; `scripts/` and `references/` resolve from it. In order, each
-step with its manual equivalent:
+step with its manual equivalent (a trivial edit, such as a typo or a comment, skips the gate and the
+review checklist):
 
 1. **Stack.** Read `.clean/context.json`. Missing? Run `scripts/detect_stack.py`, or read the
    manifests and file extensions.
-2. **Packs.** Read every pack listed under `packs`, or printed as "Read next". By hand: look the
-   language and framework up in the `clean-packs` index in `references/framework-map.md`. No pack?
-   Answer that file's adaptation questions.
+2. **Packs.** Read every pack listed under `packs`, or printed as "Read next", except a framework
+   pack whose `pack_scopes` folders leave out the area you will change. By hand: look the language
+   and framework up in the `clean-packs` index in `references/framework-map.md`. No pack? Answer
+   that file's adaptation questions.
 3. **Layers.** Read `.clean/architecture.md`. Declared layers make the layer rules below strict, and
    `scripts/check_boundaries.py` enforces them. No declaration: follow the framework pack's
    idiomatic structure.
@@ -37,8 +39,9 @@ step with its manual equivalent:
    `README.md`.
 
 When rules conflict, the first wins: project instructions, recorded decisions, declared layers,
-existing local conventions, the framework pack, the language pack, this skill. Only `init` and
-`audit` create `.clean/`; a plain session reads it and offers to persist at the end.
+existing local conventions, the framework pack, the language pack, this skill. Only `init`,
+`audit`, and `new-project` create `.clean/`; a plain session reads it and offers to persist at the
+end.
 
 ## Operating Loop
 
@@ -79,6 +82,10 @@ or delete a failing test. Verify every API against the installed versions in
 change together. The formatter owns formatting. When rules conflict: tests pass, no duplicated
 knowledge, intent expressed, fewest elements.
 
+**Security.** Validate and encode input at every trust boundary, parameterize queries, keep
+authorization beside the operation it protects, and never put secrets in code, committed config,
+or logs.
+
 ## Layer Rules, When Layers Are Declared
 
 With a `.clean/architecture.md` declaration these are strict; without one they inform judgement.
@@ -95,8 +102,8 @@ With a `.clean/architecture.md` declaration these are strict; without one they i
 - Keep the component graph acyclic, depend toward stability, and split the hard-to-test from the
   easy-to-test. Do not add a boundary you cannot justify now.
 
-Read `references/architecture.md` before adding a dependency, boundary, layer, framework, or
-database. Check with `scripts/check_boundaries.py`, or read the imports of each file you changed
+Read `references/architecture.md` before adding a boundary, layer, framework, or database. Check
+with `scripts/check_boundaries.py`, or read the imports of each file you changed
 and name each one's layer.
 
 ## Commands
@@ -110,7 +117,7 @@ plain language; both route identically.
 | `audit` | "audit this project" | `references/audit-report.md`: every file reviewed, sweeps until one adds nothing, `.clean/` filled; changes no code |
 | `clean-up` | "clean this up" | `references/project-refactor.md`, consuming `.clean/ledger.md`. No ledger? Propose the audit with its file count; wait for consent |
 | `new-project <description>` | "start a project" | `references/new-project.md`, seeded with the description |
-| (none) | any coding task | this file and `references/session-protocol.md` |
+| (none) | any coding task | this file; `references/session-protocol.md` for a multi-step task or one that must leave state for the next session |
 
 ## Load Plan
 
@@ -123,6 +130,7 @@ Beyond this file and your packs, read only what the task needs:
 | New boundary, layer, framework, or database | `architecture.md`, via its contents |
 | Writing or fixing tests | `tests.md` |
 | Concurrency | `concurrency.md` |
+| Security, trust boundaries, data versus objects, or performance | `principles.md` |
 | Naming or triaging a smell | `smell-triage.md`, and `chapter-map.md` for IDs (G17, N7, T5...) |
 | A named rule, exactly | `canon.md` |
 | Persisting state for the next session | `memory-protocol.md` |

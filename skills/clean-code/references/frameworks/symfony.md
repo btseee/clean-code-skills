@@ -43,7 +43,7 @@ signal voter            = extends\s+Voter\b
 - Keep a controller a thin adapter: resolve the request, call a service or the message bus, return a response; put validation and business rules in a Form type, a Voter, or a service (G17).
 - Authorize with a Voter and `denyAccessUnlessGranted()` or `#[IsGranted]`; never compare roles or ownership inline in a controller (G23).
 - Dispatch a Messenger message and let an `#[AsMessageHandler]` service do the work; a controller or command never contains the handling logic itself.
-- Map an entity to a plain DTO at the boundary when the layer rule is active; a serializer group is not a substitute for a real boundary (G26).
+- Map an entity to a plain DTO at the boundary when the layer rule is active; a serializer group is not a substitute for a real boundary (the Dependency Rule).
 - Give a subscriber's `getSubscribedEvents()` exactly one job, wiring; put the reaction in a small method or a collaborator it calls (G30).
 - Keep a console command's `execute()` as thin as a controller: parse input, call a service, format output (G17).
 - Fetch related entities with a `JOIN` in a dedicated repository method; never trigger a lazy load inside a loop (the N+1 query).

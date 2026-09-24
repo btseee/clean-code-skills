@@ -93,11 +93,14 @@ controllers with controllers. `scripts/map_structure.py` reads role conventions 
 role <name> = <glob>[, <glob>...]      files matching are homes for <name>
 name <name> [<exts>] = <regex>         symbol names matching have role <name>
 signal <name> [<exts>] = <regex>       declarations matching (decorators, base types) have role <name>
+allow <home> = <role>[, <role>...]     a <home> file may also hold symbols of these roles
+accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced or mixed finding
 ignore-name = <regex>                  names left out of name-clash and synonym findings
 ```
 
-The project's `.clean/roles.md` wins, then the framework packs in the order `detect_stack.py` lists
-them, then the conventions below. Signals beat names. Among homes, the most specific glob wins.
+The project's `.clean/roles.md` is read first, then the framework packs in the order
+`detect_stack.py` lists them, then the conventions below. Signals beat names. Among homes, the most
+specific glob wins, so record a deliberate exception with `accept`, not a competing rule.
 Interfaces, protocols, traits, enums, and type aliases never have a role: abstractions live beside
 the code that consumes them.
 

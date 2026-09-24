@@ -37,8 +37,9 @@ question the project's files already answer unambiguously — say what was found
 5. **No-go zones?** Generated code, vendored trees, another person's in-flight work, anything
    off-limits.
 6. **Deliberate exceptions?** Places the rules are knowingly bent, and why — an undocumented
-   exception reads as a defect forever. Placement exceptions can become `role` lines in
-   `.clean/roles.md` so the structure map stops flagging them.
+   exception reads as a defect forever. A placement exception becomes an `accept` line in
+   `.clean/roles.md` (`accept <glob>`, or `accept <glob> = <symbol>` for one symbol) so the
+   structure map stops flagging it.
 7. **Decoupling mode?** One address space, separately deployable units, or services — and what
    would justify moving.
 

@@ -7,7 +7,7 @@
 - Use snake_case for functions, variables, and modules; PascalCase for classes; UPPER_SNAKE for module-level constants (PEP 8; N3).
 - Name booleans as predicates (`is_active`, `has_items`) and generators for what they yield, not how they compute it (G20).
 - Never encode type or container shape in a name (`str_name`, `lst_items`) (N6).
-- Give a module one job and a name for it; a package's `__init__.py` re-exports the public surface and does nothing else (G11).
+- Give a module one job and a name for it; a package's `__init__.py` re-exports the public surface and does nothing else (SRP).
 
 ## Functions And Types
 
@@ -29,7 +29,7 @@
 ## Modules And Visibility
 
 - Prefix a name with `_` for anything outside a module's public surface; declare `__all__` where the module's star-import surface must be explicit.
-- Never use a wildcard import (`from x import *`) outside a deliberate `__init__.py` re-export (G1).
+- Never use a wildcard import (`from x import *`) outside a deliberate `__init__.py` re-export (G16).
 - Break a circular import by moving the shared symbol to the module both sides already depend on; never paper over it with an import inside a function (G22).
 - Keep a class's public methods few and cohesive; unrelated public methods on one class are more than one reason to change (SRP).
 
@@ -79,6 +79,6 @@ layer main        = src/*/__main__.py, src/*/main.py
 - A `utils.py` or `helpers.py` absorbing every function nobody else wants to place (G17).
 - A bare `except:` or `except Exception:` that discards the cause (G4).
 - A circular import papered over with a local `import` inside a function (G22).
-- `import *` hiding which names a module actually provides (G1).
+- `import *` hiding which names a module actually provides (G16).
 - Business logic that only runs correctly inside a notebook's cell execution order (G31).
 - A mutable default argument silently shared and mutated across calls (G26).

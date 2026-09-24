@@ -1,7 +1,7 @@
 # Code-Level Principles
 
-The detail behind the one-line rules in `SKILL.md`. Read the section you need when a decision is
-not obvious; the summary in SKILL.md is enough for routine work.
+The detail behind the one-line rules in `SKILL.md`, including security, trust boundaries, data
+versus objects, and performance. Read the section you need when a decision is not obvious.
 
 Every rule here is subordinate to the project's own idiom. Clean code should look like it was
 written by a senior maintainer of *that* stack. See `framework-map.md` when the ecosystem is

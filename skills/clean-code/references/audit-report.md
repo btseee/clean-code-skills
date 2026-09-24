@@ -60,8 +60,8 @@ For every file, judge at least:
 - **Placement** — does its directory match its responsibility, per the declared layers, the
   framework pack's roles, and the conventions in `framework-map.md`? Start from the map's misplaced
   and mixed findings, then judge each one: a file or symbol in the wrong place goes in the ledger as
-  a **move candidate** with its intended destination; a deliberate exception becomes a `role` line
-  in `.clean/roles.md` and a `decisions.md` entry. This is where "the files are not in the right
+  a **move candidate** with its intended destination; a deliberate exception becomes an `accept`
+  line in `.clean/roles.md` and a `decisions.md` entry. This is where "the files are not in the right
   folders" gets caught — placement is audited per file, not noticed incidentally.
 - **Duplication** — for each duplicate group the map reports, decide whether it is true
   duplication (the copies must change together) or accidental (different actors, different rates

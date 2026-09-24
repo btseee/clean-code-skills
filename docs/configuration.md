@@ -48,21 +48,28 @@ framework pack's **Layers** section suggests a declaration for that stack.
 A role is a kind of responsibility with a conventional home: middleware lives with middleware.
 `map_structure.py` reads role conventions from `clean-roles` blocks — the generic ones in
 `skills/clean-code/references/framework-map.md`, one per framework pack, and yours in
-`.clean/roles.md`, which wins over both:
+`.clean/roles.md`, which is read first:
 
 ````markdown
 ```clean-roles
 role middleware = src/http/middleware/**
 signal middleware = implements\s+RequestInterceptor
 name job [ts] = Job$
+allow controller = middleware
+accept src/legacy/**
+accept src/services/auth.ts = requireSession
 ignore-name = ^(handler|config)$
 ```
 ````
 
 `role` names a home by glob, `name` recognizes a role from a symbol's name, `signal` from its
-decorators, base types, or signature, and `ignore-name` leaves names out of the name-clash and
+decorators, base types, or signature, `allow` lets a home hold symbols of other roles (a React
+context file holds its Provider and hook), and `ignore-name` leaves names out of the name-clash and
 synonym findings. An optional `[ext, ext]` list limits a `name` or `signal` rule to those file
-types. Use this file to record deliberate exceptions, so the map stops flagging them.
+types. Signals beat names, and the most specific home glob wins, so a rule of your own does not
+silence a pack's finding; record a deliberate exception with `accept`: a glob alone covers whole
+files, and `= symbol, ...` covers only those symbols. Accepted code gets no misplaced or mixed
+finding; add the reason to `.clean/decisions.md`.
 
 ## Hooks
 

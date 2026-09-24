@@ -123,9 +123,9 @@ template, the reference, and the project's own `.clean/architecture.md` that the
 
 ## If the host has session hooks
 
-Some hosts can run a command when a session starts. Where that exists, printing `.clean/context.json`
-and the layer declaration at session start is the single highest-value hook available, because it
-removes the chance that an agent simply forgets to look. See `host-matrix.md` and
+Some hosts can run a command when a session starts. Where that exists, printing `.clean/context.json`,
+its packs, the layer declaration, and the structure map's findings at session start is the single
+highest-value hook available, because it removes the chance that an agent simply forgets to look. See `host-matrix.md` and
 `assets/hooks/`.
 
 Where it does not exist, step 1 of `session-protocol.md` is the substitute — which is why it is step
