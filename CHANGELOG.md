@@ -62,13 +62,21 @@ must read before its first edit stays small on any model.
 - **The README is short**; install and configuration details moved to `docs/`.
 - The agent failure-mode and anti-loophole tables moved from `SKILL.md` to `review-checklist.md`.
 - Import parsing moved into `project_imports.py` and now reads Shell, PowerShell, R, and
-  Objective-C imports; `scan_repo.py` shares the generated-file detection of the new map.
+  Objective-C imports; `scan_repo.py` shares the generated-file detection of the new map, which
+  also recognizes generated files by name (`*.Designer.cs`, `*.g.cs`, `*_pb2.py`, `*.pb.go`), so
+  they no longer count as large files.
+- Every script prints UTF-8, so non-ASCII text reaches an agent intact through a Windows pipe.
 
 ### Fixed
 
 - **`check_boundaries.py` layer globs**: a leading `**/` now also matches a top-level folder, and
   folders that only hold sources (`src/main/java`, `include/`, R's `R/`) no longer become namespace
   tokens, which had classified every `java.*` import into the first declared layer.
+- **`check_boundaries.py` sees an import on the first line of a file that starts with a
+  byte-order mark**, as Visual Studio writes by default; such a file could pass while breaking the
+  declared layers.
+- **No script crashes on piped output in Windows** when a path, name, or summary holds a
+  character outside the console code page; `detect_stack.py --write` saves its file first.
 
 ## 3.2.0
 
