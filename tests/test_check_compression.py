@@ -112,16 +112,15 @@ class CompareTest(unittest.TestCase):
         report = cc.compare(original, compressed)
         self.assertIn("url: https://example.com/a", report.losses)
 
-    def test_fenced_block_with_nested_marker_does_not_close_early(self):
-        # A backtick-fenced block containing a tilde marker should not close on the tilde.
-        # CommonMark requires the same marker character (backtick or tilde) to close a fence.
-        # Without the fix, a ``` block with ~~~ inside gets split into two blocks.
-        original = "```python\nline1\n~~~\nline3\n```\n"
-        # Remove the tilde line that would incorrectly close the fence in buggy code.
-        # With the fix, both should be recognized as a single block, so no loss.
-        compressed = "```python\nline1\nline3\n```\n"
-        report = cc.compare(original, compressed)
-        self.assertEqual(report.losses, [])
+    def test_a_marker_of_the_other_kind_stays_inside_the_block(self):
+        original = "```text\nline1\n~~~\n# not a heading\n```\n"
+        report = cc.compare(original, original.replace("~~~\n", ""))
+        self.assertEqual(report.losses, ["code block: line1"])
+
+    def test_a_longer_closing_run_closes_the_block(self):
+        original = "```\ncode\n````\n## After\n"
+        report = cc.compare(original, "```\ncode\n````\n")
+        self.assertEqual(report.losses, ["heading: After"])
 
 
 class CliTest(unittest.TestCase):

@@ -94,6 +94,12 @@ def _find_urls(text: str):
     return found
 
 
+def _closes_fence(stripped: str, opener: str) -> bool:
+    """CommonMark: only a run of the opener's character, at least as long, with nothing after it."""
+    run = len(stripped) - len(stripped.lstrip(opener[0]))
+    return run >= len(opener) and not stripped[run:]
+
+
 def _extract(text: str):
     """(category -> Counter of items, [(category, item), ...] in first-seen order)."""
     counts = {category: Counter() for category in CATEGORIES}
@@ -105,8 +111,7 @@ def _extract(text: str):
 
     in_fence = False
     fence_open_offset = 0
-    fence_marker_char = None
-    fence_marker_length = 0
+    fence_marker = ""
     block_lines = []
     block_offset = None
     offset = 0
@@ -121,32 +126,20 @@ def _extract(text: str):
         offset += len(line)
         stripped = body.strip()
 
-        fence_match = FENCE_MARKER.match(stripped)
+        fence_match = None if in_fence else FENCE_MARKER.match(stripped)
         if fence_match:
-            marker_text = fence_match.group(1)
-            marker_char = marker_text[0]
-            marker_length = len(marker_text)
-
-            if in_fence:
-                # Close fence only if same character and at least as long
-                if marker_char == fence_marker_char and marker_length >= fence_marker_length:
-                    # Also check that there's nothing but whitespace after the marker
-                    after_marker = stripped[marker_length:]
-                    if not after_marker or after_marker.isspace():
-                        close_block()
-                        in_fence = False
-                        fence_marker_char = None
-                        fence_marker_length = 0
-            else:
-                fence_open_offset = line_offset
-                block_lines = []
-                block_offset = None
-                in_fence = True
-                fence_marker_char = marker_char
-                fence_marker_length = marker_length
+            fence_marker = fence_match.group(1)
+            fence_open_offset = line_offset
+            block_lines = []
+            block_offset = None
+            in_fence = True
             continue
 
         if in_fence:
+            if _closes_fence(stripped, fence_marker):
+                close_block()
+                in_fence = False
+                continue
             if block_offset is None:
                 block_offset = line_offset
             block_lines.append(body)
