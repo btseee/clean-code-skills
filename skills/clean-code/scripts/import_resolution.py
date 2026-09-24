@@ -12,6 +12,10 @@ Some languages reach other files without importing them: Swift shares one
 module, Rails autoloads constants, and C#, Java, Kotlin, Scala, and PHP see their
 own namespace or package. For those, capitalized names used in code are matched
 against the project's declared type names, counting only names declared once.
+In C#, the JVM languages, and PHP an import of a namespace or package names no
+file: it only widens which names the file can see, and the files it depends on
+are the ones declaring the types its code uses. A namespace often spans several
+projects, and an edge to each of its files draws cycles no compiler would allow.
 
 Standard library only.
 """
@@ -55,6 +59,7 @@ _TYPESCRIPT_SOURCES = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts
 _TYPE_KINDS = frozenset({"class", "interface", "enum", "struct", "trait", "protocol", "record",
                          "object", "module"})
 _CAPITALIZED = re.compile(r"\b[A-Z][A-Za-z0-9_]{2,}\b")
+_EXTENSION_METHOD = re.compile(r"\(\s*this\s")
 _JVM_PACKAGE = re.compile(r"^\s*package\s+([\w.]+)", re.M)
 _CSHARP_NAMESPACE = re.compile(r"^\s*namespace\s+([\w.]+)", re.M)
 _PHP_NAMESPACE = re.compile(r"^\s*namespace\s+([\w\\]+)\s*[;{]", re.M)
@@ -203,13 +208,11 @@ class ModuleIndex:
         self._by_directory = {}
         self._python_full = {}
         self._python_suffix = {}
-        self._jvm_types = {}
-        self._jvm_packages = {}
-        self._csharp_namespaces = {}
+        self._jvm_declarations = {}
         self._csharp_types = {}
         self._php_types = {}
-        self._php_namespaces = {}
         self._type_owners = {}
+        self._extension_methods = {}
         self._declared = {}
         self._references = {}
         self._visible = {}
@@ -235,24 +238,23 @@ class ModuleIndex:
             self._by_directory.setdefault(posixpath.dirname(path), set()).add(path)
         if family == "python":
             self._add_python(path)
-        top_types = [symbol.name for symbol in (symbols.symbols if symbols else [])
-                     if symbol.parent is None and symbol.kind in _TYPE_KINDS]
+        top_level = [symbol for symbol in (symbols.symbols if symbols else []) if symbol.parent is None]
+        top_types = [symbol.name for symbol in top_level if symbol.kind in _TYPE_KINDS]
         namespace = None
         if family == "jvm":
             namespace = _first(_JVM_PACKAGE, text) or ""
-            self._jvm_packages.setdefault(namespace, set()).add(path)
-            for name in top_types:
-                self._jvm_types[f"{namespace}.{name}" if namespace else name] = path
+            # Kotlin and Scala import top-level functions by name, as Java imports types.
+            for name in top_types + [symbol.name for symbol in top_level if symbol.kind == "function"]:
+                self._jvm_declarations[f"{namespace}.{name}" if namespace else name] = path
         elif family == "csharp":
-            namespaces = _CSHARP_NAMESPACE.findall(text)
-            namespace = namespaces[0] if namespaces else ""
-            for declared in namespaces:
-                self._csharp_namespaces.setdefault(declared, set()).add(path)
+            namespace = _first(_CSHARP_NAMESPACE, text) or ""
             for name in top_types:
                 self._csharp_types[f"{namespace}.{name}" if namespace else name] = path
+            for symbol in (symbols.symbols if symbols else []):
+                if symbol.kind == "method" and _EXTENSION_METHOD.search(symbol.context):
+                    self._extension_methods.setdefault(symbol.name, set()).add((path, namespace))
         elif family == "php":
             namespace = (_first(_PHP_NAMESPACE, text) or "").strip("\\").lower()
-            self._php_namespaces.setdefault(namespace, set()).add(path)
             for name in top_types:
                 self._php_types[f"{namespace}\\{name.lower()}".strip("\\")] = path
         if family in TYPE_REFERENCE_FAMILIES:
@@ -279,7 +281,11 @@ class ModuleIndex:
     # --- answering -------------------------------------------------------------------
 
     def resolve(self, source_path: str, module: str) -> list:
-        """Project files the import `module` in `source_path` names; [] when none."""
+        """Project files the import `module` in `source_path` names; [] when none.
+
+        A namespace or package import names none: resolve_type_references finds the
+        files behind the names it made visible.
+        """
         resolver = {
             "js": self._resolve_js, "python": self._resolve_python, "jvm": self._resolve_jvm,
             "csharp": self._resolve_csharp, "php": self._resolve_php, "go": self._resolve_go,
@@ -302,11 +308,25 @@ class ModuleIndex:
         visible = self._visible.get(source_path)
         found = set()
         for name in names:
-            owners = {path for path, namespace in self._type_owners.get((family, name), set())
-                      if visible is None or namespace in visible}
-            if len(owners) == 1 and source_path not in owners:
-                found |= owners
+            for declarations in self._declarations_named(family, name):
+                owners = {path for path, namespace in declarations
+                          if visible is None or namespace in visible}
+                if len(owners) == 1 and source_path not in owners:
+                    found |= owners
         return sorted(found)
+
+    def _declarations_named(self, family: str, name: str) -> list:
+        """(path, namespace) pairs for each thing a name in family's code can mean.
+
+        C# reaches two kinds of declaration without naming their type in full:
+        `[UseSecurity]` means `UseSecurityAttribute`, and an extension method is
+        called on a value, never through its class.
+        """
+        found = [self._type_owners.get((family, name), set())]
+        if family == "csharp":
+            found += [self._type_owners.get((family, name + "Attribute"), set()),
+                      self._extension_methods.get(name, set())]
+        return found
 
     def _existing(self, candidates) -> list:
         for candidate in candidates:
@@ -348,31 +368,22 @@ class ModuleIndex:
                 found += self._resolve_jvm(source, f"{grouped.group(1)}.{name.split('=>')[0]}")
             return found
         if module.endswith((".*", "._")):
-            return list(self._jvm_packages.get(module[:-2], ()))
+            return []
+        # `a.b.Type`, `a.b.Type.Inner`, and `a.b.Type.member` all name Type's file.
         parts = module.split(".")
         for end in range(len(parts), 0, -1):
             key = ".".join(parts[:end])
-            if key in self._jvm_types:
-                return [self._jvm_types[key]]
-        for end in range(len(parts), 0, -1):
-            key = ".".join(parts[:end])
-            if key in self._jvm_packages and key:
-                return list(self._jvm_packages[key])
+            if key in self._jvm_declarations:
+                return [self._jvm_declarations[key]]
         return []
 
     def _resolve_csharp(self, source: str, module: str) -> list:
-        if module in self._csharp_namespaces:
-            return list(self._csharp_namespaces[module])
-        if module in self._csharp_types:
-            return [self._csharp_types[module]]
-        parent = module.rsplit(".", 1)[0]
-        return list(self._csharp_namespaces.get(parent, ())) if "." in module else []
+        # Only `using static` names a type; any other using names a namespace.
+        return [self._csharp_types[module]] if module in self._csharp_types else []
 
     def _resolve_php(self, source: str, module: str) -> list:
         key = module.strip("\\").lower()
-        if key in self._php_types:
-            return [self._php_types[key]]
-        return list(self._php_namespaces.get(key, ()))
+        return [self._php_types[key]] if key in self._php_types else []
 
     def _resolve_go(self, source: str, module: str) -> list:
         if not self._go_module:

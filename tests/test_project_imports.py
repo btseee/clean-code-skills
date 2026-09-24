@@ -88,25 +88,80 @@ class ModuleIndexTest(unittest.TestCase):
         self.assertEqual(index.resolve("app/api/routes.py", "..services.auth"),
                          ["app/services/auth.py"])
 
-    def test_jvm_package_and_type(self):
+    def test_a_jvm_package_import_names_no_file_but_its_types_do(self):
+        order = "src/main/java/com/acme/order/OrderService.java"
         index = build_index({
-            "src/main/java/com/acme/order/OrderService.java":
-                "package com.acme.order;\npublic class OrderService {}\n",
+            order: "package com.acme.order;\npublic class OrderService {}\n",
+            "src/main/java/com/acme/order/Unused.java": "package com.acme.order;\npublic class Unused {}\n",
+            "src/main/java/com/acme/web/Api.java":
+                "package com.acme.web;\nimport com.acme.order.*;\npublic class Api { OrderService s; }\n",
         })
-        self.assertEqual(index.resolve("Other.java", "com.acme.order.OrderService"),
-                         ["src/main/java/com/acme/order/OrderService.java"])
-        self.assertEqual(index.resolve("Other.java", "com.acme.order.*"),
-                         ["src/main/java/com/acme/order/OrderService.java"])
+        self.assertEqual(index.resolve("Other.java", "com.acme.order.OrderService"), [order])
+        self.assertEqual(index.resolve("Other.java", "com.acme.order.*"), [])
+        self.assertEqual(index.resolve_type_references("src/main/java/com/acme/web/Api.java"), [order])
 
-    def test_csharp_namespace(self):
-        index = build_index({"Core/Orders/Order.cs": "namespace Acme.Core.Orders;\npublic class Order {}\n"})
-        self.assertEqual(index.resolve("Web/Api.cs", "Acme.Core.Orders"), ["Core/Orders/Order.cs"])
+    def test_a_kotlin_import_of_a_top_level_function_names_its_file(self):
+        card = "app/src/main/kotlin/com/shop/ui/OrderCard.kt"
+        index = build_index({
+            card: "package com.shop.ui\n\n@Composable\nfun OrderCard(title: String) {\n    Text(title)\n}\n",
+            "app/src/main/kotlin/com/shop/ui/Theme.kt": "package com.shop.ui\n\nfun ShopTheme() {}\n",
+        })
+        self.assertEqual(index.resolve("Screen.kt", "com.shop.ui.OrderCard"), [card])
+        self.assertEqual(index.resolve("Screen.kt", "com.shop.ui.Missing"), [])
+
+    def test_a_csharp_namespace_using_names_no_file_but_its_types_do(self):
+        index = build_index({
+            "Core/Orders/Order.cs": "namespace Acme.Core.Orders;\npublic class Order {}\n",
+            "Core/Orders/Formats.cs": "namespace Acme.Core.Orders;\npublic static class Formats {}\n",
+            "Core/Orders/Status.cs": "namespace Acme.Core.Orders;\npublic enum Status { Open }\n",
+            "Web/Api.cs": "using Acme.Core.Orders;\nusing static Acme.Core.Orders.Formats;\n"
+                          "namespace Acme.Web;\npublic class Api { Order o; }\n",
+        })
+        self.assertEqual(index.resolve("Web/Api.cs", "Acme.Core.Orders"), [])
+        self.assertEqual(index.resolve("Web/Api.cs", "Acme.Core.Orders.Formats"), ["Core/Orders/Formats.cs"])
+        self.assertEqual(index.resolve_type_references("Web/Api.cs"),
+                         ["Core/Orders/Formats.cs", "Core/Orders/Order.cs"])
+
+    def test_a_namespace_two_projects_declare_draws_no_edge_back(self):
+        # A file's using of its own namespace, which a service project also declares,
+        # made the contract depend on its implementation: a cycle no compiler allows.
+        index = build_index({
+            "Exchange/Validation/IResults.cs": "namespace App.Exchange.Validation\n{\n"
+                                               "    using App.Exchange.Validation;\n"
+                                               "    public interface IResults { string Name { get; } }\n}\n",
+            "Services/Validation/Results.cs": "namespace App.Exchange.Validation\n{\n"
+                                              "    public class Results : IResults { }\n}\n",
+        })
+        self.assertEqual(index.resolve("Exchange/Validation/IResults.cs", "App.Exchange.Validation"), [])
+        self.assertEqual(index.resolve_type_references("Exchange/Validation/IResults.cs"), [])
+        self.assertEqual(index.resolve_type_references("Services/Validation/Results.cs"),
+                         ["Exchange/Validation/IResults.cs"])
+
+    def test_csharp_reaches_attributes_and_extension_methods_without_their_full_type_names(self):
+        index = build_index({
+            "Security/UseSecurityAttribute.cs":
+                "namespace App.Security;\npublic class UseSecurityAttribute : System.Attribute {}\n",
+            "Core/Extension/DbExtension.cs":
+                "namespace App.Core.Extension;\npublic static class DbExtension\n{\n"
+                "    public static T MapData<T>(this DbDataReader reader) where T : class\n"
+                "    {\n        return null;\n    }\n}\n",
+            "Core/Extension/NumberExtension.cs":
+                "namespace App.Core.Extension;\npublic static class NumberExtension\n{\n"
+                "    public static int Twice(this int value) => value * 2;\n}\n",
+            "Audit/Settings.cs":
+                "using App.Security;\nusing App.Core.Extension;\nnamespace App.Audit;\n[UseSecurity]\n"
+                "public class Settings\n{\n    public Settings Load(DbDataReader reader) => "
+                "reader.MapData<Settings>();\n}\n",
+        })
+        self.assertEqual(index.resolve_type_references("Audit/Settings.cs"),
+                         ["Core/Extension/DbExtension.cs", "Security/UseSecurityAttribute.cs"])
 
     def test_php_namespace_and_class(self):
         index = build_index({
             "app/Services/Billing.php": "<?php\nnamespace App\\Services;\nclass Billing {}\n",
         })
         self.assertEqual(index.resolve("x.php", "App\\Services\\Billing"), ["app/Services/Billing.php"])
+        self.assertEqual(index.resolve("x.php", "App\\Services"), [])
 
     def test_go_module_paths_skip_test_files(self):
         index = build_index({
