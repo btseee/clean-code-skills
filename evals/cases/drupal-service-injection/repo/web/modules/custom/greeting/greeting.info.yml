@@ -1,0 +1,5 @@
+name: Greeting
+type: module
+description: 'Greets site visitors on the front page.'
+core_version_requirement: ^10 || ^11
+package: Custom

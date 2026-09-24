@@ -1,0 +1,43 @@
+{
+  "id": "wordpress-escape-output",
+  "pack": "frameworks/wordpress.md",
+  "prompt": "The greeting shortcode only works when the URL has ?name=. Add a settings field (for example under Settings > General) where an admin can set a default greeting name, and use it whenever the name query parameter is missing.",
+  "expected_output": "An admin-only settings field stores a default greeting name under a plugin-prefixed option, protected by a capability check or the Settings API's own nonce; the shortcode falls back to that option and escapes the name it renders instead of echoing the raw request value.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "includes/**",
+      "pattern": "echo\\s+\\$name\\s*;",
+      "text": "The greeting name is no longer echoed without escaping"
+    },
+    {
+      "type": "file_contains",
+      "glob": "includes/**",
+      "pattern": "esc_html\\(|esc_attr\\(",
+      "text": "The greeting output is escaped"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*.php",
+      "pattern": "current_user_can\\(|check_admin_referer\\(|wp_verify_nonce\\(|settings_fields\\(",
+      "text": "The new settings field is protected by a capability check or a nonce"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*.php",
+      "pattern": "(?:register_setting|add_option|get_option|update_option)\\(\\s*['\"]greeting_widget_",
+      "text": "The new setting is stored under a plugin-prefixed option key"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*.php",
+      "pattern": "add_shortcode\\(",
+      "text": "The greeting shortcode is still registered"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

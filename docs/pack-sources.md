@@ -310,3 +310,39 @@ agent reports an API the pack names as missing.
 - Save and load `state_dict`, not the pickled model: <https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html>
 - Seeds, deterministic algorithms, and `DataLoader` worker seeding: <https://docs.pytorch.org/docs/main/notes/randomness.html>
 - Lightning 2.x namespaces (`lightning.pytorch`, `pytorch-lightning`): <https://lightning.ai/docs/pytorch/stable/generated/CHANGELOG.html>
+
+### Tailwind CSS (`frameworks/tailwind.md`)
+
+- v4 CSS-first configuration, `@theme`, `@import "tailwindcss"`, automatic content detection: <https://tailwindcss.com/blog/tailwindcss-v4>
+- Class detection scans source text, so interpolated class names never ship: <https://tailwindcss.com/docs/detecting-classes-in-source-files>
+- Class-based dark mode through `@custom-variant`: <https://tailwindcss.com/docs/dark-mode>
+- `prettier-plugin-tailwindcss` current: <https://www.npmjs.com/package/prettier-plugin-tailwindcss>
+- `tailwind-merge` supports Tailwind v4: <https://www.npmjs.com/package/tailwind-merge>
+
+### Drupal (`frameworks/drupal.md`)
+
+- Drupal 11 current; Drupal 10 security support ends 2026-12-09: <https://www.drupal.org/project/drupal/issues/3524111>
+- PHP requirements per major: <https://www.drupal.org/docs/getting-started/system-requirements/php-requirements>
+- OOP hooks with `#[Hook]` since Drupal 11.1: <https://www.drupal.org/node/3442349>
+- Plugin attributes since Drupal 10.2: <https://www.drupal.org/node/3395575>
+- Service autowiring: <https://www.drupal.org/node/3366757>
+- `mglaman/phpstan-drupal` current: <https://packagist.org/packages/mglaman/phpstan-drupal>
+- `drupal/coder` (`Drupal`, `DrupalPractice` standards): <https://packagist.org/packages/drupal/coder>
+
+### WordPress (`frameworks/wordpress.md`)
+
+- Version history (7.1 current): <https://wordpress.org/documentation/article/wordpress-versions/>
+- Block API versions; the editor is always iframed from 7.1: <https://developer.wordpress.org/block-editor/reference-guides/block-api/block-api-versions/>
+- WordPress PHP coding standards (naming): <https://developer.wordpress.org/coding-standards/wordpress-coding-standards/php/>
+- `@wordpress/env` bundles the core PHPUnit suite: <https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/>
+- `wp-coding-standards/wpcs` current: <https://packagist.org/packages/wp-coding-standards/wpcs>
+- `szepeviktor/phpstan-wordpress`: <https://github.com/szepeviktor/phpstan-wordpress>
+
+### Unity (`frameworks/unity.md`)
+
+- Unity 6 support and the 6.3 LTS: <https://unity.com/releases/unity-6/support>
+- `Microsoft.Unity.Analyzers`: <https://github.com/microsoft/Microsoft.Unity.Analyzers>
+- Assembly definitions and `Editor/` folders: <https://docs.unity3d.com/Manual/cus-asmdef.html>
+- EditMode versus PlayMode tests: <https://docs.unity3d.com/6000.4/Documentation/Manual/test-framework/edit-mode-vs-play-mode-tests.html>
+- `FindObjectOfType` obsolete, `FindFirstObjectByType`/`FindAnyObjectByType`/`FindObjectsByType` replace it: <https://docs.unity3d.com/6000.4/Documentation/ScriptReference/Object.FindObjectOfType.html>
+- Legacy Input Manager versus the Input System package: <https://docs.unity3d.com/6000.4/Documentation/Manual/InputLegacy.html>

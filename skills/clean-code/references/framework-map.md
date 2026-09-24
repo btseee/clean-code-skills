@@ -61,6 +61,7 @@ framework Nuxt = frameworks/vue-nuxt.md
 framework Angular = frameworks/angular.md
 framework Svelte = frameworks/svelte.md
 framework SvelteKit = frameworks/svelte.md
+framework Tailwind CSS = frameworks/tailwind.md
 framework Django = frameworks/django.md
 framework Flask = frameworks/flask.md
 framework FastAPI = frameworks/fastapi.md
@@ -73,6 +74,8 @@ framework ASP.NET Core = frameworks/aspnet-core.md
 framework EF Core = frameworks/aspnet-core.md
 framework Laravel = frameworks/laravel.md
 framework Symfony = frameworks/symfony.md
+framework Drupal = frameworks/drupal.md
+framework WordPress = frameworks/wordpress.md
 framework Ruby on Rails = frameworks/rails.md
 framework Gin = frameworks/gin-beego.md
 framework Beego = frameworks/gin-beego.md
@@ -81,10 +84,12 @@ framework Jetpack Compose = frameworks/jetpack-compose.md
 framework SwiftUI = frameworks/swiftui-uikit.md
 framework UIKit = frameworks/swiftui-uikit.md
 framework Flutter = frameworks/flutter.md
+framework Unity = frameworks/unity.md
 framework TensorFlow = frameworks/tensorflow.md
 framework PyTorch = frameworks/pytorch.md
 supersede NestJS > Express
 supersede Strapi > React
+supersede Drupal > Symfony
 ```
 
 ## Roles

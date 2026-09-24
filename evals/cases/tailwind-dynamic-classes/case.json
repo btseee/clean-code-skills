@@ -1,0 +1,36 @@
+{
+  "id": "tailwind-dynamic-classes",
+  "pack": "frameworks/tailwind.md",
+  "prompt": "Badge only supports a color prop right now. Add a size prop with sm and lg options that change the padding and text size, without breaking the existing color variants.",
+  "expected_output": "Badge gains a size prop whose sm/lg variants are complete, statically written Tailwind class names -- a lookup table or branching that returns full class strings -- rather than a template literal that completes a utility name with an interpolated value. Every class that ships is a full literal token somewhere in the source.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/components/Badge.*",
+      "pattern": "[A-Za-z]-\\$\\{",
+      "text": "No Tailwind class name is completed by interpolating into the middle of a utility name"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/Badge.*",
+      "pattern": "(?i)\\bsize\\b",
+      "text": "Badge gains a size prop"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/Badge.*",
+      "pattern": "text-(xs|sm|base|lg)\\b",
+      "text": "A complete Tailwind text-size utility class appears as a literal token"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No component lands in the wrong folder"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "unity-humble-monobehaviour",
+  "pack": "frameworks/unity.md",
+  "prompt": "PlayerHealth already regenerates health every frame in Update. Enemies need a way to poison the player instead: a fixed amount of damage once per second for a set duration, then it stops. Add that damage-over-time effect, following the same split EnemyAi and EnemyPatrolRoute already use between the MonoBehaviour and its movement math.",
+  "expected_output": "The damage-over-time rule (tick timing and remaining duration) lives in its own plain C# class, not inline in PlayerHealth's Update, and applies damage through PlayerHealth's existing TakeDamage method. Any new tunable value is a [SerializeField] private field, never public. Nothing resolves a target through GameObject.Find or FindObjectOfType. PlayerHealth's existing regen behavior is untouched, and nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "Assets/_Project/**/*.cs",
+      "pattern": "GameObject\\.Find\\(|FindObjectOfType\\(|FindObjectsOfType\\(",
+      "text": "No script resolves a reference through a legacy scene-wide search instead of a cached one"
+    },
+    {
+      "type": "file_contains",
+      "glob": "Assets/_Project/**/*.cs",
+      "pattern": "\\.TakeDamage\\(",
+      "text": "The damage-over-time effect applies damage through PlayerHealth's existing TakeDamage method"
+    },
+    {
+      "type": "file_contains",
+      "glob": "Assets/_Project/**/*.cs",
+      "pattern": "\\[SerializeField\\]",
+      "text": "Any new tunable value the effect needs is exposed through [SerializeField], not a public field"
+    },
+    {
+      "type": "file_contains",
+      "glob": "Assets/_Project/Player/Runtime/PlayerHealth.cs",
+      "pattern": "regenPerSecond",
+      "text": "PlayerHealth's existing regen behavior is preserved"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

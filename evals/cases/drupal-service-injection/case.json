@@ -1,0 +1,37 @@
+{
+  "id": "drupal-service-injection",
+  "pack": "frameworks/drupal.md",
+  "prompt": "GreetingController currently only greets visitors with the site name. Add the current visitor's display name to the greeting too, so it reads something like 'Welcome to Acme, Jordan.'",
+  "expected_output": "GreetingController gets both the site configuration and the current user through constructor-injected services, wired with a create() factory; no file under the custom module calls the \\Drupal:: static facade; the site-name greeting still renders.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "web/modules/custom/**",
+      "pattern": "Drupal::",
+      "text": "No file under the custom module calls the \\Drupal:: static facade"
+    },
+    {
+      "type": "file_contains",
+      "glob": "web/modules/custom/**/src/Controller/**",
+      "pattern": "function __construct\\(|public static function create\\(",
+      "text": "GreetingController gets its dependencies through a constructor or a create() factory"
+    },
+    {
+      "type": "file_contains",
+      "glob": "web/modules/custom/**/src/Controller/**",
+      "pattern": "(?i)current_user|AccountProxyInterface|AccountInterface",
+      "text": "The greeting uses an injected current-user service"
+    },
+    {
+      "type": "file_contains",
+      "glob": "web/modules/custom/**/src/Controller/**",
+      "pattern": "#markup",
+      "text": "The controller still returns a render array"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}
