@@ -4,8 +4,8 @@
 One walk reads each file once. Symbols come from the symbols package, roles from
 the clean-roles conventions (the project's .clean/roles.md, then the framework
 packs, then the generic block), dependencies from source.resolution. The result
-is evidence for judgement -- misplaced, mixed, duplicated, clashing, and
-synonymous code, component metrics, and cycles -- never a verdict.
+is evidence for judgement -- misplaced, mixed, duplicated, clashing,
+synonymous, and badly named code, component metrics, and cycles -- never a verdict.
 
 Standard library only. Reads files; writes only .clean/structure.md and
 .clean/structure.json, and only with --write.
@@ -34,6 +34,7 @@ from source import imports as project_imports
 from source import resolution as import_resolution
 from structure import findings as structure_findings
 from structure import metrics as component_metrics
+from structure import naming as structure_naming
 from structure import report as structure_report
 from structure import roles as structure_roles
 
@@ -117,6 +118,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     index = import_resolution.ModuleIndex(root)
     roled_files = []
     modules = {}
+    texts = {}      # the sources whose variables and parameters the naming rules read
     unparsed = []
     for path in walk.paths:
         if Path(path).suffix.lower() not in project_symbols.SUPPORTED_SUFFIXES:
@@ -138,6 +140,8 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         roled_files.append(roled)
         if not roled.is_test:
             modules[path] = project_imports.resolvable_imports(Path(path).suffix, text)
+            if roled.language in structure_naming.VARIABLE_LANGUAGES:
+                texts[path] = text
 
     sources = set(modules)
     file_imports = {}
@@ -173,6 +177,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
             "duplicates": structure_findings.find_duplicates(roled_files),
             "name_clashes": structure_findings.find_name_clashes(roled_files, roles, project_roots),
             "synonyms": structure_findings.find_synonyms(roled_files, roles),
+            "names": structure_naming.find_names(roled_files, roles, texts, project_roots),
             "cycles": metrics["cycles"],
         },
         "components": metrics["components"],

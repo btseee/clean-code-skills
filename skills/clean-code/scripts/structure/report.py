@@ -19,8 +19,14 @@ FINDING_TITLES = (
     ("duplicates", "Duplicates"),
     ("name_clashes", "Name clashes"),
     ("synonyms", "Synonyms"),
+    ("names", "Names"),
     ("cycles", "Cycles"),
 )
+# The terminal summary keeps the order it had before names were reported, names last, so a
+# reader comparing runs sees the same line with one more count.
+SUMMARY_TITLES = (tuple((key, title) for key, title in FINDING_TITLES if key != "names")
+                  + (("names", "Names"),))
+NAME_EXAMPLES = 5
 MAX_TREE_ROWS = 200
 MAX_GRAPH_NODES = 25
 MAX_SYMBOLS_PER_ROW = 8
@@ -101,6 +107,20 @@ LINE_RENDERERS = {
 }
 
 
+def _name_rule_lines(items, examples: int) -> list:
+    """One line per naming rule, the most frequent first: its count, then its first examples."""
+    by_rule = defaultdict(list)
+    for item in items:
+        by_rule[item["rule"]].append(item)
+    lines = []
+    for rule, found in sorted(by_rule.items(), key=lambda entry: (-len(entry[1]), entry[0])):
+        shown = ", ".join(f"{_code(item['name'])} ({_code(_where(item))})" for item in found[:examples])
+        more = ", ..." if len(found) > examples else ""
+        listed = f" — {shown}{more}" if shown else ""
+        lines.append(f"{rule} ({found[0]['cites']}): {len(found)}{listed}")
+    return lines
+
+
 def _flagged(data) -> dict:
     """path -> finding kinds that name the file, and the misplaced symbol names."""
     kinds = defaultdict(set)
@@ -159,6 +179,9 @@ def _findings_section(data, top: int) -> list:
         if not items:
             continue
         lines += ["", f"### {title}", ""]
+        if key == "names":
+            lines += [f"- {line}" for line in _name_rule_lines(items, max(0, min(NAME_EXAMPLES, top)))]
+            continue
         lines += [f"- {LINE_RENDERERS[key](item)}" for item in items[:top]]
         if len(items) > top:
             lines.append(f"- ... and {len(items) - top} more in structure.json")
@@ -281,7 +304,7 @@ def render_summary(data: dict, path_filter=None) -> str:
               if any(_under(path.rstrip("/"), prefix) for path in _finding_paths(key, item))]
         for key, _ in FINDING_TITLES
     }
-    counts = ", ".join(f"{title.lower()} {len(findings[key])}" for key, title in FINDING_TITLES)
+    counts = ", ".join(f"{title.lower()} {len(findings[key])}" for key, title in SUMMARY_TITLES)
     lines = [
         "Structure map (evidence for judgement, not a verdict)",
         "",
@@ -295,11 +318,14 @@ def render_summary(data: dict, path_filter=None) -> str:
         more = f" and {len(unparsed) - SUMMARY_PER_KIND} more" if len(unparsed) > SUMMARY_PER_KIND else ""
         lines.append(f"  Unparsed  : {', '.join(unparsed[:SUMMARY_PER_KIND])}{more} "
                      "(their symbols are missing)")
-    for key, title in FINDING_TITLES:
+    for key, title in SUMMARY_TITLES:
         items = findings[key]
         if not items:
             continue
         lines += ["", f"  {title}"]
+        if key == "names":
+            lines += [f"    {line.replace('`', '')}" for line in _name_rule_lines(items, NAME_EXAMPLES)]
+            continue
         lines += [f"    {LINE_RENDERERS[key](item).replace('`', '')}" for item in items[:SUMMARY_PER_KIND]]
         if len(items) > SUMMARY_PER_KIND:
             lines.append(f"    ... and {len(items) - SUMMARY_PER_KIND} more")
