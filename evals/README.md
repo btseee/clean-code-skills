@@ -73,8 +73,8 @@ graded by `grade.py` at commit `834430f`.
 
 - Two expectations told the configurations apart: with the skill, the run read the Express pack
   that `.clean/context.json` lists, and `init` recorded the packs. Every other expectation passed
-  both ways, so the next iteration needs sharper cases, a tests-added expectation, and several runs
-  per configuration.
+  both ways, so the next iteration needs sharper cases, a frontend case, a tests-added expectation,
+  a check that the packs were read before the first edit, and several runs per configuration.
 - Runs without the skill still received this repository's `CLAUDE.md`, whose managed block
   carries the core rules. The comparison measures `SKILL.md`, the packs, and the scripts on top of
   that block.
