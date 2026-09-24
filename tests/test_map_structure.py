@@ -239,6 +239,12 @@ class MapStructureTest(unittest.TestCase):
                 "module.exports = { getUser };\n",
             "src/routes/health.js": "function health(req, res, next) { res.send('ok'); }\n"
                                     "module.exports = { health };\n",
+            # Express 4 handlers in a homeless module: not middleware to move whole.
+            "src/users.js": "async function getUsers(req, res, next) {\n"
+                            "  try { res.json([]); } catch (error) { next(error); }\n}\n"
+                            "async function getUser(req, res, next) {\n"
+                            "  try { res.json({}); } catch (error) { next(error); }\n}\n"
+                            "module.exports = { getUsers, getUser };\n",
         }, ["references/frameworks/express.md"])
         self.assertEqual([(item["path"], item["symbol"], item["suggestion"])
                           for item in data["findings"]["misplaced"]],

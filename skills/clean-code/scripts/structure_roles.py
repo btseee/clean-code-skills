@@ -165,18 +165,29 @@ class Roles:
     def home_role(self, relative_path: str) -> Optional[str]:
         return self.home(relative_path).role
 
+    def intrinsic(self, name: str, context: str, suffix: str,
+                  relative_path: Optional[str] = None) -> tuple:
+        """(role, signal_only): the role a symbol's own declaration shows, whatever file it
+        sits in, and whether only a declaration signal shows it, never the name."""
+        suffix = suffix.lstrip(".").lower()
+        by_signal = self._first_role("signal", context, suffix, relative_path)
+        by_name = self._first_role("name", name, suffix, relative_path)
+        role = by_signal or by_name
+        return role, by_signal is not None and by_name != by_signal
+
     def intrinsic_role(self, name: str, context: str, suffix: str,
                        relative_path: Optional[str] = None) -> Optional[str]:
-        """The role a symbol's own declaration shows, whatever file it sits in."""
-        suffix = suffix.lstrip(".").lower()
-        for kind, text in (("signal", context), ("name", name)):
-            for statement in self.statements:
-                if statement.kind != kind or not statement.applies_to(relative_path):
-                    continue
-                if statement.suffixes and suffix not in statement.suffixes:
-                    continue
-                if statement.value.search(text):
-                    return statement.role
+        """The role a symbol's own declaration shows: signals beat names."""
+        return self.intrinsic(name, context, suffix, relative_path)[0]
+
+    def _first_role(self, kind: str, text: str, suffix: str, relative_path: Optional[str]):
+        for statement in self.statements:
+            if statement.kind != kind or not statement.applies_to(relative_path):
+                continue
+            if statement.suffixes and suffix not in statement.suffixes:
+                continue
+            if statement.value.search(text):
+                return statement.role
         return None
 
     def allows(self, home_role: str, role: str, relative_path: Optional[str] = None) -> bool:
@@ -185,6 +196,12 @@ class Roles:
         return any(statement.kind == "allow" and statement.role == home_role
                    and role in statement.value and statement.applies_to(relative_path)
                    for statement in self.statements)
+
+    def is_guest(self, role: str, relative_path: Optional[str] = None) -> bool:
+        """Whether some convention lets role live in another role's home, as Express lets
+        middleware-shaped handlers live in controllers."""
+        return any(statement.kind == "allow" and role in statement.value
+                   and statement.applies_to(relative_path) for statement in self.statements)
 
     def accepts(self, relative_path: str, symbol_name: str) -> bool:
         """Whether a recorded exception covers the symbol, or its whole file."""
@@ -237,6 +254,7 @@ def load_roles(skill_root: Path, packs, project_root: Path, scopes=None) -> Role
 class RoledSymbol(NamedTuple):
     symbol: object
     role: Optional[str]
+    signal_only: bool = False     # a declaration signal shows the role; the name does not
 
 
 class RoledFile(NamedTuple):
@@ -257,9 +275,8 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
     """A file's home role, and an intrinsic role for each of its top-level symbols."""
     suffix = Path(file_symbols.path).suffix.lower().lstrip(".")
     symbols = [
-        RoledSymbol(symbol, roles.intrinsic_role(symbol.name, symbol.context, suffix,
-                                                 file_symbols.path)
-                    if symbol.parent is None else None)
+        RoledSymbol(symbol, *roles.intrinsic(symbol.name, symbol.context, suffix, file_symbols.path))
+        if symbol.parent is None else RoledSymbol(symbol, None)
         for symbol in file_symbols.symbols
     ]
     home = roles.home(file_symbols.path)

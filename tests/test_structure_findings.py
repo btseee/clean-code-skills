@@ -30,9 +30,9 @@ def sym(name, kind="function", line=1, exported=True, parent=None, exact=None, s
 
 
 def file(path, home, items, language="typescript", is_test=False, by_name=False):
+    """items are (symbol, role) pairs, or (symbol, role, signal_only) triples."""
     return RoledFile(path, language, Path(path).suffix.lstrip("."), home, is_test,
-                     [RoledSymbol(symbol, role) for symbol, role in items], "", 20, 0, 0,
-                     home_by_name=by_name)
+                     [RoledSymbol(*item) for item in items], "", 20, 0, 0, home_by_name=by_name)
 
 
 class MisplacedTest(unittest.TestCase):
@@ -150,6 +150,20 @@ class MisplacedTest(unittest.TestCase):
         ]
         roles = with_statements("role controller = **/*Controller.*", "role repository = **/repository/**")
         self.assertEqual(findings.find_misplaced(files, roles)[0]["suggestion"], f"{shop}/repository/")
+
+    def test_a_file_whose_role_only_a_shared_signature_shows_is_not_moved_whole(self):
+        # Express 4 handlers take (req, res, next) like middleware, and the conventions allow
+        # that shape in controllers: a homeless file of them is not evidently middleware.
+        handlers = file("src/users.js", None, [(sym("getUsers"), "middleware", True),
+                                               (sym("getUser", line=9), "middleware", True)])
+        named = file("src/auth.js", None, [(sym("authMiddleware"), "middleware")])
+        home = file("src/middleware/cors.js", "middleware", [(sym("cors"), "middleware", True)])
+        roles = with_statements("allow controller = middleware")
+        self.assertEqual([item["path"] for item in findings.find_misplaced([handlers, named, home], roles)],
+                         ["src/auth.js"])
+        # Where no convention lets the role live elsewhere, the signature is evidence enough.
+        self.assertEqual([item["path"] for item in findings.find_misplaced([handlers, home], GENERIC)],
+                         ["src/users.js"])
 
     def test_an_entry_point_is_never_told_to_move_whole(self):
         files = [

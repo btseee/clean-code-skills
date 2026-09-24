@@ -298,6 +298,10 @@ def find_misplaced(files, roles, project_roots=()) -> list:
                         "suggestion": destinations.for_symbol(item.role, roled_file),
                     })
             continue
+        # A role only a signature shows, which the conventions also let live in other homes
+        # (Express 4 handlers take next like middleware), is too weak to move a whole file.
+        if any(item.signal_only and roles.is_guest(item.role, roled_file.path) for item in bearing):
+            continue
         distinct = {item.role for item in bearing}
         if len(distinct) == 1 and not _is_entry_point(roled_file.path):
             role = distinct.pop()

@@ -108,6 +108,24 @@ class PrecedenceTest(unittest.TestCase):
                          ("service", False, "**/*.service.*"))
         self.assertEqual(roles.home("src/auth.ts"), (None, False, None))
 
+    def test_a_role_only_a_signal_shows_is_marked(self):
+        roles = roles_from([r"signal middleware = \(\s*req\b[^)]*,\s*res\b[^)]*,\s*next\b",
+                            "name middleware = Middleware$"])
+        cases = [
+            ("getUsers", "function getUsers(req, res, next) {", ("middleware", True)),
+            ("authMiddleware", "function authMiddleware(req, res, next) {", ("middleware", False)),
+            ("corsMiddleware", "const corsMiddleware = cors();", ("middleware", False)),
+            ("format", "function format(value) {", (None, False)),
+        ]
+        for name, context, expected in cases:
+            with self.subTest(name=name):
+                self.assertEqual(roles.intrinsic(name, context, "js"), expected)
+
+    def test_a_role_another_home_allows_is_a_guest(self):
+        roles = roles_from(["allow controller = middleware"])
+        self.assertTrue(roles.is_guest("middleware", "src/users.js"))
+        self.assertFalse(roles.is_guest("service", "src/users.js"))
+
     def test_allow_statements_from_every_source_apply(self):
         roles = roles_from(["allow context = component"], ["allow context = hook"])
         self.assertTrue(roles.allows("context", "component", "src/contexts/Auth.tsx"))
