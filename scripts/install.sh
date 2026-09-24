@@ -199,6 +199,8 @@ copy_skill_dir() {
   rm -rf "$dest_dir"
   mkdir -p "$(dirname "$dest_dir")"
   cp -R "$ROOT_DIR/skills/clean-code" "$dest_dir"
+  # A checkout that has run the scripts holds bytecode caches that embed its own paths.
+  find "$dest_dir" \( -name '__pycache__' -o -name '*.pyc' \) -prune -exec rm -rf {} +
   printf '%s: %s/ (v%s)\n' "$verb" "$(relpath "$dest_dir")" "$VERSION"
 }
 

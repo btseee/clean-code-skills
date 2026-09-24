@@ -262,6 +262,20 @@ rm -rf "$roundtrip_dir"
 [[ "$roundtrip_before" == "$roundtrip_after" ]] || fail "install then uninstall did not restore CLAUDE.md byte for byte"
 pass "install/uninstall round trip is byte-identical"
 
+# A checkout that has run Python holds bytecode caches, and their files embed the
+# author's paths. Install from a copy that has one, and prove none lands.
+bytecode_repo="$install_tmp_dir/bytecode-repo"
+mkdir -p "$bytecode_repo"
+cp -R "$ROOT_DIR/scripts" "$ROOT_DIR/templates" "$ROOT_DIR/skills" "$bytecode_repo/"
+mkdir -p "$bytecode_repo/skills/clean-code/scripts/__pycache__"
+: > "$bytecode_repo/skills/clean-code/scripts/__pycache__/project_files.cpython-312.pyc"
+: > "$bytecode_repo/skills/clean-code/scripts/stray.pyc"
+bash "$bytecode_repo/scripts/install.sh" --target "$install_tmp_dir/bytecode-target" claude skill >/dev/null
+if [[ -n "$(find "$install_tmp_dir/bytecode-target" \( -name '__pycache__' -o -name '*.pyc' \) -print)" ]]; then
+  fail "the installer copied Python bytecode into the skill folder"
+fi
+pass "installs carry no Python bytecode"
+
 
 fake_home="$install_tmp_dir/fake-home"
 mkdir -p "$fake_home"
@@ -385,7 +399,8 @@ PY
 
   # The scanners' behavior and the shape of the shipped content (pack templates and
   # budgets, the pack index, role blocks, contents lists) are checked by the unit tests.
-  if ! test_output="$(cd "$ROOT_DIR" && "$SKILL_PYTHON" -m unittest discover -s tests 2>&1)"; then
+  # No bytecode: the release zips the skill folder right after this check.
+  if ! test_output="$(cd "$ROOT_DIR" && PYTHONDONTWRITEBYTECODE=1 "$SKILL_PYTHON" -m unittest discover -s tests 2>&1)"; then
     printf '%s\n' "$test_output" | tail -40
     fail "unit tests failed"
   fi

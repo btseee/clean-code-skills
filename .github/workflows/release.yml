@@ -28,7 +28,11 @@ jobs:
         run: |
           mkdir -p dist/clean-code
           cp -R skills/clean-code/. dist/clean-code/
-          cd dist && zip -r clean-code.zip clean-code
+          cd dist && zip -r clean-code.zip clean-code -x '*/__pycache__/*' '*.pyc'
+          if unzip -Z1 clean-code.zip | grep -E '(^|/)__pycache__/|\.pyc$'; then
+            echo "clean-code.zip contains Python bytecode" >&2
+            exit 1
+          fi
 
       - name: Create GitHub release
         env:

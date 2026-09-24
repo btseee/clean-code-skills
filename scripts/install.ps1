@@ -198,6 +198,9 @@ function Copy-SkillDir([string]$DestDir) {
     if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $DestDir) | Out-Null
     Copy-Item -Recurse (Join-Path $RootDir 'skills/clean-code') $DestDir
+    # A checkout that has run the scripts holds bytecode caches that embed its own paths.
+    @(Get-ChildItem -LiteralPath $DestDir -Recurse -Force -Directory -Filter '__pycache__') | Remove-Item -Recurse -Force
+    @(Get-ChildItem -LiteralPath $DestDir -Recurse -Force -File -Filter '*.pyc') | Remove-Item -Force
     Write-Output "${verb}: $(Get-RelPath $DestDir)/ (v$Version)"
 }
 
