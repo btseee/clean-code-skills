@@ -232,6 +232,43 @@ class JavaScriptTest(unittest.TestCase):
             """))
         self.assertEqual(symbols["createApi"].end_line, 4)
 
+    def test_jsx_closing_tags_keep_later_declarations(self):
+        layout = extract("Layout.jsx", """
+            export function Header(props) {
+              return (
+                <nav>
+                  {props.open && <p>Hi</p>} <span>menu</span>
+                </nav>
+              );
+            }
+
+            export function Footer() {
+              return <footer />;
+            }
+
+            export const Sidebar = () => {
+              return <aside />;
+            };
+            """)
+        self.assertEqual([symbol.name for symbol in layout.symbols], ["Header", "Footer", "Sidebar"])
+        profile = by_name(extract("Profile.jsx", """
+            export class Profile extends React.Component {
+              render() {
+                return (
+                  <div>
+                    <label>Name</label>{this.props.name && <b>{this.props.name}</b>}
+                  </div>
+                );
+              }
+
+              handleClick() {
+                this.setState({ open: true });
+              }
+            }
+            """))
+        self.assertEqual(profile["Profile"].end_line, 13)
+        self.assertEqual(profile["handleClick"].parent, "Profile")
+
     def test_destructured_parameters_do_not_hide_duplicate_bodies(self):
         body = """
               let total = 0;
@@ -551,6 +588,33 @@ class RustTest(unittest.TestCase):
         self.assertNotIn("t", symbols)
         self.assertNotIn("tests", symbols)
 
+    def test_impl_blocks_with_lifetimes_keep_their_methods(self):
+        result = extract("parser.rs", """
+            pub struct Parser<'a> {
+                input: &'a str,
+            }
+
+            impl<'a> Parser<'a> {
+                pub fn new(input: &'a str) -> Self {
+                    Parser { input }
+                }
+            }
+
+            impl<'a> From<&'a str> for Name<'a> {
+                fn from(value: &'a str) -> Self { Name(value) }
+            }
+
+            impl<T: AsRef<str>> Label<T> {
+                fn text(&self) -> &str { self.0.as_ref() }
+            }
+
+            pub fn first<T>(xs: &'_ [T], d: &'_ T) -> &'_ T {
+                xs.first().unwrap_or(d)
+            }
+            """)
+        self.assertTrue({("new", "Parser"), ("from", "Name"), ("text", "Label")} <= owners(result))
+        self.assertEqual(by_name(result)["first"].end_line, 21)
+
     def test_where_clauses_at_the_declaration_indentation(self):
         # rustfmt puts `where` at the declaration's own indentation.
         result = extract("store.rs", """
@@ -724,6 +788,28 @@ class RubyTest(unittest.TestCase):
         self.assertEqual(symbols["Billing"].kind, "module")
         self.assertEqual((symbols["charge"].parent, symbols["charge"].end_line), ("Billing", 10))
 
+    def test_a_quote_inside_a_regex_does_not_swallow_the_file(self):
+        result = extract("loader.rb", """
+            class Loader
+              def requires(line)
+                line[/require ['"](.+)['"]/, 1]
+              end
+
+              def load_all
+                files.each { |f| load f }
+              end
+            end
+
+            class Other
+              def run
+                1
+              end
+            end
+            """)
+        self.assertEqual([(symbol.name, symbol.end_line) for symbol in result.symbols],
+                         [("Loader", 9), ("requires", 4), ("load_all", 8), ("Other", 15),
+                          ("run", 14)])
+
     def test_classes_inside_namespacing_modules_are_top_level(self):
         symbols = by_name(extract("users_controller.rb", """
             module Admin
@@ -755,6 +841,22 @@ class ScriptTest(unittest.TestCase):
             """))
         self.assertEqual(symbols["log"].kind, "function")
         self.assertEqual(symbols["main"].end_line, 11)
+
+    def test_a_shift_in_arithmetic_is_not_a_heredoc(self):
+        result = extract("bits.sh", """
+            #!/bin/bash
+            set_bit() {
+              local mask=$(( 1 << bit ))
+              echo "$mask"
+            }
+
+            clear_bit() {
+              local mask=$(( ~(1 << bit) ))
+              echo "$mask"
+            }
+            """)
+        self.assertEqual([(symbol.name, symbol.line, symbol.end_line) for symbol in result.symbols],
+                         [("set_bit", 2, 5), ("clear_bit", 7, 10)])
 
     def test_powershell_functions_help_and_classes(self):
         symbols = by_name(extract("Tools.psm1", """

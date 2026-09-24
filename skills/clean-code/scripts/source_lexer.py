@@ -40,6 +40,8 @@ class _Syntax(NamedTuple):
     template_backtick: bool = False
     raw_backtick: bool = False
     regex_literals: bool = False
+    regex_keywords: frozenset = frozenset()
+    percent_literals: bool = False
     verbatim_at: bool = False
     rust_raw: bool = False
     hash_word_start: bool = False
@@ -47,8 +49,15 @@ class _Syntax(NamedTuple):
     heredoc: str = ""
 
 
+# Words after which a `/` starts a regex rather than dividing.
+_JS_REGEX_KEYWORDS = frozenset({"return", "typeof", "case", "do", "else", "in", "of", "new", "delete",
+                                "void", "throw", "yield", "await"})
+_RUBY_REGEX_KEYWORDS = frozenset({"if", "elsif", "unless", "when", "while", "until", "and", "or",
+                                  "not", "return", "then", "in", "case"})
+
 _C_BLOCK = (("/*", "*/"),)
-_JS = _Syntax(("//",), _C_BLOCK, quotes="\"'", template_backtick=True, regex_literals=True)
+_JS = _Syntax(("//",), _C_BLOCK, quotes="\"'", template_backtick=True, regex_literals=True,
+              regex_keywords=_JS_REGEX_KEYWORDS)
 _C = _Syntax(("//",), _C_BLOCK, char_quote=True)
 
 SYNTAX = {
@@ -69,6 +78,7 @@ SYNTAX = {
     "objc": _C,
     "python": _Syntax(("#",), (), quotes="\"'", triple_quotes="\"'"),
     "ruby": _Syntax(("#",), (("=begin", "=end"),), quotes="\"'", multiline_quotes=True,
+                    regex_literals=True, regex_keywords=_RUBY_REGEX_KEYWORDS, percent_literals=True,
                     heredoc="ruby"),
     "shell": _Syntax(("#",), (), quotes="\"'", multiline_quotes=True, raw_single_quotes=True,
                      hash_word_start=True, heredoc="shell"),
@@ -79,9 +89,12 @@ SYNTAX = {
 }
 
 _REGEX_PRECEDERS = set("(,=:[!&|?{};+-*%<>~^")
-_REGEX_KEYWORDS = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete",
-                   "void", "throw", "yield", "await"}
-_CHAR_LITERAL = re.compile(r"'(?:\\.|[^'\\\n]){1,10}'")
+# Exactly one character or one escape. Allowing more read a Rust lifetime as a literal
+# whenever another quote followed: `impl<'a> Parser<'a>` lost `Parser`.
+_CHAR_LITERAL = re.compile(r"'(?:[^'\\\n]|\\(?:x[0-9A-Fa-f]{1,8}|u\{[0-9A-Fa-f]{1,6}\}|u[0-9A-Fa-f]{4}"
+                           r"|U[0-9A-Fa-f]{8}|[0-7]{1,3}|.))'")
+_RUBY_PERCENT = re.compile(r"%([qQwWiIrsx]?)([^\w\s])")
+_PAIRED_DELIMITERS = {"(": ")", "[": "]", "{": "}", "<": ">"}
 _RUST_RAW = re.compile(r"b?r(#*)\"")
 _SHELL_HEREDOC = re.compile(r"<<(-?)[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
 _RUBY_HEREDOC = re.compile(r"<<([~-]?)(['\"]?)([A-Z_][A-Z0-9_]*)\2")
@@ -100,6 +113,8 @@ def _openers(syntax: _Syntax) -> re.Pattern:
         tokens.add("`")
     if syntax.regex_literals:
         tokens.add("/")
+    if syntax.percent_literals:
+        tokens.add("%")
     if syntax.verbatim_at:
         tokens.update({'@"', '@$"', '$@"'})
     if syntax.heredoc in {"shell", "ruby"}:
@@ -200,7 +215,11 @@ def _template_end(text: str, position: int) -> int:
     return len(text)
 
 
-def _starts_regex(text: str, position: int) -> bool:
+def _starts_regex(text: str, position: int, keywords: frozenset) -> bool:
+    """Whether the `/` (or Ruby `%`) at position begins a literal rather than an operator."""
+    # `</` closes a JSX tag and `/>` ends one; a regex after `<` needs a space: `a < /re/`.
+    if (position > 0 and text[position - 1] == "<") or text.startswith("/>", position):
+        return False
     index = position - 1
     while index >= 0 and text[index] in " \t":
         index -= 1
@@ -209,7 +228,7 @@ def _starts_regex(text: str, position: int) -> bool:
     if text[index] in _REGEX_PRECEDERS:
         return True
     word = re.search(r"([A-Za-z_]+)$", text[max(0, index - 10):index + 1])
-    return bool(word and word.group(1) in _REGEX_KEYWORDS)
+    return bool(word and word.group(1) in keywords)
 
 
 def _regex_end(text: str, position: int) -> Optional[int]:
@@ -232,6 +251,37 @@ def _regex_end(text: str, position: int) -> Optional[int]:
     return None
 
 
+def _percent_span(text: str, position: int, keywords: frozenset):
+    """(delimiter start, end) of a Ruby %-literal (`%w[a b]`, `%q(it's)`, `%r{a/b}`), or None.
+
+    `%` is also modulo. A literal starts an expression, or, typed (`%w`), follows a
+    space as a method argument: `puts %w[a b]`.
+    """
+    match = _RUBY_PERCENT.match(text, position)
+    if match is None:
+        return None
+    typed_argument = bool(match.group(1)) and position > 0 and text[position - 1] in " \t"
+    if not (typed_argument or _starts_regex(text, position, keywords)):
+        return None
+    opener = match.group(2)
+    closer = _PAIRED_DELIMITERS.get(opener, opener)
+    depth = 1
+    index = match.end()
+    while index < len(text):
+        character = text[index]
+        if character == "\\":
+            index += 2
+            continue
+        if character == closer:
+            depth -= 1
+            if depth == 0:
+                return match.start(2), index + 1
+        elif character == opener:
+            depth += 1
+        index += 1
+    return match.start(2), len(text)
+
+
 def _verbatim_end(text: str, position: int) -> int:
     index = text.index('"', position) + 1
     while index < len(text):
@@ -248,6 +298,10 @@ def _heredoc_span(text: str, position: int, syntax: _Syntax):
     """(body start, body end) for a heredoc opening at position, or None."""
     if syntax.heredoc == "shell":
         if text.startswith("<<<", position):
+            return None
+        # Inside `$(( ))` or `(( ))`, `<<` shifts bits.
+        prefix = text[text.rfind("\n", 0, position) + 1:position]
+        if prefix.count("((") > prefix.count("))"):
             return None
         match = _SHELL_HEREDOC.match(text, position)
         terminator = match and match.group(3)
@@ -352,12 +406,21 @@ def _spans(text: str, language: str) -> list:
             continue
 
         if token == "/":
-            end = _regex_end(text, start) if _starts_regex(text, start) else None
+            end = _regex_end(text, start) if _starts_regex(text, start, syntax.regex_keywords) else None
             if end is None:
                 position = start + 1
                 continue
             spans.append((start, end, "string"))
             position = end
+            continue
+
+        if token == "%":
+            literal = _percent_span(text, start, syntax.regex_keywords)
+            if literal is None:
+                position = start + 1
+                continue
+            spans.append((literal[0], literal[1], "string"))
+            position = literal[1]
             continue
 
         if token == "'" and syntax.char_quote and "'" not in syntax.quotes:

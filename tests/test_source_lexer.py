@@ -62,6 +62,49 @@ class StripTest(unittest.TestCase):
         text = "fn a<'a>(x: &'a str) -> &'a str { x }"
         self.assertEqual(body_pair(text, "rust")[text.index("{")], text.rindex("}"))
 
+    def test_a_lifetime_followed_by_a_quote_is_kept(self):
+        for text in ("impl<'a> Parser<'a> {", "fn first<T>(xs: &'_ [T], d: &'_ T) -> &'_ T {"):
+            with self.subTest(text=text):
+                self.assertEqual(source_lexer.strip(text, "rust").code, text)
+
+    def test_char_literals_are_one_character_or_one_escape(self):
+        text = "let a = '{'; let b = '\\u{7D}'; let c = b'}'; let d = '\\'';"
+        code = source_lexer.strip(text, "rust").code
+        self.assertEqual((code.count("{"), code.count("}"), code.count("'")), (0, 0, 8))
+
+    def test_jsx_closing_tags_do_not_start_a_regex(self):
+        for text in ("{props.open && <p>Hi</p>} <span>menu</span>",
+                     "<label>Name</label>{this.props.name && <b>{this.props.name}</b>}",
+                     "<Foo a={b} />{c && <i>x</i>}"):
+            with self.subTest(text=text):
+                code = source_lexer.strip(text, "javascript").code
+                self.assertEqual(code, text)
+
+    def test_a_regex_after_a_spaced_less_than_is_still_a_regex(self):
+        text = "if (a < /}/.test(s)) {}"
+        self.assertEqual(source_lexer.strip(text, "javascript").code.count("}"), 1)
+
+    def test_ruby_regex_literals_hide_their_quotes(self):
+        text = "line[/require ['\"](.+)['\"]/, 1]\nx = s.gsub(/\"/, '')\ndef after; end\n"
+        code = source_lexer.strip(text, "ruby").code
+        self.assertIn("def after; end", code)
+        self.assertNotIn("require", code)
+
+    def test_ruby_percent_literals_hide_their_contents(self):
+        text = "A = %w[it's a]\nB = %q(don't {)\nC = %r{a/b}\nputs %(say \"hi\")\ndef after; end\n"
+        code = source_lexer.strip(text, "ruby").code
+        self.assertIn("def after; end", code)
+        self.assertNotIn("'", code)
+        self.assertEqual(code.count("{"), 1)
+
+    def test_ruby_division_is_not_a_regex(self):
+        text = "half = total / 2\nrate = (a + b) / count / 3\n"
+        self.assertEqual(source_lexer.strip(text, "ruby").code, text)
+
+    def test_a_shell_shift_is_not_a_heredoc(self):
+        text = "mask=$(( 1 << bit ))\n(( flags <<= 2 ))\necho }\n"
+        self.assertEqual(source_lexer.strip(text, "shell").code, text)
+
     def test_php_attributes_stay_code(self):
         text = "#[Route('/x')]\nclass A {}\n"
         self.assertIn("#[Route", source_lexer.strip(text, "php").code)

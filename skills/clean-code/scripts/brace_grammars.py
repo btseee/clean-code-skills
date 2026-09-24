@@ -405,9 +405,9 @@ GO = Grammar(
 )
 
 _RUST_VISIBILITY = r"(?:pub(?:\([^)\n]*\))?[ \t]+)?"
-# One word of an impl header, such as `fmt::Display` or `Vec<T>`. Words are separated by
-# spaces, never contain them, so a header splits only one way.
-_RUST_HEADER_WORD = r"[\w:<>,]+"
+# One word of an impl header, such as `fmt::Display`, `Vec<T>`, or `From<&'a`. Words are
+# separated by spaces, never contain them, so a header splits only one way.
+_RUST_HEADER_WORD = r"[\w:<>,'&]+"
 
 RUST = Grammar(
     language="rust",
@@ -416,7 +416,7 @@ RUST = Grammar(
         _pattern(rf"^[ \t]*(?P<mods>{_RUST_VISIBILITY}(?:unsafe[ \t]+)?)"
                  rf"(?P<kind>struct|enum|trait|union|type)[ \t]+(?P<name>{_WORD})", "struct",
                  container=True),
-        _pattern(rf"^[ \t]*(?:unsafe[ \t]+)?impl(?:[ \t]*<[^>\n]*>)?[ \t]+"
+        _pattern(rf"^[ \t]*(?:unsafe[ \t]+)?impl(?:[ \t]*<(?:[^<>\n]|<[^<>\n]*>)*>)?[ \t]+"
                  rf"(?:{_RUST_HEADER_WORD}(?:[ \t]+{_RUST_HEADER_WORD})*?[ \t]+for[ \t]+)?"
                  rf"(?P<name>{_WORD})", "struct", container=True, emit=False),
     ),
