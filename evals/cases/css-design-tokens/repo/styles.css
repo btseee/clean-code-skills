@@ -1,0 +1,33 @@
+body {
+  background-color: #ffffff;
+  color: #202124;
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}
+
+.site-header {
+  background-color: #1a73e8;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+}
+
+.site-footer {
+  background-color: #1a73e8;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+}
+
+.card {
+  background-color: #ffffff;
+  border: 1px solid #202124;
+  padding: 2rem;
+  margin: 2rem;
+}
+
+.button-primary {
+  background-color: #1a73e8;
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.25rem;
+}

@@ -1,0 +1,31 @@
+{
+  "id": "css-design-tokens",
+  "pack": "languages/css.md",
+  "prompt": "This landing page repeats the same brand colors as hex codes throughout the stylesheet. Add a dark theme -- however the toggle happens, a media query or a class or attribute -- without repeating the whole color palette a second time for the dark variant.",
+  "expected_output": "Colors move into custom properties declared once (for example in :root) and consumed with var(...); the dark variant overrides those same custom property names instead of duplicating every rule; the markup and existing classes keep working.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "**/*.css",
+      "pattern": "--[a-zA-Z][\\w-]*\\s*:",
+      "text": "Colors are declared once as custom properties"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*.css",
+      "pattern": "var\\(--",
+      "text": "Existing rules consume the custom properties with var()"
+    },
+    {
+      "type": "file_contains",
+      "glob": "**/*.css",
+      "pattern": "prefers-color-scheme|\\[data-theme|\\.dark\\b|\\.theme-dark\\b",
+      "text": "A dark variant is defined by a media query or a class/attribute"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new lands at the repository root"
+    }
+  ]
+}

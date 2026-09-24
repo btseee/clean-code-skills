@@ -134,6 +134,22 @@ agent reports an API the pack names as missing.
 - WartRemover cross-builds for Scala 3: <https://github.com/wartremover/wartremover>
 - Scalafix has active Scala 3 support: <https://github.com/scalacenter/scalafix>
 
+### CSS (`languages/css.md`)
+
+- `@property` Baseline status: <https://web.dev/blog/at-property-baseline>
+- `@property` descriptors: <https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@property>
+- Stylelint and `stylelint-config-standard` current: <https://www.npmjs.com/package/stylelint-config-standard>
+- Stylelint rules (`declaration-no-important`, `custom-property-pattern`): <https://stylelint.io/user-guide/rules>
+
+### Sass (`languages/sass.md`)
+
+- Dart Sass current release: <https://www.npmjs.com/package/sass>
+- `@import` deprecated in 1.80.0, removal planned for Dart Sass 3.0: <https://sass-lang.com/blog/import-is-deprecated/>
+- `/` division deprecated, `math.div()` replaces it: <https://sass-lang.com/documentation/breaking-changes/slash-div/>
+- `--fatal-deprecation` and deprecation IDs: <https://sass-lang.com/documentation/cli/dart-sass/>
+- Private members (`-` or `_` prefix) and `@forward` `show`/`hide`: <https://sass-lang.com/documentation/at-rules/use/>
+- `stylelint-config-standard-scss` current: <https://www.npmjs.com/package/stylelint-config-standard-scss>
+
 ## Frameworks
 
 ### React (`frameworks/react.md`)

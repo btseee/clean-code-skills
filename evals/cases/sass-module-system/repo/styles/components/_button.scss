@@ -1,0 +1,10 @@
+@import '../variables';
+@import '../mixins';
+
+.button {
+  @include flex-center;
+  background-color: $color-brand;
+  color: #ffffff;
+  padding: $space-sm $space-md;
+  border: none;
+}

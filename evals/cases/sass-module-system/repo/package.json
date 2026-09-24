@@ -1,0 +1,10 @@
+{
+  "name": "brand-styles",
+  "private": true,
+  "scripts": { "build": "sass styles/main.scss dist/main.css", "lint": "stylelint \"styles/**/*.scss\"" },
+  "devDependencies": {
+    "sass": "1.105.0",
+    "stylelint": "17.15.0",
+    "stylelint-config-standard-scss": "17.0.0"
+  }
+}
