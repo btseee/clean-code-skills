@@ -152,7 +152,8 @@ inside a refactor batch.
 ## Completion Checklist
 
 - Task solved; each changed line traces to it and obeys the rules above.
-- New files placed by role, wired; no sibling variant, duplicate, dead code, scratch file, or debug output.
+- New files placed by role, wired; no sibling variant, duplicate, dead code, scratch file, or
+  debug output.
 - Tests cover the change; none weakened.
 - Verification reported honestly: risk level, results, what did not run, remaining risk.
 - Lasting decisions in `.clean/decisions.md`; files added or moved and `.clean/` exists:

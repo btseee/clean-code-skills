@@ -12,14 +12,14 @@ Use these rules for every coding task in Windsurf. In a project that installs th
 
 Non-negotiable for all code work.
 
-**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then your stack's packs, named by its `scripts/detect_stack.py` or `references/framework-map.md`.
+**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then your stack's packs, named by the skill's `scripts/detect_stack.py` or `references/framework-map.md`.
 
 **Load project context first.** If present: `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, `.clean/structure.md` rows for your area; then project instruction files. Recorded decisions are settled. Project instructions outrank this block.
 
 ### Work Loop
 
 1. Frame: behavior change, design-relevant assumptions, smallest scope, success check.
-2. Read first: nearby code, naming, tests, error style, framework idioms; search for an existing implementation.
+2. Read first: nearby code, naming, tests, error style, framework idioms; search for existing implementations.
 3. Place: owning unit; which side of which boundary.
 4. Edit surgically: smallest diff, targeted edits (no whole-file regeneration), nothing unrelated; remove what your change orphaned.
 5. Verify: narrowest meaningful check, broader as risk demands.
@@ -59,7 +59,7 @@ Non-negotiable for all code work.
 ### Scope And Honesty
 
 - Surgical by default: report unrelated smells, never fix them. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
-- Report honestly: commands run and results, what was not run, remaining risk. Never claim unverified success or present a stub as finished.
+- Report honestly: commands run, results, what was not run, remaining risk. Never claim unverified success or present a stub or placeholder as finished.
 - Record lasting decisions in `.clean/decisions.md`, if present.
 
 ### Keeping These Rules Current
