@@ -401,6 +401,7 @@ GO = Grammar(
     exported=lambda match, name, kind, member: name[:1].isupper(),
     abstract=lambda match, kind, body: kind == "interface",
     purpose=_go_purpose,
+    type_literal=re.compile(r"\b(?:interface|struct)[ \t]*$"),
 )
 
 _RUST_VISIBILITY = r"(?:pub(?:\([^)\n]*\))?[ \t]+)?"

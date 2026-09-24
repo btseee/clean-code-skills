@@ -201,6 +201,51 @@ class JavaScriptTest(unittest.TestCase):
             """))
         self.assertIn("@Component({", symbols["AppComponent"].context)
 
+    def test_braces_in_the_parameter_list_are_not_the_body(self):
+        result = extract("card.tsx", """
+            export function UserCard({ user, onSelect }) {
+              const a = 1;
+              return a;
+            }
+            export const Badge = ({ label }) => {
+              return label;
+            };
+            function update(opts: { id: string }) {
+              return opts.id;
+            }
+            function save(
+              order,
+              options,
+            ) {
+              return order;
+            }
+            """)
+        self.assertEqual({symbol.name: (symbol.line, symbol.end_line) for symbol in result.symbols},
+                         {"UserCard": (1, 4), "Badge": (5, 7), "update": (8, 10), "save": (11, 16)})
+
+    def test_an_arrow_returning_an_object_literal_spans_the_literal(self):
+        symbols = by_name(extract("factories.ts", """
+            export const createApi = (http: Client) => ({
+              orders: orders(http),
+              users: users(http),
+            });
+            """))
+        self.assertEqual(symbols["createApi"].end_line, 4)
+
+    def test_destructured_parameters_do_not_hide_duplicate_bodies(self):
+        body = """
+              let total = 0;
+              for (const item of items) {
+                total += item.price * item.qty;
+              }
+              return total * (1 + rate);
+            }
+            """
+        symbols = by_name(extract("totals.js", "function cartTotal({ items, rate }) {" + body +
+                                  "function checkoutTotal({ items, rate }) {" + body))
+        self.assertIsNotNone(symbols["cartTotal"].exact)
+        self.assertEqual(symbols["cartTotal"].exact, symbols["checkoutTotal"].exact)
+
     def test_decorators_are_part_of_the_context(self):
         symbols = by_name(extract("users.controller.ts", """
             @Controller('users')
@@ -292,6 +337,14 @@ class JvmTest(unittest.TestCase):
         self.assertEqual((symbols["Cache"].kind, symbols["Cache"].exported), ("object", True))
         self.assertFalse(symbols["hidden"].exported)
         self.assertEqual(symbols["Level"].kind, "enum")
+
+    def test_a_kotlin_lambda_default_is_not_the_body(self):
+        symbols = by_name(extract("Retry.kt", """
+            fun retry(times: Int, block: () -> Unit = {}) {
+                repeat(times) { block() }
+            }
+            """))
+        self.assertEqual(symbols["retry"].end_line, 3)
 
     def test_scala_traits_case_classes_and_objects(self):
         result = extract("Model.scala", """
@@ -402,6 +455,26 @@ class DartTest(unittest.TestCase):
         self.assertNotIn("StringX", symbols)
         self.assertEqual(symbols["shout"].parent, "StringX")
 
+    def test_named_parameters_are_not_the_body(self):
+        result = extract("greeting.dart", """
+            class Greeting extends StatelessWidget {
+              Greeting({super.key, required this.name}) {
+                print(name);
+              }
+              final String name;
+            }
+
+            void greet({required String name, int times = 1}) {
+              for (var i = 0; i < times; i++) {
+                print(name);
+              }
+            }
+            """)
+        extents = {(symbol.name, symbol.kind): (symbol.line, symbol.end_line)
+                   for symbol in result.symbols}
+        self.assertEqual(extents[("Greeting", "method")], (2, 4))
+        self.assertEqual(extents[("greet", "function")], (8, 12))
+
 
 def owners(file_symbols):
     return {(symbol.name, symbol.parent) for symbol in file_symbols.symbols}
@@ -432,6 +505,25 @@ class GoTest(unittest.TestCase):
         self.assertEqual((symbols["Get"].kind, symbols["Get"].parent), ("method", "userStore"))
         self.assertFalse(symbols["helper"].exported)
 
+    def test_type_literals_in_a_signature_are_not_the_body(self):
+        result = extract("cache.go", """
+            package cache
+
+            func Print(v interface{}) error {
+            	return nil
+            }
+
+            func (c *Cache) Get(key string) interface{} {
+            	return c.items[key]
+            }
+
+            func Dump(v struct{ A int }) map[string]interface{} {
+            	return nil
+            }
+            """)
+        self.assertEqual({symbol.name: (symbol.line, symbol.end_line) for symbol in result.symbols},
+                         {"Print": (3, 5), "Get": (7, 9), "Dump": (11, 13)})
+
 
 class RustTest(unittest.TestCase):
     def test_traits_impls_visibility_and_test_modules(self):
@@ -458,6 +550,32 @@ class RustTest(unittest.TestCase):
         self.assertFalse(symbols["private"].exported)
         self.assertNotIn("t", symbols)
         self.assertNotIn("tests", symbols)
+
+    def test_where_clauses_at_the_declaration_indentation(self):
+        # rustfmt puts `where` at the declaration's own indentation.
+        result = extract("store.rs", """
+            pub fn process<T>(items: &[T]) -> Vec<T>
+            where
+                T: Clone,
+            {
+                let mut out = Vec::new();
+                for item in items {
+                    out.push(item.clone());
+                }
+                out
+            }
+
+            impl<T> Store<T>
+            where
+                T: Clone,
+            {
+                pub fn get(&self) -> Option<T> {
+                    None
+                }
+            }
+            """)
+        self.assertEqual(by_name(result)["process"].end_line, 10)
+        self.assertIn(("get", "Store"), owners(result))
 
 
 class SwiftTest(unittest.TestCase):

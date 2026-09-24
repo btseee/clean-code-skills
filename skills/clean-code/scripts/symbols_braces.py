@@ -60,6 +60,9 @@ class Grammar(NamedTuple):
     purpose: Optional[Callable] = None
     indent_blocks: bool = False
     regions: Optional[Callable] = None
+    # Matches the signature text before a `{` that opens a type, not the body: Go's
+    # `interface{}` in `func Get() interface{} {`.
+    type_literal: Optional[re.Pattern] = None
 
 
 # member_indent: None for a brace body (members sit one brace deeper), a column for an
@@ -73,6 +76,22 @@ class Container(NamedTuple):
     close: int
     name: str
     member_indent: Optional[int] = None
+
+
+# rustfmt, Swift, and C# may put a generic `where` clause at the declaration's own
+# indentation, between the signature and the body.
+_WHERE = re.compile(r"where\b")
+
+
+def _open_brackets(text: str) -> int:
+    """How many `(` or `[` text leaves unclosed."""
+    depth = 0
+    for character in text:
+        if character in "([":
+            depth += 1
+        elif character in ")]" and depth:
+            depth -= 1
+    return depth
 
 
 class Source:
@@ -147,25 +166,49 @@ class Source:
             line_number += 1
         return None
 
-    def body_after(self, offset: int, declaration_start: int) -> Optional[int]:
+    def _returned_object(self, paren_index: int) -> Optional[int]:
+        """The `{` of `=> ({ ... })`, an arrow whose body is an object literal."""
+        code = self.code
+        before = paren_index - 1
+        while before > 0 and code[before] in " \t\r\n":
+            before -= 1
+        if code[before - 1:before + 1] != "=>":
+            return None
+        after = paren_index + 1
+        while after < len(code) and code[after] in " \t\r\n":
+            after += 1
+        return after if after in self.braces else None
+
+    def body_after(self, offset: int, declaration_start: int, open_brackets: int = 0,
+                   type_literal: Optional[re.Pattern] = None) -> Optional[int]:
         """Offset of the `{` opening the body of the declaration ending near offset.
 
+        open_brackets counts the `(` or `[` the declaration match left open, as
+        `function f(` does, so a `{` inside the parameter list is never the body.
         Stops at a `;`, at a line that ends a braceless declaration (`:`, `=`,
-        `=>`), or at a following line that is neither an Allman-style `{` nor an
-        indented continuation of the signature.
+        `=>`), or at a following line that is neither an Allman-style `{`, a
+        `where` clause, nor an indented continuation of the signature.
         """
         code = self.code
         indent = self.indent_of(declaration_start)
-        paren = 0
+        paren = open_brackets
         index = offset
         while index < len(code):
             character = code[index]
+            if character == "(" and paren <= 0:
+                literal = self._returned_object(index)
+                if literal is not None:
+                    return literal
             if character in "([":
                 paren += 1
             elif character in ")]":
                 paren -= 1
             elif character == "{" and paren <= 0:
-                return index if index in self.braces else None
+                if index not in self.braces:
+                    return None
+                if type_literal is None or not type_literal.search(code, offset, index):
+                    return index
+                index = self.braces[index]
             elif character == ";" and paren <= 0:
                 return None
             elif character == "\n" and paren <= 0:
@@ -176,7 +219,7 @@ class Source:
                 if following is None:
                     return None
                 stripped = following.strip()
-                if not (stripped.startswith("{") or
+                if not (stripped.startswith("{") or _WHERE.match(stripped) or
                         len(following) - len(following.lstrip()) > indent):
                     return None
             index += 1
@@ -227,12 +270,18 @@ class _Extraction:
                 continue
             yield match, name
 
+    def body_of(self, match) -> Optional[int]:
+        source = self.source
+        return source.body_after(match.end(), match.start(),
+                                 _open_brackets(source.code[match.start():match.end()]),
+                                 self.grammar.type_literal)
+
     def add(self, match, name: str, kind: str, parent: Optional[str], is_member: bool,
             emit: bool = True, end_line: Optional[int] = None,
             require_body: bool = False) -> Optional[int]:
         source = self.source
         index = source.line_of(match.start()) - 1
-        body = source.body_after(match.end(), match.start())
+        body = self.body_of(match)
         if require_body and body is None:
             return None
         if end_line is None:
@@ -285,7 +334,7 @@ class _Extraction:
         source = self.source
         if not self.grammar.indent_blocks:
             return None
-        if source.body_after(match.end(), match.start()) is not None:
+        if self.body_of(match) is not None:
             return None
         index = source.line_of(match.start()) - 1
         if not source.code_lines[index].rstrip().endswith(":"):
