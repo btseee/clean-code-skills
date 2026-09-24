@@ -50,6 +50,11 @@ URL_ANGLE_PATTERN = re.compile(r"<(https?://[^>\s]+)>")
 URL_BARE_PATTERN = re.compile(r"https?://\S+")
 RULE_ID_PATTERN = re.compile(r"\b[A-Z]{1,2}\d{1,2}\b")
 NUMBER_PATTERN = re.compile(r"\b\d[\d,.]*\b")
+# CommonMark: a closing run of `#` counts only when a space precedes it ("C#" keeps its hash).
+HEADING_CLOSING_RUN = re.compile(r"(?:^|\s+)#+$")
+# Sentence punctuation after a bare URL is prose, not part of the URL.
+URL_TRAILING_PUNCTUATION = ".,;:!?'\""
+URL_BRACKET_PAIRS = {")": "(", "]": "[", "}": "{"}
 
 
 class Report(NamedTuple):
@@ -89,9 +94,26 @@ def _find_urls(text: str):
         spans.append(match.span())
     masked = _mask(text, spans)
     for match in URL_BARE_PATTERN.finditer(masked):
-        url = match.group(0).rstrip(".,;:!?)]}'\"")
-        found.append((url, match.start()))
+        found.append((_trim_url(match.group(0)), match.start()))
     return found
+
+
+def _trim_url(url: str) -> str:
+    """Drop trailing sentence punctuation and closing brackets the URL never opened (GFM autolinks)."""
+    while url:
+        last = url[-1]
+        if last in URL_TRAILING_PUNCTUATION:
+            url = url[:-1]
+        elif last in URL_BRACKET_PAIRS and url.count(last) > url.count(URL_BRACKET_PAIRS[last]):
+            url = url[:-1]
+        else:
+            break
+    return url
+
+
+def _heading_text(stripped: str) -> str:
+    """The heading's text without its opening `#` run or a space-separated closing one."""
+    return HEADING_CLOSING_RUN.sub("", stripped.lstrip("#").strip()).strip()
 
 
 def _closes_fence(stripped: str, opener: str) -> bool:
@@ -146,7 +168,7 @@ def _extract(text: str):
             continue
 
         if stripped.startswith("#"):
-            record("heading", stripped.strip("# "), line_offset)
+            record("heading", _heading_text(stripped), line_offset)
         for match in INLINE_CODE_PATTERN.finditer(body):
             record("inline code", match.group(1), line_offset + match.start())
 

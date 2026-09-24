@@ -112,6 +112,19 @@ class CompareTest(unittest.TestCase):
         report = cc.compare(original, compressed)
         self.assertIn("url: https://example.com/a", report.losses)
 
+    def test_a_hash_that_ends_the_heading_text_is_kept(self):
+        report = cc.compare("## Ends in C#\n", "## Ends in C\n")
+        self.assertEqual(report.losses, ["heading: Ends in C#"])
+
+    def test_a_url_keeps_its_balanced_closing_parenthesis(self):
+        original = "See https://en.wikipedia.org/wiki/Foo_(bar).\n"
+        report = cc.compare(original, "See the page.\n")
+        self.assertEqual(report.losses, ["url: https://en.wikipedia.org/wiki/Foo_(bar)"])
+
+    def test_a_url_loses_an_unbalanced_closing_parenthesis(self):
+        report = cc.compare("Docs (at https://x.test/a).\n", "Docs: https://x.test/a\n")
+        self.assertEqual(report.losses, [])
+
     def test_a_marker_of_the_other_kind_stays_inside_the_block(self):
         original = "```text\nline1\n~~~\n# not a heading\n```\n"
         report = cc.compare(original, original.replace("~~~\n", ""))
