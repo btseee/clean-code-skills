@@ -8,18 +8,20 @@
 - Use kebab-case for every Sass identifier — variables, mixins, functions, placeholders — matching CSS's own convention; never mix in camelCase or snake_case — Sass treats `-` and `_` as the same character, so `$font_size` silently aliases `$font-size` (G11).
 - Never hedge a name with a version or a fix marker: `$spacing-v2`, `%card-old`, `_helpers-new.scss` all mean the real rename never happened (N1, N4).
 - Name a mixin or function for what it produces (`button-reset`), not the bug it patches (`fix-button-again`) (N1).
+- Never name a variable, mixin, or function `$data`, `$info`, or `$temp`/`$tmp` (N1); keep a name that short only inside a tight loop or `@each` iterator (N5).
+- Never encode a type into a name (`$string-color`, `$map-spacing`) (N6), or name a mixin or function `helper`/`util`/`process` alone — name what it produces (N1, G17).
 
 ## Functions And Types
 
 - Model a related set of values as one Sass map, not a spray of separate variables: `$spacing: (sm: 0.5rem, md: 1rem, lg: 2rem)`, read with `map.get($spacing, md)` (G25).
 - Reach for a built-in module before hand-rolling: `sass:math` for arithmetic and `math.clamp`, `sass:color` for `color.adjust`, `sass:list` and `sass:map` for collections — load with `@use "sass:math"` (G24).
-- Use `math.div()` for division; plain `/` still divides outside `calc()` but is deprecated and warns on every build (G24).
+- Use `math.div()` for division; plain `/` divides outside `calc()` but is deprecated and warns on every build (G24).
 - Write a `@function` to compute a value and a `@mixin` to emit declarations; never a mixin that hands back a result through a `!global` variable (G18).
 
 ## Errors
 
 - Validate a map's shape or an argument's type at the top of a mixin or function (`@if not map.has-key($tokens, $key) { @error "..." }`) before using it, so a caller learns immediately, not three nesting levels into generated CSS (G3).
-- Write an `@error` message that names the bad value and the shape expected; a silently wrong computed value is harder to find than a build that stops.
+- Write an `@error` message that names the bad value and the shape expected; a wrong computed value is harder to find than a build that stops.
 - Never silence a failing `@extend` with `!optional` or an empty placeholder; a missing target is a real defect (G4).
 
 ## Modules And Visibility
@@ -27,13 +29,13 @@
 - Load every partial with `@use`, never `@import`: Dart Sass deprecated `@import` in 1.80 (October 2024) and targets removal in Dart Sass 3.0, no earlier than October 2026 — new and touched files use the module system now (G24).
 - Prefix a member with `-` or `_` (`$-internal-ratio`) to make it private: the module system hides prefixed members from every `@use` and `@forward` (G8).
 - Re-export a partial's public pieces with `@forward`, restricted with `show`/`hide` or a prefix, never a wildcard re-export of internals a consumer should not reach (G8).
-- Give each `@use` a clear namespace; reserve `as *` for one project-wide, deliberately unnamespaced tokens file, never as a habit (G22).
+- Give each `@use` a clear namespace; reserve `as *` for one project-wide, unnamespaced tokens file, never as a habit (G22).
 
 ## Placement
 
 - One partial (`_name.scss`) per concept — one component, one set of tokens, one set of mixins; never a `_helpers.scss` collecting unrelated mixins (G17).
-- Keep partials under the project's style root, mirroring how components are organized; a component's own partial sits beside the component when the project co-locates styles.
-- Keep the compiled entry point (`main.scss`/`app.scss`) to `@use`/`@forward` statements and the `@layer` order; it declares the build, it does not itself hold rules (G6).
+- Keep partials under the project's style root, mirroring how components are organized; a component's partial sits beside the component when the project co-locates styles.
+- Keep the compiled entry point (`main.scss`/`app.scss`) to `@use`/`@forward` statements and the `@layer` order; it declares the build, it does not hold rules (G6).
 
 ## Tests
 
