@@ -42,9 +42,13 @@ must read before its first edit stays small on any model.
   `.clean/structure.md` and `.clean/structure.json`; the SessionStart hook prints the findings.
   Symbol extraction covers all 19 languages with the standard library only.
 - **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
-  signal), overridable per project in `.clean/roles.md`. In a monorepo, a framework pack speaks
-  only for the project whose manifest named its framework (`pack_scopes` in `context.json`), and
-  `supersede` applies within one manifest, so a Strapi CMS never hides the React app beside it.
+  signal), overridable per project in `.clean/roles.md`. `allow` lets a home hold other roles (a
+  React context file keeps its Provider and hook; an Express controller may take `next`), and
+  `accept <glob> [= symbols]` records a deliberate exception so the map stops flagging it. In a
+  monorepo, a framework pack speaks only for the project whose manifest named its framework
+  (`pack_scopes` in `context.json`), `supersede` applies within one manifest, so a Strapi CMS
+  never hides the React app beside it, and move suggestions and name clashes stay inside one
+  project.
 - **An eval harness**: `evals/grade.py` grades a run against a case's deterministic expectations
   and exports `evals/evals.json` in skill-creator's layout; 33 cases, one per pack plus four core
   cases, and `evals/triggers.json` for description tuning. `evals/README.md` records the first
@@ -53,12 +57,17 @@ must read before its first edit stays small on any model.
 - **A unit test suite** (`tests/`, standard library `unittest`), run by `validate.sh` and CI.
 - `docs/install.md`, `docs/configuration.md`, and `docs/pack-sources.md`, the sources each pack was
   checked against.
+- `scripts/check_originality.py` for contributors: it compares shipped Markdown with the local,
+  gitignored books for runs of eight or more shared words. Its first run led to rewording sixteen
+  such runs in references that predate this release.
 
 ### Changed
 
-- **`SKILL.md` is a lean router** of about 1,950 tokens that opens with the context gate: read
-  `.clean/`, run the detector, read the named packs, then edit. `validate.sh` enforces the budgets:
-  `SKILL.md` at most 3,000 tokens, the managed block 1,200, each pack 2,000.
+- **`SKILL.md` is a lean router** of about 2,100 tokens that opens with the context gate: read
+  `.clean/`, run the detector, read the named packs, then edit; a trivial edit skips the gate.
+  `validate.sh` enforces the budgets: `SKILL.md` at most 3,000 tokens, the managed block 1,200,
+  each pack 2,000. The security rule stays in the always-on rules, and the Load Plan routes
+  security, trust boundaries, and performance questions to `principles.md`.
 - **The README is short**; install and configuration details moved to `docs/`.
 - The agent failure-mode and anti-loophole tables moved from `SKILL.md` to `review-checklist.md`.
 - Import parsing moved into `project_imports.py` and now reads Shell, PowerShell, R, and
@@ -66,6 +75,12 @@ must read before its first edit stays small on any model.
   also recognizes generated files by name (`*.Designer.cs`, `*.g.cs`, `*_pb2.py`, `*.pb.go`), so
   they no longer count as large files.
 - Every script prints UTF-8, so non-ASCII text reaches an agent intact through a Windows pipe.
+- A file counts as generated only when the comment that opens it says so, not when its prose
+  mentions a generated report.
+- `detect_stack.py` detects JavaScript frameworks by exact `package.json` dependency keys, so
+  `next-themes` in a Vite app no longer reads as Next.js.
+- The SessionStart hook resolves pack paths against the installed skill and says nothing about
+  layers in a project without `.clean/`.
 
 ### Fixed
 
@@ -77,6 +92,12 @@ must read before its first edit stays small on any model.
   declared layers.
 - **No script crashes on piped output in Windows** when a path, name, or summary holds a
   character outside the console code page; `detect_stack.py --write` saves its file first.
+- **`check_boundaries.py` resolves tsconfig and jsconfig `paths` aliases and `baseUrl` imports**, so
+  a domain file importing `@/lib/db` in a Next.js app no longer passes. An import that resolves to
+  a project file outside every declared layer prints a WARN line, and `--json` lists it under
+  `unlayered_imports`.
+- **Installs and the release zip carry no Python bytecode**; the installers skip `__pycache__`,
+  and the release job fails if its archive holds any.
 
 ## 3.2.0
 
