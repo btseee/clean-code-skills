@@ -24,6 +24,7 @@ FINDING_TITLES = (
 MAX_TREE_ROWS = 200
 MAX_GRAPH_NODES = 25
 MAX_SYMBOLS_PER_ROW = 8
+MAX_UNPARSED_SHOWN = 10
 SUMMARY_PER_KIND = 5
 
 
@@ -130,6 +131,13 @@ def _header(data) -> list:
     ]
     if data.get("truncated"):
         lines.append("- The walk stopped at the file cap; the map is partial.")
+    unparsed = data.get("unparsed", [])
+    if unparsed:
+        shown = ", ".join(f"{_code(item['path'])} ({_cell(item['reason'])})"
+                          for item in unparsed[:MAX_UNPARSED_SHOWN])
+        more = (f", and {len(unparsed) - MAX_UNPARSED_SHOWN} more in structure.json"
+                if len(unparsed) > MAX_UNPARSED_SHOWN else "")
+        lines.append(f"- Unparsed, so their symbols are missing: {shown}{more}")
     return lines
 
 
@@ -273,6 +281,11 @@ def render_summary(data: dict, path_filter=None) -> str:
         f"  Packs     : {', '.join(data['packs']) or 'none (generic conventions only)'}",
         f"  Findings  : {counts}" + (f" (under {prefix})" if prefix else ""),
     ]
+    unparsed = [item["path"] for item in data.get("unparsed", []) if _under(item["path"], prefix)]
+    if unparsed:
+        more = f" and {len(unparsed) - SUMMARY_PER_KIND} more" if len(unparsed) > SUMMARY_PER_KIND else ""
+        lines.append(f"  Unparsed  : {', '.join(unparsed[:SUMMARY_PER_KIND])}{more} "
+                     "(their symbols are missing)")
     for key, title in FINDING_TITLES:
         items = findings[key]
         if not items:

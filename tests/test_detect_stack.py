@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import support  # noqa: F401  (puts the scripts folder on sys.path)
+import support  # puts the scripts folder on sys.path
 import detect_stack
 
 INDEX = """
@@ -200,6 +200,17 @@ class BuildContextTest(unittest.TestCase):
         self.assertEqual(data["future_key"], 123)
         self.assertTrue(data["primary_language"])
         self.assertIn("packs", data)
+
+    def test_json_reaches_a_console_that_cannot_encode_a_folder_name(self):
+        directory = make_project({
+            "网站/package.json": '{"name": "x", "dependencies": {"react": "18.3.1"}}\n',
+            "网站/src/index.js": "const x = 1;\n",
+        })
+        with directory:
+            code, output = support.run_on_ansi_console(
+                detect_stack.main, ["--root", directory.name, "--json"])
+        self.assertEqual(code, 0)
+        self.assertIn("网站", json.dumps(json.loads(output), ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -191,26 +191,34 @@ def _triple_end(text: str, position: int, delimiter: str) -> int:
 
 
 def _template_end(text: str, position: int) -> int:
+    """End of the template literal opening at position, nested templates included.
+
+    A stack instead of recursion: templates nested a few thousand deep would overflow
+    Python's call stack and abort the whole scan.
+    """
+    enclosing = []       # brace depth of each `${ }` holding a nested template
+    depth = 0            # brace depth inside the current `${ }`; 0 means template text
     index = position + 1
     while index < len(text):
         character = text[index]
-        if character == "\\":
-            index += 2
-            continue
-        if character == "`":
-            return index + 1
-        if text.startswith("${", index):
-            depth = 1
-            index += 2
-            while index < len(text) and depth:
-                if text[index] == "{":
-                    depth += 1
-                elif text[index] == "}":
-                    depth -= 1
-                elif text[index] == "`":
-                    index = _template_end(text, index) - 1
+        if depth == 0:
+            if character == "\\":
+                index += 2
+                continue
+            if character == "`":
+                if not enclosing:
+                    return index + 1
+                depth = enclosing.pop()
+            elif text.startswith("${", index):
+                depth = 1
                 index += 1
-            continue
+        elif character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+        elif character == "`":
+            enclosing.append(depth)
+            depth = 0
         index += 1
     return len(text)
 

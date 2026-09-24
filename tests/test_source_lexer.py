@@ -38,6 +38,10 @@ class StripTest(unittest.TestCase):
         stripped = source_lexer.strip(text, "typescript")
         self.assertEqual(stripped.code.count("{"), 1)
 
+    def test_deeply_nested_template_literals_do_not_overflow(self):
+        text = "const a = " + "`${" * 5000 + "}`" * 5000 + ";\nfunction after() {}\n"
+        self.assertTrue(source_lexer.strip(text, "javascript").code.endswith("function after() {}\n"))
+
     def test_regex_literals_are_blanked(self):
         text = "const r = /[{]/g;\nfunction f() {}\n"
         stripped = source_lexer.strip(text, "javascript")

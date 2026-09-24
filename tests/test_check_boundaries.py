@@ -1,8 +1,9 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
-import support  # noqa: F401  (puts the scripts folder on sys.path)
+import support  # puts the scripts folder on sys.path
 import check_boundaries as cb
 
 
@@ -73,6 +74,24 @@ class CheckProjectTest(unittest.TestCase):
             result = cb.check_project(root, layering)
         self.assertEqual(result["violation_count"], 1)
         self.assertEqual(result["violations"][0]["to_layer"], "infra")
+
+    def test_a_file_name_the_console_cannot_encode_is_still_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".clean").mkdir()
+            (root / ".clean" / "architecture.md").write_text(
+                "```clean-architecture\nlayer domain = src/domain/**\nlayer infra = src/infra/**\n```\n",
+                encoding="utf-8")
+            (root / "src" / "domain").mkdir(parents=True)
+            (root / "src" / "infra").mkdir(parents=True)
+            (root / "src" / "domain" / "订单.ts").write_text(
+                "import { Db } from '../infra/db';\n", encoding="utf-8")
+            (root / "src" / "infra" / "db.ts").write_text("export const Db = 1;\n", encoding="utf-8")
+            code, output = support.run_on_ansi_console(cb.main, ["--root", str(root)])
+            json_code, json_output = support.run_on_ansi_console(cb.main, ["--root", str(root), "--json"])
+        self.assertEqual((code, json_code), (1, 1))
+        self.assertIn("src/domain/订单.ts", output)
+        self.assertEqual(json.loads(json_output)["violations"][0]["file"], "src/domain/订单.ts")
 
 
 if __name__ == "__main__":

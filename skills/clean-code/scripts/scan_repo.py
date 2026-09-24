@@ -505,6 +505,10 @@ def parse_arguments(argv) -> argparse.Namespace:
 
 def main(argv=None) -> int:
     arguments = parse_arguments(argv if argv is not None else sys.argv[1:])
+    # A pipe on Windows defaults to the ANSI code page, which cannot encode most names;
+    # UTF-8 can, and it is what JSON consumers expect.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
     root = Path(arguments.root).expanduser().resolve()
     if not root.is_dir():

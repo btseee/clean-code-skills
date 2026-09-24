@@ -5,9 +5,11 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
-import support  # noqa: F401  (puts the scripts folder on sys.path)
+import support  # puts the scripts folder on sys.path
 import map_structure
+import project_symbols
 import structure_report
 
 FIXTURE = {
@@ -64,6 +66,13 @@ def run(*argv):
     with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
         code = map_structure.main(list(argv))
     return code, output.getvalue()
+
+
+class ClosedPipe(io.StringIO):
+    """A stdout whose reader went away, as when the output is piped into `head`."""
+
+    def write(self, text):
+        raise BrokenPipeError(32, "Broken pipe")
 
 
 class MapStructureTest(unittest.TestCase):
@@ -140,6 +149,46 @@ class MapStructureTest(unittest.TestCase):
         files = {entry["path"]: entry for entry in data["files"]}
         self.assertEqual(files["src/app/main.c"]["imports"], [])
         self.assertEqual(data["edges"], [])
+
+    def test_a_console_that_cannot_encode_a_character_still_gets_the_map(self):
+        (self.root / "src" / "services" / "orders.js").write_text(
+            "// Zeigt Bestellungen an → JSON (订单).\n\nfunction listOrders() {}\n"
+            "module.exports = { listOrders };\n", encoding="utf-8")
+        code, output = support.run_on_ansi_console(
+            map_structure.main, ["--root", str(self.root), "--path", "src/services", "--write"])
+        self.assertEqual(code, 0)
+        self.assertIn("订单", output)
+        self.assertTrue((self.root / ".clean" / "structure.json").is_file())
+        code, output = support.run_on_ansi_console(map_structure.main, ["--root", str(self.root), "--json"])
+        self.assertEqual(code, 0)
+        files = {entry["path"]: entry for entry in json.loads(output)["files"]}
+        self.assertIn("→", files["src/services/orders.js"]["purpose"])
+
+    def test_the_map_is_saved_before_anything_is_printed(self):
+        with contextlib.redirect_stdout(ClosedPipe()), self.assertRaises(BrokenPipeError):
+            map_structure.main(["--root", str(self.root), "--write"])
+        self.assertTrue((self.root / ".clean" / "structure.json").is_file())
+
+    def test_a_file_that_cannot_be_read_is_listed_not_fatal(self):
+        (self.root / "src" / "legacy.py").write_text("def broken(:\n    pass\n", encoding="utf-8")
+        extract = project_symbols.extract
+
+        def fragile_extract(path, text):
+            if path == "src/services/fetch.js":
+                raise RecursionError("maximum recursion depth exceeded")
+            return extract(path, text)
+
+        with mock.patch.object(project_symbols, "extract", side_effect=fragile_extract):
+            data = map_structure.build_map(self.root, packs=[], depth=2)
+        unparsed = {item["path"]: item["reason"] for item in data["unparsed"]}
+        self.assertIn("RecursionError", unparsed["src/services/fetch.js"])
+        self.assertIn("SyntaxError", unparsed["src/legacy.py"])
+        files = {entry["path"] for entry in data["files"]}
+        self.assertEqual(("src/services/fetch.js" in files, "src/legacy.py" in files), (False, True))
+        self.assertIn("src/services/auth.js", files)
+        header = structure_report.render_markdown(data).split("## Findings")[0]
+        self.assertIn("`src/legacy.py`", header)
+        self.assertIn("src/services/fetch.js", structure_report.render_summary(data))
 
     def test_a_malformed_roles_file_is_an_error(self):
         (self.root / ".clean" / "roles.md").write_text("```clean-roles\nnonsense\n```\n",

@@ -7,6 +7,7 @@ Standard library only.
 from __future__ import annotations
 
 import ast
+import sys
 import warnings
 from typing import Optional
 
@@ -95,14 +96,23 @@ class _Builder:
         )
 
 
+def _parse_failure(error: Exception) -> str:
+    """Why this interpreter could not read the file: newer syntax than it knows, broken
+    code, or an expression nested deeper than its parser goes."""
+    version = f"Python {sys.version_info[0]}.{sys.version_info[1]}"
+    if isinstance(error, SyntaxError):
+        return f"SyntaxError at line {error.lineno} for {version}: {error.msg}"
+    return f"{type(error).__name__} in {version}'s parser: {error}"[:160]
+
+
 def extract(path: str, text: str) -> symbol_model.FileSymbols:
     try:
         with warnings.catch_warnings():
             # The scanned file's own warnings (invalid escapes, say) are not ours to print.
             warnings.simplefilter("ignore")
             tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return symbol_model.file_symbols(path, "python", "", text, [])
+    except (SyntaxError, ValueError, RecursionError, MemoryError) as error:
+        return symbol_model.file_symbols(path, "python", "", text, [], _parse_failure(error))
 
     builder = _Builder(path, text)
     declared = _declared_all(tree)

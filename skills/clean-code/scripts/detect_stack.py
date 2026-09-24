@@ -899,6 +899,10 @@ def merge_with_existing(destination: Path, context: dict) -> dict:
 
 def main(argv=None) -> int:
     arguments = parse_arguments(argv if argv is not None else sys.argv[1:])
+    # A pipe on Windows defaults to the ANSI code page, which cannot encode most names;
+    # UTF-8 can, and it is what JSON consumers expect.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 
     root = Path(arguments.root).expanduser().resolve()
     if not root.is_dir():
@@ -914,11 +918,7 @@ def main(argv=None) -> int:
 
     payload = json.dumps(context, indent=2, ensure_ascii=False)
 
-    if arguments.json:
-        print(payload)
-    else:
-        print(render_summary(context))
-
+    # Save first, so a failure to print never costs the saved context.
     if destination is not None:
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -926,8 +926,13 @@ def main(argv=None) -> int:
         except OSError as error:
             print(f"error: could not write {destination}: {error}", file=sys.stderr)
             return 1
-        if not arguments.json:
-            print(f"\nSaved: {destination}")
+
+    if arguments.json:
+        print(payload)
+    else:
+        print(render_summary(context))
+    if destination is not None and not arguments.json:
+        print(f"\nSaved: {destination}")
 
     return 0
 

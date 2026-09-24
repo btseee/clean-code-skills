@@ -108,16 +108,23 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     index = import_resolution.ModuleIndex(root)
     roled_files = []
     modules = {}
+    unparsed = []
     for path in walk.paths:
         text = project_files.read_text(root / path)
         if text is None or project_files.is_generated(path, text):
             continue
-        symbols = project_symbols.extract(path, text)
-        if symbols is None:
+        try:
+            symbols = project_symbols.extract(path, text)
+            if symbols is None:
+                continue
+            roled = structure_roles.assign(symbols, roles, project_files.is_test_path(path))
+            index.add(path, text, symbols)
+        except Exception as error:  # one pathological file must not cost the whole map
+            unparsed.append({"path": path, "reason": f"{type(error).__name__}: {error}"[:160]})
             continue
-        roled = structure_roles.assign(symbols, roles, project_files.is_test_path(path))
+        if symbols.unparsed:
+            unparsed.append({"path": path, "reason": symbols.unparsed})
         roled_files.append(roled)
-        index.add(path, text, symbols)
         if not roled.is_test:
             modules[path] = project_imports.resolvable_imports(Path(path).suffix, text)
 
@@ -143,6 +150,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         "packs": list(packs),
         "depth": depth,
         "truncated": walk.truncated,
+        "unparsed": unparsed,
         "languages": dict(Counter(roled.language for roled in production).most_common()),
         "file_count": len(production),
         "test_file_count": len(roled_files) - len(production),
@@ -183,6 +191,10 @@ def parse_arguments(argv) -> argparse.Namespace:
 
 def main(argv=None) -> int:
     arguments = parse_arguments(argv if argv is not None else sys.argv[1:])
+    # A pipe on Windows defaults to the ANSI code page, which cannot encode most names;
+    # UTF-8 can, and it is what JSON consumers expect.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     root = Path(arguments.root).expanduser().resolve()
     if not root.is_dir():
         print(f"error: not a directory: {root}", file=sys.stderr)
@@ -194,13 +206,9 @@ def main(argv=None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    if arguments.json:
-        print(json.dumps(data, indent=2, ensure_ascii=False))
-    else:
-        print(structure_report.render_summary(data, arguments.path))
-
+    # Save first, so a failure to print never costs the saved map.
+    destination = root / ".clean"
     if arguments.write:
-        destination = root / ".clean"
         try:
             destination.mkdir(parents=True, exist_ok=True)
             (destination / "structure.md").write_text(
@@ -210,8 +218,13 @@ def main(argv=None) -> int:
         except OSError as error:
             print(f"error: could not write {destination}: {error}", file=sys.stderr)
             return 1
-        if not arguments.json:
-            print(f"\nSaved: {destination / 'structure.md'} and structure.json")
+
+    if arguments.json:
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+    else:
+        print(structure_report.render_summary(data, arguments.path))
+    if arguments.write and not arguments.json:
+        print(f"\nSaved: {destination / 'structure.md'} and structure.json")
     return 0
 
 

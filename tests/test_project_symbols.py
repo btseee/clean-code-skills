@@ -1,6 +1,7 @@
 import textwrap
 import time
 import unittest
+from unittest import mock
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
 import project_symbols
@@ -102,6 +103,23 @@ class PythonTest(unittest.TestCase):
     def test_short_functions_get_no_fingerprint(self):
         symbols = by_name(extract("s.py", "def tiny():\n    return 1\n"))
         self.assertIsNone(symbols["tiny"].exact)
+
+    def test_a_file_this_python_cannot_parse_says_so(self):
+        # Newer syntax than the running interpreter reads, or simply broken code.
+        result = extract("orders.py", """
+            class OrderParser:
+                def parse(self, text:
+                    return 1
+            """)
+        self.assertEqual(result.symbols, [])
+        self.assertRegex(result.unparsed, r"SyntaxError.*line \d+")
+        self.assertEqual(extract("fine.py", "x = 1\n").unparsed, "")
+
+    def test_a_parser_that_gives_up_marks_the_file_instead_of_crashing(self):
+        with mock.patch("symbols_python.ast.parse", side_effect=RecursionError("too deep")):
+            result = extract("strings.py", "TABLE = 'a' + 'b'\n")
+        self.assertEqual(result.symbols, [])
+        self.assertIn("RecursionError", result.unparsed)
 
 
 class JavaScriptTest(unittest.TestCase):

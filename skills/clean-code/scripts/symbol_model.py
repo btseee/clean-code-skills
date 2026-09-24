@@ -54,9 +54,11 @@ class FileSymbols(NamedTuple):
     symbols: list
     types: int
     abstract_types: int
+    unparsed: str = ""          # why the file could not be read, so its symbols are missing
 
 
-def file_symbols(path: str, language: str, purpose: str, text: str, symbols: list) -> FileSymbols:
+def file_symbols(path: str, language: str, purpose: str, text: str, symbols: list,
+                 unparsed: str = "") -> FileSymbols:
     top_types = [s for s in symbols if s.kind in TYPE_KINDS and s.parent is None]
     return FileSymbols(
         path=path,
@@ -66,6 +68,7 @@ def file_symbols(path: str, language: str, purpose: str, text: str, symbols: lis
         symbols=sorted(symbols, key=lambda symbol: (symbol.line, symbol.name)),
         types=len(top_types),
         abstract_types=sum(1 for symbol in top_types if symbol.abstract),
+        unparsed=unparsed,
     )
 
 
