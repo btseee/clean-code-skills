@@ -9,6 +9,7 @@ from unittest import mock
 
 import support  # puts the scripts folder on sys.path
 import map_structure
+import project_files
 import project_symbols
 import structure_report
 
@@ -203,6 +204,21 @@ class MapStructureTest(unittest.TestCase):
         files[".clean/roles.md"] = ("Recorded in decisions.md: the auth error handler stays with auth.\n\n"
                                     "```clean-roles\naccept src/services/auth.js = handleAuthError\n```\n")
         self.assertEqual(build_fixture(files, packs)["findings"]["misplaced"], [])
+
+    def test_one_walk_finds_the_sources_and_the_projects(self):
+        write_fixture(self.root, {
+            "Audit/Audit.csproj": "<Project Sdk=\"Microsoft.NET.Sdk\" />\n",
+            "Audit/Database.cs": "namespace Audit;\npublic class Database {}\n",
+            "State/State.csproj": "<Project Sdk=\"Microsoft.NET.Sdk\" />\n",
+            "State/Database.cs": "namespace State;\npublic class Database {}\n",
+            "State/Legacy/Database.cs": "namespace State.Legacy;\npublic class Database {}\n",
+        })
+        with mock.patch.object(project_files, "walk", side_effect=project_files.walk) as walk:
+            data = map_structure.build_map(self.root, packs=[], depth=2)
+        self.assertEqual(walk.call_count, 1)
+        self.assertEqual([[member["path"] for member in group["members"]]
+                          for group in data["findings"]["name_clashes"]],
+                         [["State/Database.cs", "State/Legacy/Database.cs"]])
 
     def test_synonyms_imports_and_purposes_are_recorded(self):
         data = map_structure.build_map(self.root, packs=[], depth=2)

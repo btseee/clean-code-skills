@@ -16,6 +16,8 @@ import re
 from collections import Counter, defaultdict
 from typing import Optional
 
+import symbol_model
+
 # Abstractions legitimately live beside the code that consumes them (the
 # Dependency Inversion Principle), so a repository interface in the domain is
 # never "misplaced".
@@ -136,22 +138,45 @@ def _project_of(path: str, project_roots) -> str:
     return max(owners, key=len) if owners else ""
 
 
-def _suggest(role: str, path: str, homes: dict, roles, project_roots=()) -> Optional[str]:
+def _all_folders(files) -> set:
+    """Every folder that holds a file, directly or below."""
+    folders = set()
+    for roled_file in files:
+        folder = posixpath.dirname(roled_file.path)
+        while folder and folder not in folders:
+            folders.add(folder)
+            folder = posixpath.dirname(folder)
+    return folders
+
+
+def _cased(name: str, parent: str, folders, language: str) -> str:
+    """A new folder's name in the casing of the folders beside it: `Validators` in a
+    PascalCase solution, and in C# when nothing sits beside it."""
+    initials = [posixpath.basename(folder)[0] for folder in folders
+                if posixpath.dirname(folder) == parent and posixpath.basename(folder)[:1].isalpha()]
+    upper = sum(1 for initial in initials if initial.isupper())
+    pascal = upper * 2 > len(initials) if initials else language == "csharp"
+    return symbol_model.pascal_case(name) if pascal else name
+
+
+def _suggest(role: str, roled_file, homes: dict, roles, project_roots, folders) -> Optional[str]:
     # A home in another project is not an option: moving code across a manifest boundary
     # is a design decision, never a tidy-up.
+    path = roled_file.path
     project = _project_of(path, project_roots)
-    folders = {folder: count for folder, count in homes.get(role, {}).items()
-               if not project or folder == project or folder.startswith(project + "/")}
-    if folders:
+    homes_here = {folder: count for folder, count in homes.get(role, {}).items()
+                  if not project or folder == project or folder.startswith(project + "/")}
+    if homes_here:
         here = posixpath.dirname(path)
-        folder = max(folders, key=lambda name: (_shared_depth(name, here), folders[name], -len(name)))
+        folder = max(homes_here, key=lambda name: (_shared_depth(name, here), homes_here[name], -len(name)))
         return (folder + "/") if folder else "./"
     source_root = _source_root(path)
     root = source_root if len(source_root) > len(project) else project
     for glob in roles.home_globs(role, path):
         conventional = _FOLDER_GLOB.match(glob)
         if conventional:
-            return (root + "/" if root else "") + conventional.group(1) + "/"
+            name = _cased(conventional.group(1), root, folders, roled_file.language)
+            return (root + "/" if root else "") + name + "/"
         literal = _LITERAL_FOLDER_GLOB.match(glob)
         if literal:
             return literal.group(1) + "/"
@@ -177,6 +202,7 @@ def find_misplaced(files, roles, project_roots=()) -> list:
     `project_roots` are the folders holding a manifest; a suggestion stays in its file's project.
     """
     homes = _home_folders(files)
+    folders = _all_folders(files)
     found = []
     for roled_file in files:
         if roled_file.is_test:
@@ -192,8 +218,8 @@ def find_misplaced(files, roles, project_roots=()) -> list:
                         "path": roled_file.path, "line": item.symbol.line,
                         "symbol": item.symbol.name, "role": item.role,
                         "home_role": roled_file.home_role,
-                        "suggestion": _suggest(item.role, roled_file.path, homes, roles,
-                                               project_roots),
+                        "suggestion": _suggest(item.role, roled_file, homes, roles, project_roots,
+                                               folders),
                     })
             continue
         distinct = {item.role for item in bearing}
@@ -270,25 +296,29 @@ def _named_by_path(symbol, path: str) -> bool:
         stem.startswith("+") or (stem.lower() in PATH_NAMED_STEMS and in_route_folder))
 
 
-def find_name_clashes(files, roles) -> list:
-    """One public type name, or one global function name, declared in several files."""
+def find_name_clashes(files, roles, project_roots=()) -> list:
+    """One public type name, or one global function name, declared in several files.
+
+    Only within one project: two services of a solution may each own a `Database`.
+    """
     declared = defaultdict(list)
     for roled_file in files:
         if roled_file.is_test:
             continue
         family = LANGUAGE_FAMILY.get(roled_file.language, roled_file.language)
+        project = _project_of(roled_file.path, project_roots)
         for item in roled_file.symbols:
             symbol = item.symbol
             if not _can_clash(symbol, roled_file.language) or roles.is_ignored_name(symbol.name) \
                     or _named_by_path(symbol, roled_file.path):
                 continue
-            declared[(family, symbol.name)].append(
+            declared[(project, family, symbol.name)].append(
                 {"path": roled_file.path, "line": symbol.line, "kind": symbol.kind})
     found = []
-    for (family, name), members in declared.items():
+    for (_, family, name), members in declared.items():
         if len({member["path"] for member in members}) >= 2:
             found.append({"name": name, "language": family, "members": members})
-    return sorted(found, key=lambda item: (item["name"], item["language"]))
+    return sorted(found, key=lambda item: (item["name"], item["language"], item["members"][0]["path"]))
 
 
 def _noun(words: list) -> str:

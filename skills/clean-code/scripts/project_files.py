@@ -64,8 +64,8 @@ def is_skippable(directory_name: str) -> bool:
     )
 
 
-def walk(root: Path, suffixes=None) -> Walk:
-    """Every project file under root, optionally only those with the given suffixes.
+def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
+    """Every project file under root, optionally only those with the given suffixes or names.
 
     Stops at MAX_FILES_SCANNED and says so, so a caller never mistakes a partial
     walk for the whole project.
@@ -75,7 +75,7 @@ def walk(root: Path, suffixes=None) -> Walk:
         subdirs[:] = sorted(name for name in subdirs if not is_skippable(name))
         for filename in sorted(filenames):
             path = Path(current_dir) / filename
-            if suffixes is not None and path.suffix.lower() not in suffixes:
+            if suffixes is not None and path.suffix.lower() not in suffixes and filename not in names:
                 continue
             if len(paths) >= MAX_FILES_SCANNED:
                 return Walk(paths, True)

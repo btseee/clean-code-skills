@@ -89,7 +89,25 @@ class MisplacedTest(unittest.TestCase):
         self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"],
                          "Exchange/middleware/")
         suggestion = findings.find_misplaced(files, GENERIC, ["", "Core", "Exchange"])[0]["suggestion"]
-        self.assertEqual(suggestion, "Core/middleware/")
+        self.assertEqual(suggestion, "Core/Middleware/")  # cased like its sibling Core/Services
+
+    def test_a_new_folder_takes_the_casing_of_the_folders_beside_it(self):
+        roles = with_statements("role config = **/configuration/**", "role validator = **/validators/**")
+        pascal = [
+            file("Core/Configuration/TypeValidator.cs", "config",
+                 [(sym("TypeValidator", "class"), "validator")], language="csharp"),
+            file("Core/Caching/Cache.cs", None, [(sym("Cache", "class"), None)], language="csharp"),
+        ]
+        self.assertEqual(findings.find_misplaced(pascal, roles, ["Core"])[0]["suggestion"],
+                         "Core/Validators/")
+        lower = [file("src/configuration/typeValidator.ts", "config",
+                      [(sym("TypeValidator", "class"), "validator")])]
+        self.assertEqual(findings.find_misplaced(lower, roles)[0]["suggestion"], "src/validators/")
+
+    def test_a_new_csharp_folder_with_no_folders_beside_it_is_pascal_case(self):
+        files = [file("AuthService.cs", "service", [(sym("AuthMiddleware", "class"), "middleware")],
+                      language="csharp")]
+        self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"], "Middleware/")
 
     def test_an_entry_point_is_never_told_to_move_whole(self):
         files = [
@@ -227,6 +245,14 @@ class NameClashTest(unittest.TestCase):
                  for path, name in components]
         self.assertEqual([group["name"] for group in findings.find_name_clashes(files, GENERIC)],
                          ["Error"])
+
+    def test_names_clash_only_within_one_project(self):
+        files = [file(path, None, [(sym("Database", "class"), None)], language="csharp")
+                 for path in ("Services/Audit/Database.cs", "Services/State/Database.cs",
+                              "Services/State/Legacy/Database.cs")]
+        result = findings.find_name_clashes(files, GENERIC, ["Services/Audit", "Services/State"])
+        self.assertEqual([[member["path"] for member in group["members"]] for group in result],
+                         [["Services/State/Database.cs", "Services/State/Legacy/Database.cs"]])
 
     def test_private_names_never_clash(self):
         files = [

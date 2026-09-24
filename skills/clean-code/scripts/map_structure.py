@@ -101,22 +101,26 @@ def _file_entry(roled_file, imports: list) -> dict:
     }
 
 
-def _project_roots(root: Path) -> list:
+def _project_roots(root: Path, paths) -> list:
     """Every folder holding a manifest: each is one project in a monorepo or solution."""
-    paths = [Path(path) for path in project_files.walk(root).paths]
-    manifests = detect_stack.find_manifests(root, [(path, path.name) for path in paths])
+    manifests = detect_stack.find_manifests(root, [(Path(path), Path(path).name) for path in paths])
     return sorted({manifest["path"].rpartition("/")[0] for manifest in manifests})
 
 
 def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     """The whole structure map of the project at root, as JSON-ready data."""
     roles = structure_roles.load_roles(SKILL_ROOT, packs, root, scopes)
-    walk = project_files.walk(root, project_symbols.SUPPORTED_SUFFIXES)
+    # One walk finds the sources and the manifests that mark each project.
+    wanted = project_symbols.SUPPORTED_SUFFIXES | set(detect_stack.MANIFEST_SUFFIXES)
+    walk = project_files.walk(root, wanted, frozenset(detect_stack.MANIFESTS))
+    project_roots = _project_roots(root, walk.paths)
     index = import_resolution.ModuleIndex(root)
     roled_files = []
     modules = {}
     unparsed = []
     for path in walk.paths:
+        if Path(path).suffix.lower() not in project_symbols.SUPPORTED_SUFFIXES:
+            continue
         text = project_files.read_text(root / path)
         if text is None or project_files.is_generated(path, text):
             continue
@@ -164,10 +168,10 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         "symbol_count": sum(1 for roled in production for item in roled.symbols
                             if item.symbol.parent is None),
         "findings": {
-            "misplaced": structure_findings.find_misplaced(roled_files, roles, _project_roots(root)),
+            "misplaced": structure_findings.find_misplaced(roled_files, roles, project_roots),
             "mixed": structure_findings.find_mixed(roled_files, roles),
             "duplicates": structure_findings.find_duplicates(roled_files),
-            "name_clashes": structure_findings.find_name_clashes(roled_files, roles),
+            "name_clashes": structure_findings.find_name_clashes(roled_files, roles, project_roots),
             "synonyms": structure_findings.find_synonyms(roled_files, roles),
             "cycles": metrics["cycles"],
         },
