@@ -70,9 +70,9 @@ layer main        = **/train.py, **/main.py
 
 ## Enforce
 
-- Ruff `NPY` rules (`NPY002` `np.random` calls) plus the complexity and unused-argument rules from the Python pack.
+- Ruff `NPY` rules (`NPY002` legacy `np.random` calls) plus the complexity and unused-argument rules from the Python pack.
 - mypy or pyright on `data/` and `models/`; a pipeline's `map` function is the easiest place to leave a shape or dtype wrong.
-- pytest-randomly to surface a test that passes for one seed; reproduce a failure with the seed it reports, never rerun until green (G4, T7).
+- pytest-randomly to surface a test that only passes for one seed; reproduce a failure with the seed it reports, never rerun until green (G4, T7).
 - import-linter for the layers contract above, where declared.
 
 ## Smells

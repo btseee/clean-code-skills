@@ -10,6 +10,7 @@
 - Name a single-method interface for the behavior it grants, with an `-er` suffix (`Reader`, `Notifier`), never an `I` prefix (`IReader`) (N1, N6).
 - Keep a method's receiver name short (one or two letters) and identical across every method of that type (N5).
 - Never prefix a getter with `Get`: name it for the value it returns (`Owner`, not `GetOwner`) (N1).
+- Never suffix a struct or type with a noise word (`Manager`, `Helper`, `Util`) or name it after a verb (`ProcessOrder`) (N1, G17).
 - Never write a vague name (`data`, `info`, `obj`, `ret`) or a bare-verb function with no object (`handle`, `process`); never number or version one instead of replacing it (`user2`, `dataV2`) (N1, N4).
 
 ## Functions And Types

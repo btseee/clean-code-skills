@@ -70,9 +70,9 @@ layer main        = **/train.py, **/main.py
 
 ## Enforce
 
-- Ruff `NPY002` (`np.random` calls) plus the complexity and unused-argument rules from the Python pack.
+- Ruff `NPY002` (legacy `np.random` calls) plus the complexity and unused-argument rules from the Python pack.
 - mypy or pyright on `models/` and `training/`; a `forward`/`__getitem__` signature is the easiest place to leave a shape untyped and wrong.
-- pytest-randomly to surface a test that passes for one seed; reproduce a failure with the seed it reports, never rerun until green (G4, T7).
+- pytest-randomly to surface a test that only passes for one seed; reproduce a failure with the seed it reports, never rerun until green (G4, T7).
 - import-linter for the layers contract above, where declared.
 
 ## Smells

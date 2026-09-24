@@ -44,7 +44,7 @@ Applies only when `.clean/architecture.md` declares layers.
 - Business rules live in plain Swift types importing neither SwiftUI nor UIKit; a view model reaches them through a protocol the domain declares.
 - A service implements the protocol the domain or application layer declares; a view or view model never imports `URLSession` or a persistence framework.
 - Compose services into view models in one place — the `App` entry or a coordinator's initializer — never scattered across views.
-- The block below keeps every layer in one app target; files in one Swift module never import each other, so `check_boundaries.py` can't check it: split the layers into SwiftPM targets (see the Swift pack) to get the check, or rely on the SwiftLint rules under Enforce.
+- The block below keeps every layer in one app target; files in one Swift module never import each other, so `check_boundaries.py` cannot check it: split the layers into SwiftPM targets (see the Swift pack) to get the check, or rely on the SwiftLint rules under Enforce.
 
 ```clean-architecture
 layer domain      = Sources/*/Models/**

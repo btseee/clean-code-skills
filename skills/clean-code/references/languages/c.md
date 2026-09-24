@@ -9,6 +9,7 @@
 - Name booleans as questions (`is_empty`) using `<stdbool.h>`'s `bool`, never a plain `int` flag (N7).
 - Never abbreviate past what a reader can expand from context alone, or add a Hungarian type prefix (`iCount`, `pFoo`) — the type is already in the declaration (N1, N6).
 - Never write a vague name (`data`, `tmp`, `ret`, `val`) or a bare-verb function with no object (`handle_it`, `process`); never number or suffix one instead of replacing it (`buffer2`, `_final`); a loop index may stay one letter, nothing wider in scope should (N1, N4, N5).
+- Never suffix a struct or typedef with a noise word (`order_manager`, `str_helper`) or name it after a verb (`process_order_t`) (N1, G17).
 
 ## Functions And Types
 
