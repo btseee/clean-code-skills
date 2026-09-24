@@ -97,6 +97,43 @@ class SelectPacksTest(unittest.TestCase):
         self.assertEqual(scopes, {"references/frameworks/react.md": ["web"],
                                   "references/frameworks/flutter.md": ["mobile"]})
 
+    def test_a_superseded_pack_is_scoped_only_where_nothing_covers_it(self):
+        index = detect_stack.parse_pack_index(
+            "```clean-packs\nframework Express = frameworks/express.md\n"
+            "framework NestJS = frameworks/nestjs.md\nframework React = frameworks/react.md\n"
+            "framework Strapi = frameworks/strapi.md\n"
+            "supersede NestJS > Express\nsupersede Strapi > React\n```")
+        evidence = {"Express": ["api/package.json", "legacy/package.json"], "NestJS": ["api/package.json"],
+                    "React": ["cms/package.json", "web/package.json"], "Strapi": ["cms/package.json"]}
+        scopes = detect_stack.pack_scopes({}, ["Express", "NestJS", "React", "Strapi"], index, evidence)
+        self.assertEqual(scopes, {"references/frameworks/express.md": ["legacy"],
+                                  "references/frameworks/nestjs.md": ["api"],
+                                  "references/frameworks/react.md": ["web"],
+                                  "references/frameworks/strapi.md": ["cms"]})
+        at_root = {"Express": ["package.json", "legacy/package.json"], "NestJS": ["package.json"]}
+        self.assertEqual(detect_stack.pack_scopes({}, ["Express", "NestJS"], index, at_root),
+                         {"references/frameworks/express.md": ["legacy"]})
+
+    def test_a_package_json_names_a_framework_only_by_an_exact_dependency_key(self):
+        manifests = {
+            "vite/package.json": {"name": "express-demo", "scripts": {"dev": "next dev"},
+                                  "dependencies": {"react": "19.0.0", "next-themes": "0.4.6",
+                                                   "express-session": "1.18.0"},
+                                  "devDependencies": {"vite": "7.0.0", "jest": "30.0.0"}},
+            "nest/package.json": {"dependencies": {"@nestjs/core": "11.0.0",
+                                                   "@nestjs/platform-express": "11.0.0"}},
+            "lib/package.json": {"peerDependencies": {"react": "^19.0.0"}},
+        }
+        files = {path: json.dumps(data) for path, data in manifests.items()}
+        files["broken/package.json"] = '{"dependencies": {"vue": "3.5.0"},}\n'
+        with make_project(files) as root:
+            _, runners, evidence = detect_stack.scan_manifest_contents(
+                Path(root), [{"path": path} for path in sorted(files)])
+        self.assertEqual(evidence, {"NestJS": ["nest/package.json"],
+                                    "React": ["lib/package.json", "vite/package.json"],
+                                    "Vue": ["broken/package.json"]})
+        self.assertEqual(runners, ["Jest"])
+
     def test_manifest_scan_records_which_manifest_showed_each_framework(self):
         with make_project({"cms/package.json": '{"dependencies": {"@strapi/strapi": "5", "react": "18"}}',
                            "web/package.json": '{"dependencies": {"react": "19"}}'}) as root:

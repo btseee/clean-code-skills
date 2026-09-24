@@ -292,6 +292,33 @@ def match_signatures(text: str, matchers) -> list:
     return sorted({label for pattern, label in matchers if pattern.search(lowered)})
 
 
+PACKAGE_JSON_SECTIONS = ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies")
+
+
+def package_json_dependencies(text: str) -> Optional[set]:
+    """The dependency names a package.json declares, or None when it is not a JSON object."""
+    try:
+        data = json.loads(text.lstrip("﻿"))
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {name.lower() for section in PACKAGE_JSON_SECTIONS
+            if isinstance(data.get(section), dict) for name in data[section]}
+
+
+def manifest_frameworks(filename: str, text: str) -> list:
+    """The frameworks a manifest names.
+
+    A package.json names its dependencies as keys, so only an exact key counts:
+    matching its text took `next-themes` for Next.js and `express-session` for Express.
+    """
+    names = package_json_dependencies(text) if filename == "package.json" else None
+    if names is None:
+        return match_signatures(strip_comments(text), FRAMEWORK_MATCHERS)
+    return sorted({label for fragment, label in FRAMEWORK_SIGNATURES if fragment in names})
+
+
 def scan_manifest_contents(root: Path, manifests: list) -> tuple:
     """Frameworks and test runners the manifests name, and which manifests named each framework."""
     evidence: dict = {}
@@ -300,10 +327,9 @@ def scan_manifest_contents(root: Path, manifests: list) -> tuple:
         text = read_text_safely(root / manifest["path"])
         if not text:
             continue
-        text = strip_comments(text)
-        for label in match_signatures(text, FRAMEWORK_MATCHERS):
+        for label in manifest_frameworks(Path(manifest["path"]).name, text):
             evidence.setdefault(label, []).append(manifest["path"])
-        test_runners.update(match_signatures(text, TEST_RUNNER_MATCHERS))
+        test_runners.update(match_signatures(strip_comments(text), TEST_RUNNER_MATCHERS))
     return sorted(evidence), sorted(test_runners), {label: sorted(paths) for label, paths in evidence.items()}
 
 
@@ -410,11 +436,18 @@ def pack_scopes(languages: dict, frameworks, index: PackIndex, evidence) -> dict
     """The folders each framework pack's role conventions apply to: where its manifests are.
 
     Packs a language reaches, or a manifest at the root, apply everywhere and are left out.
+    A superseded framework speaks only for manifests no covering framework shares, so
+    Express's roles stay out of a NestJS project that lists Express too.
     """
     everywhere = set(select_packs(languages, [], index))
     folders: dict = {}
     for framework in frameworks:
-        where = {path.rpartition("/")[0] for path in evidence.get(framework, [])} or {""}
+        covering = [other for other in frameworks if framework in index.supersedes.get(other, ())]
+        own = [path for path in evidence.get(framework, [])
+               if not any(path in evidence.get(other, ()) for other in covering)]
+        if evidence.get(framework) and not own:
+            continue
+        where = {path.rpartition("/")[0] for path in own} or {""}
         for pack in index.frameworks.get(framework, []):
             folders.setdefault("references/" + pack, set()).update(where)
     return {pack: sorted(where) for pack, where in folders.items()
