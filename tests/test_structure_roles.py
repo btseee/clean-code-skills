@@ -40,12 +40,29 @@ class ParseTest(unittest.TestCase):
     def test_text_without_a_block_declares_nothing(self):
         self.assertEqual(structure_roles.parse_roles("no block here", "x.md"), [])
 
+    def test_allow_and_accept_parse(self):
+        statements = structure_roles.parse_roles(block(
+            "allow context = component, hook",
+            "accept src/services/auth.js = handleAuthError, legacyGuard",
+            "accept legacy/**",
+        ), "roles.md")
+        self.assertEqual([(statement.kind, statement.role, statement.value) for statement in statements], [
+            ("allow", "context", ("component", "hook")),
+            ("accept", None, ("src/services/auth.js", ("handleAuthError", "legacyGuard"))),
+            ("accept", None, ("legacy/**", ())),
+        ])
+
     def test_errors_name_the_file_and_line(self):
         cases = [
             ("unknown thing = x", "cannot parse"),
             ("role Middleware = **/x/**", "lowercase"),
             ("name hook = (", "invalid regex"),
             ("role middleware [ts] = **/x/**", "extension list"),
+            ("allow Context = component", "lowercase"),
+            ("allow context = component, Hook", "lowercase"),
+            ("allow context", "cannot parse"),
+            ("accept", "cannot parse"),
+            ("accept src/auth.js =", "cannot parse"),
         ]
         for line, message in cases:
             with self.subTest(line=line):
@@ -89,6 +106,26 @@ class PrecedenceTest(unittest.TestCase):
         # The file name outweighs the folder here, but the folder is still a service home.
         self.assertEqual(roles.home("src/app/services/user.service.ts"), ("service", False))
         self.assertEqual(roles.home("src/auth.ts"), (None, False))
+
+    def test_allow_statements_from_every_source_apply(self):
+        roles = roles_from(["allow context = component"], ["allow context = hook"])
+        self.assertTrue(roles.allows("context", "component", "src/contexts/Auth.tsx"))
+        self.assertTrue(roles.allows("context", "hook", "src/contexts/Auth.tsx"))
+        self.assertFalse(roles.allows("context", "service", "src/contexts/Auth.tsx"))
+        self.assertFalse(roles.allows("component", "context", "src/components/Card.tsx"))
+
+    def test_a_scoped_allow_speaks_only_for_its_folders(self):
+        statements = structure_roles.parse_roles(block("allow context = hook"), "react.md")
+        roles = structure_roles.Roles([statement._replace(scope=("web",)) for statement in statements])
+        self.assertTrue(roles.allows("context", "hook", "web/src/contexts/Auth.tsx"))
+        self.assertFalse(roles.allows("context", "hook", "admin/src/contexts/Auth.tsx"))
+
+    def test_accept_covers_a_whole_file_or_only_the_listed_symbols(self):
+        roles = roles_from(["accept src/services/auth.js = handleAuthError", "accept legacy/**"])
+        self.assertTrue(roles.accepts("src/services/auth.js", "handleAuthError"))
+        self.assertFalse(roles.accepts("src/services/auth.js", "AuthService"))
+        self.assertTrue(roles.accepts("legacy/old/billing.js", "anything"))
+        self.assertFalse(roles.accepts("web/legacy/billing.js", "anything"))
 
     def test_ignored_names_and_home_globs(self):
         roles = roles_from(["role middleware = **/middleware/**", "ignore-name = ^(main|index)$"])

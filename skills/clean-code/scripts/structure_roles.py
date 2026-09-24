@@ -11,7 +11,14 @@ the order detect_stack lists them, then the generic block.
     role <name> = <glob>[, <glob>...]      files matching are homes for <name>
     name <name> [<exts>] = <regex>         symbol names matching have role <name>
     signal <name> [<exts>] = <regex>       declaration context matching has role <name>
+    allow <home> = <role>[, <role>...]     symbols of these roles may live in a <home> file
+    accept <glob> [= <symbol>[, ...]]      a recorded exception: matching files, or only the
+                                           listed symbols in them, are never misplaced or mixed
     ignore-name = <regex>                  names left out of clash and synonym findings
+
+The allow statements of every source apply together. An accept glob matches the
+path from the repository root; it belongs in the project's .clean/roles.md, beside
+the decision that justifies it.
 
 Standard library only.
 """
@@ -28,6 +35,8 @@ BLOCK = re.compile(r"```clean-roles[ \t]*\n(.*?)```", re.S)
 _STATEMENT = re.compile(r"^(?P<kind>role|name|signal)[ \t]+(?P<role>[^\s\[=]+)[ \t]*"
                         r"(?:\[(?P<suffixes>[^\]]*)\])?[ \t]*=[ \t]*(?P<value>.+)$")
 _IGNORE = re.compile(r"^ignore-name[ \t]*=[ \t]*(?P<value>.+)$")
+_ALLOW = re.compile(r"^allow[ \t]+(?P<home>[^\s=]+)[ \t]*=[ \t]*(?P<roles>.*\S)$")
+_ACCEPT = re.compile(r"^accept[ \t]+(?P<glob>[^\s=]+)(?:[ \t]*=[ \t]*(?P<symbols>.*\S))?$")
 _ROLE_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
 
 GENERIC_ROLES = "references/framework-map.md"
@@ -66,6 +75,43 @@ def _compile(pattern: str, where: str) -> re.Pattern:
         raise RolesError(f"{where}: invalid regex {pattern!r}: {error}") from error
 
 
+def _role_name(role: str, where: str) -> str:
+    if not _ROLE_NAME.match(role):
+        raise RolesError(f"{where}: role names are lowercase words joined by hyphens, "
+                         f"not {role!r}")
+    return role
+
+
+def _split(raw: str) -> tuple:
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+
+def _parse_statement(line: str, where: str) -> Statement:
+    ignored = _IGNORE.match(line)
+    if ignored:
+        return Statement("ignore-name", None, (), _compile(ignored.group("value"), where), where)
+    allowed = _ALLOW.match(line)
+    if allowed and _split(allowed.group("roles")):
+        return Statement("allow", _role_name(allowed.group("home"), where), (),
+                         tuple(_role_name(role, where) for role in _split(allowed.group("roles"))),
+                         where)
+    accepted = _ACCEPT.match(line)
+    if accepted and (accepted.group("symbols") is None or _split(accepted.group("symbols"))):
+        return Statement("accept", None, (),
+                         (accepted.group("glob"), _split(accepted.group("symbols") or "")), where)
+    parsed = _STATEMENT.match(line)
+    if parsed is None:
+        raise RolesError(f"{where}: cannot parse {line!r}")
+    role = _role_name(parsed.group("role"), where)
+    if parsed.group("kind") == "role":
+        if parsed.group("suffixes") is not None:
+            raise RolesError(f"{where}: a role statement takes globs, not an extension list")
+        return Statement("role", role, (), _split(parsed.group("value")), where)
+    suffixes = tuple(suffix.lstrip(".").lower() for suffix in _split(parsed.group("suffixes") or ""))
+    return Statement(parsed.group("kind"), role, suffixes, _compile(parsed.group("value"), where),
+                     where)
+
+
 def parse_roles(text: str, source: str) -> list:
     """The statements in text's clean-roles block; [] when there is none."""
     match = BLOCK.search(text)
@@ -75,31 +121,8 @@ def parse_roles(text: str, source: str) -> list:
     statements = []
     for offset, raw in enumerate(match.group(1).split("\n")):
         line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        where = f"{source}:{first_line + offset}"
-        ignored = _IGNORE.match(line)
-        if ignored:
-            statements.append(Statement("ignore-name", None, (),
-                                        _compile(ignored.group("value"), where), where))
-            continue
-        parsed = _STATEMENT.match(line)
-        if parsed is None:
-            raise RolesError(f"{where}: cannot parse {line!r}")
-        role = parsed.group("role")
-        if not _ROLE_NAME.match(role):
-            raise RolesError(f"{where}: role names are lowercase words joined by hyphens, "
-                             f"not {role!r}")
-        if parsed.group("kind") == "role":
-            if parsed.group("suffixes") is not None:
-                raise RolesError(f"{where}: a role statement takes globs, not an extension list")
-            globs = tuple(glob.strip() for glob in parsed.group("value").split(",") if glob.strip())
-            statements.append(Statement("role", role, (), globs, where))
-            continue
-        suffixes = tuple(suffix.strip().lstrip(".").lower()
-                         for suffix in (parsed.group("suffixes") or "").split(",") if suffix.strip())
-        statements.append(Statement(parsed.group("kind"), role, suffixes,
-                                    _compile(parsed.group("value"), where), where))
+        if line and not line.startswith("#"):
+            statements.append(_parse_statement(line, f"{source}:{first_line + offset}"))
     return statements
 
 
@@ -153,6 +176,23 @@ class Roles:
                 if statement.value.search(text):
                     return statement.role
         return None
+
+    def allows(self, home_role: str, role: str, relative_path: Optional[str] = None) -> bool:
+        """Whether a symbol of role may live in a home of home_role: a Context module
+        holds its Provider and its hook."""
+        return any(statement.kind == "allow" and statement.role == home_role
+                   and role in statement.value and statement.applies_to(relative_path)
+                   for statement in self.statements)
+
+    def accepts(self, relative_path: str, symbol_name: str) -> bool:
+        """Whether a recorded exception covers the symbol, or its whole file."""
+        for statement in self.statements:
+            if statement.kind != "accept" or not statement.applies_to(relative_path):
+                continue
+            glob, symbols = statement.value
+            if project_files.glob_match(glob, relative_path) and (not symbols or symbol_name in symbols):
+                return True
+        return False
 
     def is_ignored_name(self, name: str) -> bool:
         return any(statement.value.search(name) for statement in self.statements

@@ -154,6 +154,56 @@ class MapStructureTest(unittest.TestCase):
         self.assertEqual([(item["symbol"], item["suggestion"]) for item in data["findings"]["misplaced"]],
                          [("OrdersService", "src/app/services/")])
 
+    def test_a_react_context_module_holds_its_provider_and_hook(self):
+        data = build_fixture({
+            "src/contexts/AuthContext.tsx":
+                "import { createContext, useContext, useState } from 'react';\n\n"
+                "export const AuthContext = createContext<string | null>(null);\n\n"
+                "export function AuthProvider({ children }: { children: React.ReactNode }) {\n"
+                "  const [user] = useState<string | null>(null);\n"
+                "  return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;\n}\n\n"
+                "export function useAuth() {\n  return useContext(AuthContext);\n}\n",
+            "src/components/Avatar.tsx": "export function Avatar() { return null; }\n"
+                                         "export function useAvatarUrl() { return ''; }\n",
+            "src/hooks/useDebounce.ts": "export function useDebounce<T>(value: T) { return value; }\n",
+        }, ["references/frameworks/react.md"])
+        self.assertEqual([(item["symbol"], item["suggestion"]) for item in data["findings"]["misplaced"]],
+                         [("useAvatarUrl", "src/hooks/")])
+
+    def test_express_middleware_in_a_service_moves_to_the_middleware_home(self):
+        # A handler taking `next` stays unflagged in its controller or route home.
+        data = build_fixture({
+            "package.json": '{"dependencies": {"express": "4.21.2"}}\n',
+            "src/middleware/cors.ts": "export function cors(req: any, res: any, next: any) { next(); }\n",
+            "src/services/Auth.ts":
+                "export class AuthService {\n  verify(token: string) { return token.length > 0; }\n}\n"
+                "export function requireAuth(req: any, res: any, next: any) {\n"
+                "  if (!req.headers.authorization) return res.status(401).end();\n  next();\n}\n",
+            "src/controllers/users.js":
+                "async function getUser(req, res, next) {\n"
+                "  try { res.json({ id: req.params.id }); } catch (error) { next(error); }\n}\n"
+                "module.exports = { getUser };\n",
+            "src/routes/health.js": "function health(req, res, next) { res.send('ok'); }\n"
+                                    "module.exports = { health };\n",
+        }, ["references/frameworks/express.md"])
+        self.assertEqual([(item["path"], item["symbol"], item["suggestion"])
+                          for item in data["findings"]["misplaced"]],
+                         [("src/services/Auth.ts", "requireAuth", "src/middleware/")])
+
+    def test_the_project_records_a_placement_exception_with_accept(self):
+        files = {
+            "src/middleware/cors.js": "module.exports = function cors(req, res, next) { next(); };\n",
+            "src/services/auth.js": "class AuthService {}\n"
+                                    "function handleAuthError(err, req, res, next) { next(err); }\n"
+                                    "module.exports = { AuthService, handleAuthError };\n",
+        }
+        packs = ["references/frameworks/express.md"]
+        flagged = build_fixture(files, packs)["findings"]["misplaced"]
+        self.assertEqual([item["symbol"] for item in flagged], ["handleAuthError"])
+        files[".clean/roles.md"] = ("Recorded in decisions.md: the auth error handler stays with auth.\n\n"
+                                    "```clean-roles\naccept src/services/auth.js = handleAuthError\n```\n")
+        self.assertEqual(build_fixture(files, packs)["findings"]["misplaced"], [])
+
     def test_synonyms_imports_and_purposes_are_recorded(self):
         data = map_structure.build_map(self.root, packs=[], depth=2)
         self.assertEqual([item["noun"] for item in data["findings"]["synonyms"]], ["user"])

@@ -165,7 +165,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
                             if item.symbol.parent is None),
         "findings": {
             "misplaced": structure_findings.find_misplaced(roled_files, roles, _project_roots(root)),
-            "mixed": structure_findings.find_mixed(roled_files),
+            "mixed": structure_findings.find_mixed(roled_files, roles),
             "duplicates": structure_findings.find_duplicates(roled_files),
             "name_clashes": structure_findings.find_name_clashes(roled_files, roles),
             "synonyms": structure_findings.find_synonyms(roled_files, roles),

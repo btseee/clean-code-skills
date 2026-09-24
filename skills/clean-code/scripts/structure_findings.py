@@ -89,6 +89,12 @@ def role_bearing(roled_file) -> list:
     ]
 
 
+def _unaccepted(roled_file, roles) -> list:
+    """The role-bearing symbols no recorded exception (`accept`) covers."""
+    return [item for item in role_bearing(roled_file)
+            if not roles.accepts(roled_file.path, item.symbol.name)]
+
+
 def _source_root(path: str) -> str:
     """The folder holding a project's sources: `src`, or `web/src` in a monorepo."""
     segments = path.split("/")[:-1]
@@ -167,6 +173,7 @@ def _sibling_home(path: str, folders) -> Optional[str]:
 def find_misplaced(files, roles, project_roots=()) -> list:
     """Symbols whose role differs from where they live, with a suggested home.
 
+    A role the home `allow`s, and a symbol or file the project `accept`s, is not reported.
     `project_roots` are the folders holding a manifest; a suggestion stays in its file's project.
     """
     homes = _home_folders(files)
@@ -174,12 +181,13 @@ def find_misplaced(files, roles, project_roots=()) -> list:
     for roled_file in files:
         if roled_file.is_test:
             continue
-        bearing = role_bearing(roled_file)
+        bearing = _unaccepted(roled_file, roles)
         if not bearing:
             continue
         if roled_file.home_role:
             for item in bearing:
-                if item.role != roled_file.home_role:
+                if item.role != roled_file.home_role and \
+                        not roles.allows(roled_file.home_role, item.role, roled_file.path):
                     found.append({
                         "path": roled_file.path, "line": item.symbol.line,
                         "symbol": item.symbol.name, "role": item.role,
@@ -200,14 +208,14 @@ def find_misplaced(files, roles, project_roots=()) -> list:
     return sorted(found, key=lambda item: (item["path"], item["line"]))
 
 
-def find_mixed(files) -> list:
+def find_mixed(files, roles) -> list:
     """Files with no conventional home whose symbols answer to two or more roles."""
     found = []
     for roled_file in files:
         if roled_file.is_test or roled_file.home_role:
             continue
         by_role = defaultdict(list)
-        for item in role_bearing(roled_file):
+        for item in _unaccepted(roled_file, roles):
             by_role[item.role].append(item.symbol.name)
         if len(by_role) >= 2:
             found.append({"path": roled_file.path,

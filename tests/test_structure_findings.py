@@ -18,6 +18,12 @@ GENERIC = structure_roles.Roles(structure_roles.parse_roles(
     "```\n", "generic.md"))
 
 
+def with_statements(*lines):
+    """The generic conventions plus the given clean-roles statements, as a project adds them."""
+    added = structure_roles.parse_roles("```clean-roles\n" + "\n".join(lines) + "\n```\n", "roles.md")
+    return structure_roles.Roles(added + GENERIC.statements)
+
+
 def sym(name, kind="function", line=1, exported=True, parent=None, exact=None, shape=None,
         end_line=None):
     return Symbol(name, kind, line, end_line or line + 6, exported, parent, "", "", exact, shape)
@@ -115,6 +121,31 @@ class MisplacedTest(unittest.TestCase):
         ], language="csharp")]
         self.assertEqual(len(findings.find_misplaced(files, GENERIC)), 1)
 
+    def test_an_allowed_role_may_live_in_a_home_of_another(self):
+        roles = with_statements("allow route = middleware")
+        files = [
+            file("src/routes/users.ts", "route", [(sym("requireAuth", line=3), "middleware")]),
+            file("src/services/auth.ts", "service", [(sym("authMiddleware", line=5), "middleware")]),
+        ]
+        self.assertEqual([item["path"] for item in findings.find_misplaced(files, roles)],
+                         ["src/services/auth.ts"])
+
+    def test_an_accepted_symbol_or_file_is_not_misplaced(self):
+        files = [
+            file("src/services/auth.ts", "service", [
+                (sym("handleAuthError", line=3), "middleware"),
+                (sym("authMiddleware", line=9), "middleware"),
+            ]),
+            file("src/guards.ts", None, [(sym("AdminGuard", "class"), "guard")]),
+            file("src/guards/role.ts", "guard", [(sym("RoleGuard", "class"), "guard")]),
+        ]
+        self.assertEqual([(item["path"], item["symbol"]) for item in findings.find_misplaced(files, GENERIC)],
+                         [("src/guards.ts", None), ("src/services/auth.ts", "handleAuthError"),
+                          ("src/services/auth.ts", "authMiddleware")])
+        roles = with_statements("accept src/services/auth.ts = handleAuthError", "accept src/guards.ts")
+        self.assertEqual([(item["path"], item["symbol"]) for item in findings.find_misplaced(files, roles)],
+                         [("src/services/auth.ts", "authMiddleware")])
+
 
 class MixedTest(unittest.TestCase):
     def test_a_homeless_file_with_two_roles_is_mixed(self):
@@ -122,11 +153,20 @@ class MixedTest(unittest.TestCase):
             (sym("AuthService", "class"), "service"),
             (sym("authMiddleware", line=12), "middleware"),
         ])]
-        self.assertEqual(findings.find_mixed(files), [{
+        self.assertEqual(findings.find_mixed(files, GENERIC), [{
             "path": "src/auth.ts",
             "roles": {"middleware": ["authMiddleware"], "service": ["AuthService"]},
         }])
         self.assertEqual(findings.find_misplaced(files, GENERIC), [])
+
+    def test_an_accepted_file_or_symbol_is_not_mixed(self):
+        files = [file("src/auth.ts", None, [
+            (sym("AuthService", "class"), "service"),
+            (sym("authMiddleware", line=12), "middleware"),
+        ])]
+        for statement in ("accept src/auth.ts", "accept **/auth.ts = authMiddleware"):
+            with self.subTest(statement=statement):
+                self.assertEqual(findings.find_mixed(files, with_statements(statement)), [])
 
 
 class DuplicateTest(unittest.TestCase):

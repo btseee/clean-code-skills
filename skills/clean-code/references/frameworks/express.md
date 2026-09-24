@@ -18,6 +18,10 @@
 
 ```clean-roles
 signal middleware [js, ts, mjs, cjs] = \(\s*(?:err|error)\b[^)]*,\s*(?:req|request)\b[^)]*,\s*(?:res|response)\b[^)]*,\s*next\b
+signal middleware [js, ts, mjs, cjs] = \(\s*(?:req|request)\b[^)]*,\s*(?:res|response)\b[^)]*,\s*next\b
+# Express 4 controllers and route handlers take `next` too; there it is not misplaced.
+allow controller = middleware
+allow route = middleware
 ```
 
 ## Rules

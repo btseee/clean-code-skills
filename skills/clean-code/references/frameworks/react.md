@@ -17,6 +17,7 @@
 role component = **/components/**
 role hook = **/hooks/**
 role context = **/contexts/**, **/context/**
+allow context = component, hook
 role api = **/api/**
 name hook [ts, tsx, js, jsx] = ^use[A-Z]
 name component [tsx, jsx] = ^[A-Z][A-Za-z0-9]*$
@@ -51,8 +52,8 @@ Applies only when `.clean/architecture.md` declares layers.
 ```clean-architecture
 layer domain         = src/domain/**
 layer application    = src/application/**
-layer ui             = src/components/**, src/features/**, src/hooks/**
 layer infrastructure = src/api/**
+layer ui             = src/components/**, src/features/**, src/hooks/**
 layer main           = src/main.tsx, src/app/**
 ```
 
