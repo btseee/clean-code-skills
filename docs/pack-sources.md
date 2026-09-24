@@ -242,6 +242,7 @@ agent reports an API the pack names as missing.
 
 - Laravel 12 release notes (Carbon 3, PHPUnit ^11 / Pest ^3): <https://laravel.com/docs/12.x/releases>
 - Laravel 13 release notes (PHP 8.3 minimum, `#[Middleware]`/`#[Authorize]` attributes): <https://laravel.com/docs/13.x/releases>
+- Support table (bug-fix and security-fix end dates per major): <https://laravel.com/docs/13.x/releases#support-policy>
 - larastan is the maintained fork: <https://github.com/larastan/larastan>
 - Pest architecture testing (`arch()`): <https://pestphp.com/docs/arch-testing>
 - `app/Actions/**` convention (`lorisleiva/laravel-actions`): <https://laravelactions.com>

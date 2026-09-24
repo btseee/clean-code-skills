@@ -1,6 +1,6 @@
 # Laravel
 
-> Applies to: Laravel 11.x-13.x (PHP 8.2+, 8.3+ on 13.x; the slim skeleton introduced in 11 continues through 13). Language pack: `languages/php.md`. Read with: nothing.
+> Applies to: Laravel 11.x-13.x (13.x current; 12.x security-fixes-only since 2026-08-13; 11.x past end of support since 2026-03-12; PHP 8.2+ on 11.x-12.x, 8.3+ on 13.x; the slim skeleton introduced in 11 continues through 13). Language pack: `languages/php.md`. Read with: nothing.
 
 ## Structure
 
