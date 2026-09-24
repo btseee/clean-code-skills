@@ -38,6 +38,9 @@ ENTRY_POINT_STEMS = frozenset({"main", "index", "app", "program", "application",
 CLASHING_KINDS = frozenset({"class", "interface", "enum", "struct", "trait", "protocol",
                             "record", "object", "module", "component", "type"})
 GLOBAL_FUNCTION_LANGUAGES = frozenset({"c", "shell", "powershell", "r", "php"})
+# Frameworks give route files fixed names (`+page.svelte`, `pages/users/index.vue`). The
+# component the scanner names after such a file is known by its path, so it never clashes.
+PATH_NAMED_STEMS = frozenset({"index", "default", "error"})
 
 LANGUAGE_FAMILY = {"typescript": "js", "javascript": "js", "vue": "js", "svelte": "js",
                    "java": "jvm", "kotlin": "jvm", "scala": "jvm",
@@ -231,6 +234,11 @@ def _can_clash(symbol, language: str) -> bool:
     return symbol.kind in CLASHING_KINDS or language in GLOBAL_FUNCTION_LANGUAGES
 
 
+def _named_by_path(symbol, path: str) -> bool:
+    stem = posixpath.basename(path).split(".")[0]
+    return symbol.kind == "component" and (stem.startswith("+") or stem.lower() in PATH_NAMED_STEMS)
+
+
 def find_name_clashes(files, roles) -> list:
     """One public type name, or one global function name, declared in several files."""
     declared = defaultdict(list)
@@ -240,7 +248,8 @@ def find_name_clashes(files, roles) -> list:
         family = LANGUAGE_FAMILY.get(roled_file.language, roled_file.language)
         for item in roled_file.symbols:
             symbol = item.symbol
-            if not _can_clash(symbol, roled_file.language) or roles.is_ignored_name(symbol.name):
+            if not _can_clash(symbol, roled_file.language) or roles.is_ignored_name(symbol.name) \
+                    or _named_by_path(symbol, roled_file.path):
                 continue
             declared[(family, symbol.name)].append(
                 {"path": roled_file.path, "line": symbol.line, "kind": symbol.kind})

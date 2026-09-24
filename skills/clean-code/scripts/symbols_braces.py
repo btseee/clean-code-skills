@@ -114,6 +114,7 @@ class Source:
             depth = depth + 1 if match.group() == "{" else max(depth - 1, 0)
             self._brace_offsets.append(match.start())
             self._brace_depths.append(depth)
+        self._bracket_index = None
 
     def line_of(self, offset: int) -> int:
         """1-based line number of an offset."""
@@ -122,6 +123,28 @@ class Source:
     def depth_before(self, offset: int) -> int:
         index = bisect.bisect_left(self._brace_offsets, offset) - 1
         return self._brace_depths[index] if index >= 0 else 0
+
+    def bracket_depth_before(self, offset: int) -> int:
+        """The `(` and `[` open at offset, counted from the innermost enclosing `{`."""
+        if self._bracket_index is None:
+            offsets, depths, open_counts = [], [], [0]
+            for match in re.finditer(r"[(){}\[\]]", self.code):
+                character = match.group()
+                if character == "{":
+                    open_counts.append(0)
+                elif character == "}":
+                    if len(open_counts) > 1:
+                        open_counts.pop()
+                elif character in "([":
+                    open_counts[-1] += 1
+                elif open_counts[-1]:
+                    open_counts[-1] -= 1
+                offsets.append(match.start())
+                depths.append(open_counts[-1])
+            self._bracket_index = (offsets, depths)
+        offsets, depths = self._bracket_index
+        index = bisect.bisect_left(offsets, offset) - 1
+        return depths[index] if index >= 0 else 0
 
     def blocks(self, regex: Optional[re.Pattern]) -> list:
         """(open, close) of every block whose opener regex matches, ending at its `{`."""

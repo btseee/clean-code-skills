@@ -301,6 +301,48 @@ class JavaScriptTest(unittest.TestCase):
         self.assertIsNotNone(symbols["cartTotal"].exact)
         self.assertEqual(symbols["cartTotal"].exact, symbols["checkoutTotal"].exact)
 
+    def test_a_decorator_on_the_member_line(self):
+        symbols = by_name(extract("app.component.ts", """
+            export class AppComponent {
+              @HostListener('window:resize') onResize() {
+                this.width = 1;
+              }
+              @Input() onChange = (value) => {
+                this.value = value;
+              };
+            }
+            """))
+        self.assertEqual((symbols["onResize"].parent, symbols["onResize"].end_line), ("AppComponent", 4))
+        self.assertEqual(symbols["onChange"].parent, "AppComponent")
+
+    def test_an_exported_function_expression_is_not_a_namespace(self):
+        symbols = by_name(extract("routes.js", """
+            module.exports = function (app) {
+              function authenticate(req, res, next) {
+                next();
+              }
+              app.use(authenticate);
+            };
+            global.setup = function () {
+              function seedDatabase() {
+                return 1;
+              }
+            };
+            """))
+        self.assertEqual(symbols, {})
+        declared = by_name(extract("types.d.ts", """
+            declare module 'express' {
+              export function helper(): void;
+            }
+            declare global {
+              function gfn(): void;
+            }
+            namespace A.B {
+              export function inner() {}
+            }
+            """))
+        self.assertEqual(sorted(declared), ["gfn", "helper", "inner"])
+
     def test_decorators_are_part_of_the_context(self):
         symbols = by_name(extract("users.controller.ts", """
             @Controller('users')
@@ -393,6 +435,29 @@ class JvmTest(unittest.TestCase):
         self.assertFalse(symbols["hidden"].exported)
         self.assertEqual(symbols["Level"].kind, "enum")
 
+    def test_annotations_on_the_declaration_line(self):
+        java = owners(extract("Point.java", """
+            public class Point {
+                @Override public String toString() {
+                    return "p";
+                }
+
+                @Override
+                public int hashCode() {
+                    return 1;
+                }
+
+                @Inject public Point(Clock clock) {}
+            }
+            """))
+        self.assertTrue({("toString", "Point"), ("hashCode", "Point"), ("Point", "Point")} <= java)
+        kotlin = by_name(extract("Greeting.kt", """
+            @Composable fun Greeting(name: String) {
+                Text(name)
+            }
+            """))
+        self.assertEqual(kotlin["Greeting"].end_line, 3)
+
     def test_a_kotlin_lambda_default_is_not_the_body(self):
         symbols = by_name(extract("Retry.kt", """
             fun retry(times: Int, block: () -> Unit = {}) {
@@ -455,6 +520,26 @@ class DotnetTest(unittest.TestCase):
         self.assertIsNone(symbols["RelayCommand"].parent)
         self.assertEqual(symbols["Run"].parent, "RelayCommand")
 
+    def test_attributes_on_the_declaration_line(self):
+        symbols = by_name(extract("OrdersController.cs", """
+            [ApiController]
+            public class OrdersController : ControllerBase
+            {
+                [HttpGet("{id}")] public async Task<IActionResult> Get(int id)
+                {
+                    return Ok(id);
+                }
+
+                [HttpPost]
+                public IActionResult Create(Order order)
+                {
+                    return Ok(order);
+                }
+            }
+            """))
+        self.assertEqual((symbols["Get"].parent, symbols["Get"].end_line), ("OrdersController", 7))
+        self.assertEqual(symbols["Create"].parent, "OrdersController")
+
     def test_records_and_interfaces_with_a_file_scoped_namespace(self):
         result = extract("File.cs", """
             namespace App.Domain;
@@ -486,6 +571,24 @@ class PhpTest(unittest.TestCase):
         self.assertEqual(symbols["Loggable"].kind, "trait")
         self.assertFalse(symbols["Loggable"].abstract)
 
+    def test_braced_namespaces_with_a_backslash_are_transparent(self):
+        result = extract("billing.php", """
+            <?php
+            namespace App\\Billing {
+                class Invoice {
+                    public function total() { return 1; }
+                }
+            }
+
+            namespace App {
+                class Kernel {
+                    public function boot() { return 2; }
+                }
+            }
+            """)
+        self.assertTrue({("Invoice", None), ("total", "Invoice"), ("Kernel", None),
+                         ("boot", "Kernel")} <= owners(result))
+
 
 class DartTest(unittest.TestCase):
     def test_widgets_constructors_and_privacy(self):
@@ -509,6 +612,36 @@ class DartTest(unittest.TestCase):
         self.assertFalse(symbols["_hidden"].exported)
         self.assertNotIn("StringX", symbols)
         self.assertEqual(symbols["shout"].parent, "StringX")
+
+    def test_calls_inside_initializers_are_not_functions(self):
+        result = extract("router.dart", """
+            final router = GoRouter(
+              routes: [
+                GoRoute(
+                  path: '/',
+                  builder: (context, state) => const HomeScreen(),
+                ),
+              ],
+            );
+
+            final pages = [
+              HomeScreen(),
+              SettingsScreen(),
+            ];
+
+            class Menu {
+              final items = [
+                MenuItem(),
+              ];
+              void open() {}
+            }
+
+            void main() {
+              runApp(App());
+            }
+            """)
+        self.assertEqual({(symbol.name, symbol.parent) for symbol in result.symbols},
+                         {("Menu", None), ("open", "Menu"), ("main", None)})
 
     def test_named_parameters_are_not_the_body(self):
         result = extract("greeting.dart", """
@@ -749,6 +882,35 @@ class CFamilyTest(unittest.TestCase):
         self.assertEqual([(s.name, s.parent, s.line, s.end_line) for s in result.symbols],
                          [("Point", "Point", 1, 5), ("Point", "Point", 7, 7)])
 
+    def test_cpp_classes_behind_export_macros(self):
+        result = extract("render.h", """
+            class MYLIB_API Renderer : public Base {
+            public:
+                void draw() {}
+            };
+
+            class Q_CORE_EXPORT Timer {
+            public:
+                void start() {}
+            };
+
+            struct __declspec(dllexport) Point {
+                int x;
+            };
+            """)
+        self.assertTrue({("Renderer", None), ("draw", "Renderer"), ("Timer", None), ("start", "Timer"),
+                         ("Point", None)} <= owners(result))
+
+    def test_an_access_label_is_not_part_of_the_next_member(self):
+        symbols = by_name(extract("scene.h", """
+            class Scene {
+            public:
+                /// Draws every visible node.
+                void draw();
+            };
+            """))
+        self.assertEqual((symbols["draw"].line, symbols["draw"].doc), (4, "Draws every visible node."))
+
     def test_cpp_classes_namespaces_and_qualified_methods(self):
         result = extract("shape.cpp", """
             namespace geo {
@@ -805,6 +967,34 @@ class RubyTest(unittest.TestCase):
         self.assertEqual(symbols["call"].parent, "OrderService")
         self.assertEqual(symbols["Billing"].kind, "module")
         self.assertEqual((symbols["charge"].parent, symbols["charge"].end_line), ("Billing", 10))
+
+    def test_method_level_rescue_and_ensure_stay_in_the_method(self):
+        symbols = by_name(extract("orders_controller.rb", """
+            class OrdersController < ApplicationController
+              def show
+                @order = Order.find(params[:id])
+                render json: @order
+              rescue ActiveRecord::RecordNotFound
+                head :not_found
+              end
+
+              def destroy
+                @order.destroy
+              ensure
+                cleanup
+              end
+            end
+            """))
+        self.assertEqual((symbols["show"].line, symbols["show"].end_line), (2, 7))
+        self.assertEqual((symbols["destroy"].line, symbols["destroy"].end_line), (9, 13))
+
+    def test_methods_that_differ_only_in_their_rescue_are_not_identical(self):
+        body = "    a = load(params)\n    b = transform(a)\n    c = save(b)\n    log(c)\n    notify(c)\n"
+        symbols = by_name(project_symbols.extract("jobs.rb", (
+            "class Jobs\n  def one\n" + body + "  rescue KeyError\n    head :bad_request\n  end\n\n"
+            "  def two\n" + body + "  rescue IOError\n    retry_later\n  end\nend\n")))
+        self.assertIsNotNone(symbols["one"].exact)
+        self.assertNotEqual(symbols["one"].exact, symbols["two"].exact)
 
     def test_a_quote_inside_a_regex_does_not_swallow_the_file(self):
         result = extract("loader.rb", """
@@ -932,13 +1122,15 @@ class LinearTimeTest(unittest.TestCase):
         blank = " " * 20000
         cases = [
             ("src/a.ts", f"function{blank}\n  handler{blank}\nmodule.exports = function{blank}\n"),
-            ("src/a.php", f"<?php\nfunction {blank}\n"),
+            ("src/a.php", f"<?php\nfunction {blank}\nnamespace{blank}{blank}{blank}x\n"),
             ("src/a.go", f"package a\nfunc ({blank}\n"),
             ("src/a.rs", f"impl{blank[:2000]}\n"),
             ("src/A.kt", f"fun{blank}{blank}x\n"),
             ("src/A.java", "class A {\n  A" + "b" * 20000 + "\n}\n"),
             ("src/A.cs", "class A {\n  A" + "b" * 20000 + "\n}\n"),
             ("src/a.cpp", f"namespace{blank}{blank}\nFoo::bar(x){blank}{blank}\n"),
+            ("src/words.h", "class Words {\n" + "  word\n" * 8000 + "};\n" + "word\n" * 8000),
+            ("src/words.c", "word\n" * 8000),
         ]
         for path, text in cases:
             with self.subTest(path=path):

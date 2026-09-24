@@ -155,6 +155,18 @@ class NameClashTest(unittest.TestCase):
         result = findings.find_name_clashes(files, GENERIC)
         self.assertEqual([group["name"] for group in result], ["list_push"])
 
+    def test_components_named_after_route_files_never_clash(self):
+        # The scanner names a .svelte or .vue component after its file; a framework's
+        # route files share their names, and their identity is the path.
+        components = [("src/routes/+page.svelte", "Page"), ("src/routes/about/+page.svelte", "Page"),
+                      ("pages/orders/index.vue", "Index"), ("pages/users/index.vue", "Index"),
+                      ("layouts/default.vue", "Default"), ("admin/layouts/default.vue", "Default"),
+                      ("src/a/UserCard.vue", "UserCard"), ("src/b/UserCard.vue", "UserCard")]
+        files = [file(path, None, [(sym(name, "component"), None)], language=path.rsplit(".", 1)[1])
+                 for path, name in components]
+        self.assertEqual([group["name"] for group in findings.find_name_clashes(files, GENERIC)],
+                         ["UserCard"])
+
     def test_private_names_never_clash(self):
         files = [
             file("src/Shape.java", None, [(sym("Helper", "class", exported=False), None)],

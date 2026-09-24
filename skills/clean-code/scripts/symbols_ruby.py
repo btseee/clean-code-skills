@@ -26,6 +26,9 @@ _DEF = re.compile(r"^(?P<indent>[ \t]*)def[ \t]+(?:self\.)?(?P<name>[\w?!=]+|\[\
                   re.M)
 _ONE_LINER = re.compile(r"(?:;\s*end|\bend)\s*$|\)\s*=\s*\S|^\s*def\s+[\w.?!]+\s*=\s*\S")
 _END = re.compile(r"^end\b")
+# Clauses written at the declaration's own indentation that continue it, as a
+# method-level `rescue` or `ensure` does.
+_CONTINUATION = re.compile(r"^(?:rescue|ensure|else|elsif|when|in)\b")
 
 DOC_MARKERS = ("#",)
 
@@ -48,6 +51,8 @@ def _end_line(code_lines: list, index: int, indent: int) -> int:
         if not stripped:
             continue
         line_indent = len(line) - len(line.lstrip())
+        if line_indent == indent and _CONTINUATION.match(stripped):
+            continue
         if line_indent <= indent:
             return cursor + 1 if _END.match(stripped) else cursor
     return len(code_lines)

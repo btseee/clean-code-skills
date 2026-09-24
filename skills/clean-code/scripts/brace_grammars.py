@@ -21,6 +21,10 @@ from symbols_braces import Grammar, Pattern
 C_DOC = ("//", "/*", "*")
 HASH_DOC = ("#",)
 
+# Annotations or decorators written on the declaration's own line: `@Override public`,
+# `@HostListener('resize') onResize(`.
+_ANNOTATIONS = r"(?:@[\w.]+(?:\((?:[^()\n]|\([^()\n]*\))*\))?[ \t]+)*"
+
 # --- JavaScript and TypeScript --------------------------------------------------------
 
 _JS_IDENT = r"[A-Za-z_$][\w$]*"
@@ -132,17 +136,19 @@ def _js_grammar(language: str) -> Grammar:
         ),
         members=(
             Pattern(re.compile(
-                rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|static|async|readonly|override|"
-                rf"abstract|declare|get|set|accessor)[ \t]+)*)(?:\*[ \t]*)?(?P<name>#?{_JS_IDENT})"
-                rf"(?:[ \t]*<[^>\n]*>)?[ \t]*\(", re.M), "method"),
+                rf"^[ \t]*{_ANNOTATIONS}(?P<mods>(?:(?:public|private|protected|static|async|readonly|"
+                rf"override|abstract|declare|get|set|accessor)[ \t]+)*)(?:\*[ \t]*)?"
+                rf"(?P<name>#?{_JS_IDENT})(?:[ \t]*<[^>\n]*>)?[ \t]*\(", re.M), "method"),
             Pattern(re.compile(
-                rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|static|readonly|override)[ \t]+)*)"
-                rf"(?P<name>#?{_JS_IDENT})(?:[ \t]*[?!])?[ \t]*(?::[^=\n]+)?=[ \t]*(?:async[ \t]+)?"
-                rf"(?P<start>function\b|\(|{_JS_IDENT}[ \t]*=>)", re.M), "method",
+                rf"^[ \t]*{_ANNOTATIONS}(?P<mods>(?:(?:public|private|protected|static|readonly|"
+                rf"override)[ \t]+)*)(?P<name>#?{_JS_IDENT})(?:[ \t]*[?!])?[ \t]*(?::[^=\n]+)?=[ \t]*"
+                rf"(?:async[ \t]+)?(?P<start>function\b|\(|{_JS_IDENT}[ \t]*=>)", re.M), "method",
                 confirm=_arrow_or_function),
         ),
+        # A namespace needs a name, so `module.exports = function (app) {` is a function.
         transparent=re.compile(
-            r"^[ \t]*(?:export[ \t]+)?(?:declare[ \t]+)?(?:namespace|module|global)\b[^{\n;]*\{",
+            r"^[ \t]*(?:export[ \t]+)?(?:declare[ \t]+)?(?:namespace|module)[ \t]+"
+            r"(?:[\w.$]+|'[^'\n]*'|\"[^\"\n]*\")[ \t]*\{|^[ \t]*(?:declare[ \t]+)?global[ \t]*\{",
             re.M),
         decorators=("@",),
         doc_markers=C_DOC,
@@ -226,10 +232,10 @@ JAVA = Grammar(
     ),
     functions=(),
     members=(
-        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private|abstract|final|static|"
+        _pattern(rf"^[ \t]*{_ANNOTATIONS}(?P<mods>(?:(?:public|protected|private|abstract|final|static|"
                  rf"synchronized|native|default|strictfp)[ \t]+)*)(?:<[^>\n]+>[ \t]+)?"
                  rf"{_TYPE}[ \t]+(?P<name>[a-zA-Z_]\w*)[ \t]*\(", "method"),
-        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
+        _pattern(rf"^[ \t]*{_ANNOTATIONS}(?P<mods>(?:(?:public|protected|private)[ \t]+)?)"
                  rf"(?P<name>{_CONSTRUCTOR_NAME})[ \t]*\(", "method"),
     ),
     transparent=None,
@@ -251,10 +257,10 @@ KOTLIN = Grammar(
                  rf"(?P<name>{_WORD})", "class", container=True),
     ),
     functions=(
-        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|internal|protected|open|abstract|override|"
-                 rf"suspend|inline|operator|infix|tailrec|external|actual|expect|final)[ \t]+)*)"
-                 rf"fun[ \t]+(?:<[^>\n]+>[ \t]*)?(?:[\w<>?][\w.<>?, ]*\.)?(?P<name>{_WORD})[ \t]*\(",
-                 "function"),
+        _pattern(rf"^[ \t]*{_ANNOTATIONS}(?P<mods>(?:(?:public|private|internal|protected|open|"
+                 rf"abstract|override|suspend|inline|operator|infix|tailrec|external|actual|expect|"
+                 rf"final)[ \t]+)*)fun[ \t]+(?:<[^>\n]+>[ \t]*)?(?:[\w<>?][\w.<>?, ]*\.)?"
+                 rf"(?P<name>{_WORD})[ \t]*\(", "function"),
     ),
     members=(),
     transparent=None,
@@ -288,6 +294,9 @@ SCALA = Grammar(
     indent_blocks=True,
 )
 
+# Attributes written on the member's own line: `[HttpGet("{id}")] public async Task Get(`.
+_CSHARP_ATTRIBUTES = r"(?:\[[^\]\n]*\][ \t]*)*"
+
 CSHARP = Grammar(
     language="csharp",
     lexer="csharp",
@@ -299,12 +308,12 @@ CSHARP = Grammar(
     ),
     functions=(),
     members=(
-        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static|virtual|override|"
-                 rf"abstract|sealed|async|extern|unsafe|new|partial|readonly)[ \t]+)*)"
+        _pattern(rf"^[ \t]*{_CSHARP_ATTRIBUTES}(?P<mods>(?:(?:public|private|protected|internal|static|"
+                 rf"virtual|override|abstract|sealed|async|extern|unsafe|new|partial|readonly)[ \t]+)*)"
                  rf"{_TYPE}[ \t]+(?P<name>{_WORD})(?:[ \t]*<[^>\n]*>)?[ \t]*\(",
                  "method"),
-        _pattern(rf"^[ \t]*(?P<mods>(?:(?:public|private|protected|internal|static)[ \t]+)*)"
-                 rf"(?P<name>{_CONSTRUCTOR_NAME})[ \t]*\(", "method"),
+        _pattern(rf"^[ \t]*{_CSHARP_ATTRIBUTES}(?P<mods>(?:(?:public|private|protected|internal|"
+                 rf"static)[ \t]+)*)(?P<name>{_CONSTRUCTOR_NAME})[ \t]*\(", "method"),
     ),
     transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w.]+[ \t\r\n]*\{", re.M),
     decorators=("[",),
@@ -329,7 +338,7 @@ PHP = Grammar(
                  rf"function[ \t]+(?:&[ \t]*)?(?P<name>{_WORD})[ \t]*\(", "function"),
     ),
     members=(),
-    transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w\]+[ \t\r\n]*\{", re.M),
+    transparent=re.compile(r"^[ \t]*namespace[ \t]+[\w\\]+[ \t\r\n]*\{", re.M),
     decorators=("#[",),
     doc_markers=C_DOC,
     keywords=frozenset({"if", "for", "foreach", "while", "switch", "catch", "return", "new",
@@ -337,6 +346,12 @@ PHP = Grammar(
     exported=lambda match, name, kind, member: not _has(match, "private", "protected"),
     abstract=lambda match, kind, body: kind == "interface" or _has(match, "abstract"),
 )
+
+def _outside_brackets(source, match) -> bool:
+    """Dart needs no keyword before a function, so `GoRoute(` inside `routes: [` or a
+    widget list would read as one. A declaration never sits inside an argument list."""
+    return source.bracket_depth_before(match.start()) == 0
+
 
 DART = Grammar(
     language="dart",
@@ -350,7 +365,8 @@ DART = Grammar(
     functions=(
         _pattern(rf"^[ \t]*(?P<mods>(?:(?:static|external|factory|abstract|const|late|covariant)"
                  rf"[ \t]+)*)(?:{_TYPE}[ \t]+)?(?P<name>{_WORD})"
-                 rf"(?:\.{_WORD})?(?:[ \t]*<[^>\n]*>)?[ \t]*\(", "function"),
+                 rf"(?:\.{_WORD})?(?:[ \t]*<[^>\n]*>)?[ \t]*\(", "function",
+                 confirm=_outside_brackets),
     ),
     members=(),
     transparent=None,
@@ -469,7 +485,14 @@ SWIFT = Grammar(
 _C_KEYWORDS = frozenset({"if", "for", "while", "switch", "return", "sizeof", "else", "do",
                          "case", "typedef", "struct", "union", "enum", "defined", "catch",
                          "alignof", "decltype", "static_assert", "operator", "new", "delete"})
-_C_RETURN_TYPE = r"(?:[A-Za-z_][\w:]*(?:<[^;{}()\n]*?>)?[\s\*&]+)*"
+# One word of a return type. `::` joins names, but a lone `:` ends them, so an access
+# label (`public:`) is never read as the return type of the member below it.
+_C_TYPE_WORD = r"[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:<[^;{}()\n]*?>)?"
+# The words before a function's name: on its line, and on at most one line above, where
+# GNU style puts the return type. Across any number of lines, a run of one-word lines was
+# read again from every line start: quadratic.
+_C_RETURN_TYPE = (rf"(?:(?:{_C_TYPE_WORD}[ \t*&]+)*{_C_TYPE_WORD}[ \t*&]*\r?\n[ \t*&]*)?"
+                  rf"(?:{_C_TYPE_WORD}[ \t*&]+)*")
 # A parenthesised list, nested up to three deep, which may hold `{...}` (a default `= {}`,
 # an initializer `x_({n})`). It is balanced, so it matches one way only: `\([^;{}]*\)`
 # could end at any `)`, and in a run of macro calls the engine tried each one --
@@ -480,11 +503,19 @@ _C_PARAMS = rf"\((?:{_C_ATOM}|\((?:{_C_ATOM}|\({_C_ATOM}*\))*\))*\)"
 _C_ATTRIBUTE = (r"(?:__attribute__[ \t]*\(\((?:[^()\n]|\([^()\n]*\))*\)\)|__declspec[ \t]*\([^()\n]*\)"
                 r"|\[\[[^\]\n]*\]\])")
 _C_DECORATORS = ("__attribute__", "__declspec", "[[")
+
+
+def _c_mods(keywords: str) -> str:
+    """Leading modifiers. A keyword may end its line, as GNU style's `static` above the
+    return type does; an attribute on its own line is a decorator instead."""
+    return rf"(?P<mods>(?:(?:{keywords})\s+|{_C_ATTRIBUTE}[ \t]+)*)"
+
+
 _C_TYPE = _pattern(rf"^[ \t]*(?:typedef[ \t]+)?(?P<kind>struct|union|enum)[ \t]+(?P<name>{_WORD})"
                    rf"(?=[ \t\r\n]*\{{)", "struct")
 _C_FUNCTION = _pattern(
-    rf"^(?P<mods>(?:(?:static|inline|extern|const|unsigned|signed|volatile|register|{_C_ATTRIBUTE})"
-    rf"[ \t]+)*){_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*{_C_PARAMS}(?=[ \t\r\n]*\{{)", "function",
+    rf"^{_c_mods('static|inline|extern|const|unsigned|signed|volatile|register')}"
+    rf"{_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*{_C_PARAMS}(?=[ \t\r\n]*\{{)", "function",
     require_body=True)
 _EXTERN_C = r'extern[ \t]+"[^"\n]*"'
 
@@ -507,6 +538,9 @@ _CPP_INITIALIZER = rf"[\w:]+(?:<[^;{{}}()\n]*>)?(?:{_C_PARAMS}|{_CPP_BRACED})"
 _CPP_INITIALIZERS = (rf"(?:{_CPP_GAP}:{_CPP_GAP}{_CPP_INITIALIZER}"
                      rf"(?:{_CPP_GAP},{_CPP_GAP}{_CPP_INITIALIZER})*)?")
 _LIST_CONTINUES = re.compile(r"(?:,|\)\s*:)\s*$")
+# What may stand between `class` and its name: an export macro (`MYLIB_API`,
+# `Q_CORE_EXPORT`), `__declspec(dllexport)`, `alignas(16)`, or an attribute.
+_CPP_CLASS_PREFIX = rf"(?:[A-Z_][A-Z0-9_]*|alignas\([^)\n]*\)|{_C_ATTRIBUTE})"
 
 
 def _starts_declaration(source, match) -> bool:
@@ -540,17 +574,17 @@ CPP = Grammar(
     lexer="cpp",
     types=(
         _pattern(rf"^[ \t]*(?:template[ \t]*<[^>\n]*>[ \t\r\n]*)?(?P<kind>class|struct|union)"
-                 rf"[ \t]+(?:alignas\([^)\n]*\)[ \t]+)?(?P<name>{_WORD})(?:[ \t]+final)?"
+                 rf"[ \t]+(?:{_CPP_CLASS_PREFIX}[ \t]+)*(?P<name>{_WORD})(?:[ \t]+final)?"
                  rf"(?:[ \t]*:(?:[ \t\r\n]*[^;{{\s])*)?(?=[ \t\r\n]*\{{)", "class", container=True),
         _pattern(rf"^[ \t]*enum[ \t]+(?:class[ \t]+|struct[ \t]+)?(?P<name>{_WORD})"
                  rf"(?:[ \t]*[^;{{\s])*(?=[ \t\r\n]*\{{)", "enum"),
     ),
     functions=(
-        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|virtual|{_C_ATTRIBUTE})"
-                 rf"[ \t]+)*){_C_RETURN_TYPE}(?P<parent>{_WORD})(?:<[^>\n]*>)?::(?P<name>~?{_WORD})"
+        _pattern(rf"^{_c_mods('static|inline|extern|constexpr|consteval|virtual')}{_C_RETURN_TYPE}"
+                 rf"(?P<parent>{_WORD})(?:<[^>\n]*>)?::(?P<name>~?{_WORD})"
                  rf"[ \t]*{_C_PARAMS}{_CPP_TRAILER}{_CPP_BODY}", "method", require_body=True),
-        _pattern(rf"^(?P<mods>(?:(?:static|inline|extern|constexpr|consteval|{_C_ATTRIBUTE})"
-                 rf"[ \t]+)*){_C_RETURN_TYPE}(?P<name>{_WORD})[ \t]*{_C_PARAMS}{_CPP_FREE_TRAILER}"
+        _pattern(rf"^{_c_mods('static|inline|extern|constexpr|consteval')}{_C_RETURN_TYPE}"
+                 rf"(?P<name>{_WORD})[ \t]*{_C_PARAMS}{_CPP_FREE_TRAILER}"
                  rf"(?=[ \t\r\n]*\{{)", "function", require_body=True),
     ),
     members=(
