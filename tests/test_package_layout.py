@@ -1,11 +1,11 @@
 """The scanner modules live in concept packages, not flat in the scripts folder.
 
-detect_stack.py, scan_repo.py, check_boundaries.py, and map_structure.py are the
-only files a project runs directly; every other module belongs to source,
-symbols, or structure. Each CLI must still work when invoked as a script from
-outside the repository -- exactly how a project uses it -- with its scripts
-folder on sys.path[0] the only reason `import symbols` and `from source import
-files` resolve.
+detect_stack.py, scan_repo.py, check_boundaries.py, map_structure.py, and
+check_compression.py are the only files a project runs directly; every other
+module belongs to source, symbols, or structure. Each CLI must still work when
+invoked as a script from outside the repository -- exactly how a project uses
+it -- with its scripts folder on sys.path[0] the only reason `import symbols`
+and `from source import files` resolve.
 """
 
 import subprocess
@@ -15,7 +15,8 @@ import unittest
 
 import support  # puts the scripts folder on sys.path
 
-CLI_NAMES = ("detect_stack.py", "scan_repo.py", "check_boundaries.py", "map_structure.py")
+CLI_NAMES = ("detect_stack.py", "scan_repo.py", "check_boundaries.py", "map_structure.py",
+             "check_compression.py")
 
 # A representative set of standard-library top-level module names across Python
 # 3.8-3.14, including names later versions removed (symbol, parser, cgi, ...).
