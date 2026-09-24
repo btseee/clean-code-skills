@@ -61,6 +61,13 @@ def write_fixture(root: Path, files: dict) -> None:
         target.write_text(textwrap.dedent(text).lstrip("\n"), encoding="utf-8")
 
 
+def build_fixture(files: dict, packs: list) -> dict:
+    """The structure map of a throwaway project holding files, under the given packs."""
+    with tempfile.TemporaryDirectory() as directory:
+        write_fixture(Path(directory), files)
+        return map_structure.build_map(Path(directory), packs=packs, depth=2)
+
+
 def run(*argv):
     output = io.StringIO()
     with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
@@ -113,6 +120,39 @@ class MapStructureTest(unittest.TestCase):
         data = map_structure.build_map(self.root, packs=[], depth=2)
         found = [item for item in data["findings"]["misplaced"] if item["symbol"] == "InvoiceValidator"]
         self.assertEqual([item["suggestion"] for item in found], ["Billing/Validators/"])
+
+    def test_a_route_folder_is_no_home_to_move_a_file_into(self):
+        # `page.tsx` is a component home by its file name; `orders/` is a route, not a home.
+        data = build_fixture({
+            "package.json": '{"dependencies": {"next": "15.5.0", "react": "19.0.0"}}\n',
+            "src/app/layout.tsx": "import { Providers } from './providers';\n"
+                                  "export default function RootLayout() { return null; }\n",
+            "src/app/providers.tsx": "'use client';\n"
+                                     "export function Providers() { return null; }\n",
+            "src/app/orders/page.tsx": "export default function OrdersPage() { return null; }\n",
+            "src/app/orders/OrderTable.tsx": "export function OrderTable() { return null; }\n",
+        }, ["references/frameworks/nextjs.md", "references/frameworks/react.md"])
+        self.assertEqual(data["findings"]["misplaced"], [])
+
+    def test_a_feature_package_is_no_home_to_move_a_file_into(self):
+        # `BillingService.java` is a service home by its file name; `billing/` is a feature.
+        shop = "src/main/java/com/acme/shop"
+        data = build_fixture({
+            f"{shop}/billing/BillingService.java":
+                "package com.acme.shop.billing;\n\n@Service\npublic class BillingService {}\n",
+            f"{shop}/Notifications.java":
+                "package com.acme.shop;\n\n@Service\npublic class Notifications {}\n",
+        }, ["references/frameworks/spring.md"])
+        self.assertEqual(data["findings"]["misplaced"], [])
+
+    def test_a_folder_home_counts_when_its_files_are_also_named_for_the_role(self):
+        data = build_fixture({
+            "src/app/services/user.service.ts": "export class UserService {}\n",
+            "src/app/orders/orders.controller.ts":
+                "export class OrdersController {}\nexport class OrdersService {}\n",
+        }, [])
+        self.assertEqual([(item["symbol"], item["suggestion"]) for item in data["findings"]["misplaced"]],
+                         [("OrdersService", "src/app/services/")])
 
     def test_synonyms_imports_and_purposes_are_recorded(self):
         data = map_structure.build_map(self.root, packs=[], depth=2)

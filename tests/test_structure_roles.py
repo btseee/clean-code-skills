@@ -80,6 +80,16 @@ class PrecedenceTest(unittest.TestCase):
         roles = roles_from(["role handler = **/api/**"], ["role route = **/api/**"])
         self.assertEqual(roles.home_role("src/api/users.ts"), "handler")
 
+    def test_a_home_says_whether_only_a_file_name_grants_it(self):
+        roles = roles_from(["role component = src/app/**/page.*, **/components/**",
+                            "role service = **/services/**, **/*.service.*, **/*Service.*"])
+        self.assertEqual(roles.home("src/app/orders/page.tsx"), ("component", True))
+        self.assertEqual(roles.home("src/components/Card.tsx"), ("component", False))
+        self.assertEqual(roles.home("src/billing/BillingService.java"), ("service", True))
+        # The file name outweighs the folder here, but the folder is still a service home.
+        self.assertEqual(roles.home("src/app/services/user.service.ts"), ("service", False))
+        self.assertEqual(roles.home("src/auth.ts"), (None, False))
+
     def test_ignored_names_and_home_globs(self):
         roles = roles_from(["role middleware = **/middleware/**", "ignore-name = ^(main|index)$"])
         self.assertTrue(roles.is_ignored_name("main"))

@@ -112,9 +112,14 @@ def _is_entry_point(path: str) -> bool:
 
 
 def _home_folders(files) -> dict:
+    """role -> the folders a folder glob makes its homes, with their file counts.
+
+    A home granted by a file name is not a folder to move code into: `app/orders/` holds
+    a `page.tsx`, and `billing/` a `BillingService.java`, yet both are route or feature folders.
+    """
     homes = defaultdict(Counter)
     for roled_file in files:
-        if roled_file.home_role and not roled_file.is_test:
+        if roled_file.home_role and not roled_file.home_by_name and not roled_file.is_test:
             homes[roled_file.home_role][posixpath.dirname(roled_file.path)] += 1
     return homes
 

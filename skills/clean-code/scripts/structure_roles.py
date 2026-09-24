@@ -103,26 +103,42 @@ def parse_roles(text: str, source: str) -> list:
     return statements
 
 
+class Home(NamedTuple):
+    role: Optional[str]
+    by_name: bool       # only a file-name glob (`**/*Service.*`) grants it, never a folder glob
+
+
 class Roles:
     """Every declared convention, highest precedence first."""
 
     def __init__(self, statements):
         self.statements = list(statements)
 
-    def home_role(self, relative_path: str) -> Optional[str]:
-        """The role a file's location promises: the most specific matching glob."""
+    def home(self, relative_path: str) -> Home:
+        """The role a file's location promises: the most specific matching glob.
+
+        A file-name glob makes the file a home, but not its folder: `app/orders/page.tsx`
+        is a component, while `app/orders/` is a route. A folder glob of the same role
+        still counts when a file-name glob outweighs it, as in `services/user.service.ts`.
+        """
         best_key = None
         best_role = None
+        folder_roles = set()
         for index, statement in enumerate(self.statements):
             if statement.kind != "role" or not statement.applies_to(relative_path):
                 continue
             project_path = statement.project_path(relative_path)
             for glob in statement.value:
                 if project_files.glob_match(glob, project_path):
+                    if glob.endswith("/**"):
+                        folder_roles.add(statement.role)
                     key = (project_files.literal_weight(glob), -index)
                     if best_key is None or key > best_key:
                         best_key, best_role = key, statement.role
-        return best_role
+        return Home(best_role, best_role is not None and best_role not in folder_roles)
+
+    def home_role(self, relative_path: str) -> Optional[str]:
+        return self.home(relative_path).role
 
     def intrinsic_role(self, name: str, context: str, suffix: str,
                        relative_path: Optional[str] = None) -> Optional[str]:
@@ -192,6 +208,7 @@ class RoledFile(NamedTuple):
     lines: int
     types: int
     abstract_types: int
+    home_by_name: bool = False    # the home comes from the file's name, so its folder is none
 
 
 def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
@@ -203,15 +220,17 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
                     if symbol.parent is None else None)
         for symbol in file_symbols.symbols
     ]
+    home = roles.home(file_symbols.path)
     return RoledFile(
         path=file_symbols.path,
         language=file_symbols.language,
         suffix=suffix,
-        home_role=roles.home_role(file_symbols.path),
+        home_role=home.role,
         is_test=is_test,
         symbols=symbols,
         purpose=file_symbols.purpose,
         lines=file_symbols.lines,
         types=file_symbols.types,
         abstract_types=file_symbols.abstract_types,
+        home_by_name=home.by_name,
     )
