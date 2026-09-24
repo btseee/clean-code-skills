@@ -4,9 +4,9 @@
 
 ## Names
 
-- Name a variable, mixin, or function for the role it plays, not the value it currently holds: `$color-brand`, never `$blue-1` (N1).
+- Name a variable, mixin, or function for the role it plays, not the value it currently holds: `$color-brand`, never `$blue-1` (N2).
 - Use kebab-case for every Sass identifier — variables, mixins, functions, placeholders — matching CSS's own convention; never mix in camelCase or snake_case — Sass treats `-` and `_` as the same character, so `$font_size` silently aliases `$font-size` (G11).
-- Never hedge a name with a version or a fix marker: `$spacing-v2`, `%card-old`, `_helpers-new.scss` all mean the real rename never happened (N6).
+- Never hedge a name with a version or a fix marker: `$spacing-v2`, `%card-old`, `_helpers-new.scss` all mean the real rename never happened (N1, N4).
 - Name a mixin or function for what it produces (`button-reset`), not the bug it patches (`fix-button-again`) (N1).
 
 ## Functions And Types
@@ -14,7 +14,7 @@
 - Model a related set of values as one Sass map, not a spray of separate variables: `$spacing: (sm: 0.5rem, md: 1rem, lg: 2rem)`, read with `map.get($spacing, md)` (G25).
 - Reach for a built-in module before hand-rolling: `sass:math` for arithmetic and `math.clamp`, `sass:color` for `color.adjust`, `sass:list` and `sass:map` for collections — load with `@use "sass:math"` (G24).
 - Use `math.div()` for division; plain `/` still divides outside `calc()` but is deprecated and warns on every build (G24).
-- Write a `@function` to compute a value and a `@mixin` to emit declarations; never a mixin that hands back a result through a `!global` variable (G32).
+- Write a `@function` to compute a value and a `@mixin` to emit declarations; never a mixin that hands back a result through a `!global` variable (G18).
 
 ## Errors
 

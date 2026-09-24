@@ -451,15 +451,16 @@
       "id": 29,
       "name": "sass-module-system",
       "prompt": "We're adding a Card component. Give it a stylesheet that reuses the same brand color and spacing variables the Button component uses, and make sure it's part of the main build.",
-      "expected_output": "A new partial for Card (for example styles/components/_card.scss) is added, written with @use rather than @import, referencing the shared variables and mixins by namespace; main.scss brings it in through @use or @forward instead of a new @import; the existing Button partial and other already-migrated-or-not files are left alone.",
+      "expected_output": "A new partial for Card (for example styles/components/_card.scss) loads the shared variables with @use and a namespace instead of @import; main.scss, which already loads every partial through @use, gains a @use (or @forward) for the new partial and no @import; the existing Button and base partials are left alone.",
       "files": [
         "evals/cases/sass-module-system/repo"
       ],
       "expectations": [
         "A stylesheet for the Card component exists",
-        "The new component style loads shared code with @use, not @import",
+        "The new component style loads shared code with @use",
         "The new component style does not use @import",
-        "main.scss brings the new component in through the module system",
+        "main.scss loads the new partial through the module system",
+        "main.scss stays on the module system",
         "The existing Button partial is left alone rather than migrated as a side effect"
       ]
     },
@@ -577,8 +578,8 @@
     {
       "id": 37,
       "name": "tailwind-dynamic-classes",
-      "prompt": "Badge only supports a color prop right now. Add a size prop with sm and lg options that change the padding and text size, without breaking the existing color variants.",
-      "expected_output": "Badge gains a size prop whose sm/lg variants are complete, statically written Tailwind class names -- a lookup table or branching that returns full class strings -- rather than a template literal that completes a utility name with an interpolated value. Every class that ships is a full literal token somewhere in the source.",
+      "prompt": "Badge only supports a color prop right now, and in production some colors never show up. Add a size prop with sm and lg options that change the padding and text size, and make sure every color and size actually renders.",
+      "expected_output": "Badge gains a size prop, and both color and size map to complete, statically written Tailwind class names -- a lookup table or branching that returns full class strings -- instead of a template literal that completes a utility name with an interpolated value, which Tailwind's scanner never sees. Every class that ships is a full literal token somewhere in the source.",
       "files": [
         "evals/cases/tailwind-dynamic-classes/repo"
       ],
@@ -593,8 +594,8 @@
     {
       "id": 38,
       "name": "tensorflow-data-pipeline",
-      "prompt": "Add random horizontal-flip and brightness augmentation to the training images before they reach the model.",
-      "expected_output": "The image pipeline moves onto a tf.data.Dataset, with the flip and brightness augmentation applied as a .map() step inside it, not bolted onto the training loop; nothing lands at the repository root.",
+      "prompt": "Training is input-bound: the NumPy batch loop in data/loader.py cannot keep the GPU busy. Rebuild the input pipeline so it streams efficiently, and add random horizontal-flip and brightness augmentation to the training images there.",
+      "expected_output": "data/loader.py builds a tf.data.Dataset (shuffle, batch, prefetch) in place of the Python loop, with the flip and brightness augmentation applied as a .map() step inside it, not in the training loop; nothing lands at the repository root.",
       "files": [
         "evals/cases/tensorflow-data-pipeline/repo"
       ],

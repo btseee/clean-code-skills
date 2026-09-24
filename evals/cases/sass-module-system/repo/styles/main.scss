@@ -1,9 +1,2 @@
-@import 'variables';
-@import 'mixins';
-@import 'components/button';
-
-body {
-  color: $color-text;
-  font-family: system-ui, sans-serif;
-  margin: 0;
-}
+@use 'base';
+@use 'components/button';

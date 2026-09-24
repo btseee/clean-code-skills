@@ -1,8 +1,8 @@
 {
   "id": "tensorflow-data-pipeline",
   "pack": "frameworks/tensorflow.md",
-  "prompt": "Add random horizontal-flip and brightness augmentation to the training images before they reach the model.",
-  "expected_output": "The image pipeline moves onto a tf.data.Dataset, with the flip and brightness augmentation applied as a .map() step inside it, not bolted onto the training loop; nothing lands at the repository root.",
+  "prompt": "Training is input-bound: the NumPy batch loop in data/loader.py cannot keep the GPU busy. Rebuild the input pipeline so it streams efficiently, and add random horizontal-flip and brightness augmentation to the training images there.",
+  "expected_output": "data/loader.py builds a tf.data.Dataset (shuffle, batch, prefetch) in place of the Python loop, with the flip and brightness augmentation applied as a .map() step inside it, not in the training loop; nothing lands at the repository root.",
   "expectations": [
     {
       "type": "file_contains",

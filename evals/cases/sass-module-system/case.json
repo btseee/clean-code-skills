@@ -2,7 +2,7 @@
   "id": "sass-module-system",
   "pack": "languages/sass.md",
   "prompt": "We're adding a Card component. Give it a stylesheet that reuses the same brand color and spacing variables the Button component uses, and make sure it's part of the main build.",
-  "expected_output": "A new partial for Card (for example styles/components/_card.scss) is added, written with @use rather than @import, referencing the shared variables and mixins by namespace; main.scss brings it in through @use or @forward instead of a new @import; the existing Button partial and other already-migrated-or-not files are left alone.",
+  "expected_output": "A new partial for Card (for example styles/components/_card.scss) loads the shared variables with @use and a namespace instead of @import; main.scss, which already loads every partial through @use, gains a @use (or @forward) for the new partial and no @import; the existing Button and base partials are left alone.",
   "expectations": [
     {
       "type": "file_exists",
@@ -13,7 +13,7 @@
       "type": "file_contains",
       "glob": "**/*card*.scss",
       "pattern": "@use\\b",
-      "text": "The new component style loads shared code with @use, not @import"
+      "text": "The new component style loads shared code with @use"
     },
     {
       "type": "file_not_contains",
@@ -24,8 +24,14 @@
     {
       "type": "file_contains",
       "glob": "**/main.scss",
-      "pattern": "@use\\b|@forward\\b",
-      "text": "main.scss brings the new component in through the module system"
+      "pattern": "@(?:use|forward)\\s+['\"][^'\"]*card",
+      "text": "main.scss loads the new partial through the module system"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "**/main.scss",
+      "pattern": "@import\\b",
+      "text": "main.scss stays on the module system"
     },
     {
       "type": "unchanged",

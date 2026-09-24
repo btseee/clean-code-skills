@@ -1,8 +1,8 @@
 {
   "id": "tailwind-dynamic-classes",
   "pack": "frameworks/tailwind.md",
-  "prompt": "Badge only supports a color prop right now. Add a size prop with sm and lg options that change the padding and text size, without breaking the existing color variants.",
-  "expected_output": "Badge gains a size prop whose sm/lg variants are complete, statically written Tailwind class names -- a lookup table or branching that returns full class strings -- rather than a template literal that completes a utility name with an interpolated value. Every class that ships is a full literal token somewhere in the source.",
+  "prompt": "Badge only supports a color prop right now, and in production some colors never show up. Add a size prop with sm and lg options that change the padding and text size, and make sure every color and size actually renders.",
+  "expected_output": "Badge gains a size prop, and both color and size map to complete, statically written Tailwind class names -- a lookup table or branching that returns full class strings -- instead of a template literal that completes a utility name with an interpolated value, which Tailwind's scanner never sees. Every class that ships is a full literal token somewhere in the source.",
   "expectations": [
     {
       "type": "file_not_contains",

@@ -78,7 +78,7 @@ layer main        = **/train.py, **/main.py
 
 - A hard-coded `.cuda()` or `.to("cuda")` that crashes the script on a CPU-only machine (G35).
 - Evaluation run without `model.eval()`, or without `no_grad`/`inference_mode`, silently keeping dropout and gradient tracking on (G3).
-- The whole model pickled with `torch.save(model)` instead of its `state_dict` (G26).
-- An unseeded `DataLoader` worker or sampler turning a concurrency bug into a "flaky" test (G31, T7).
+- The whole model pickled with `torch.save(model)` instead of its `state_dict`, tying every checkpoint to one class path.
+- An unseeded `DataLoader` worker or sampler turning a concurrency bug into a "flaky" test (F.I.R.S.T., T7).
 - A hyperparameter or path buried inside a model or training function instead of `configs/` (G35, G25).
 - A hand-rolled training loop duplicating what the project's Lightning `Trainer` already does (G5).
