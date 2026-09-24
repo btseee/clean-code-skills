@@ -75,6 +75,26 @@ class CheckProjectTest(unittest.TestCase):
         self.assertEqual(result["violation_count"], 1)
         self.assertEqual(result["violations"][0]["to_layer"], "infra")
 
+    def test_an_import_behind_a_byte_order_mark_is_checked(self):
+        # Visual Studio starts files with a BOM. Read as plain UTF-8 it sat in front of
+        # `using`, and the outward import on line 1 went unseen: the check passed.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "src" / "Domain").mkdir(parents=True)
+            (root / "src" / "Infrastructure").mkdir(parents=True)
+            (root / "src" / "Domain" / "Order.cs").write_bytes(
+                b"\xef\xbb\xbfusing MyApp.Infrastructure.Db;\nnamespace MyApp.Domain;\n"
+                b"public class Order {}\n")
+            (root / "src" / "Infrastructure" / "Db.cs").write_text(
+                "namespace MyApp.Infrastructure.Db;\npublic class Db {}\n", encoding="utf-8")
+            layering = cb.parse_layering(
+                "```clean-architecture\nlayer domain = src/Domain/**\n"
+                "layer infrastructure = src/Infrastructure/**\n```")
+            result = cb.check_project(root, layering)
+        self.assertEqual(result["violation_count"], 1)
+        self.assertEqual((result["violations"][0]["file"], result["violations"][0]["line"]),
+                         ("src/Domain/Order.cs", 1))
+
     def test_a_file_name_the_console_cannot_encode_is_still_reported(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
