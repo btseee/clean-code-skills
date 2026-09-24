@@ -18,7 +18,7 @@ These rules govern all code you write, edit, review, test, or refactor in this p
 
 ### Layers
 
-- Without a layer declaration in `.clean/architecture.md`, follow the framework pack's idiomatic structure; every other rule here still applies.
+- Without a layer declaration in `.clean/architecture.md`, follow the framework's idiomatic structure (its pack, where installed); every other rule here still applies.
 - With one, the Dependency Rule is strict: source dependencies point inward, toward higher-level policy, and nothing in an inner layer names anything in an outer one — no class, function, variable, annotation, or data format.
 - Business rules are the highest level; the database, web, UI, and framework are details. When policy needs a detail, declare the interface on the policy side and implement it outside.
 - SQL stays in the data-access layer. Rows, ORM types, and framework request or response objects never travel inward. Never derive a business object from a framework base class or annotate one; keep dependency-injection wiring in `main`.
