@@ -40,6 +40,8 @@ _FAMILY_BY_SUFFIX = {
     ".ps1": "powershell", ".psm1": "powershell", ".r": "r",
 }
 
+SCRIPT_SUFFIXES = frozenset(suffix for suffix, family in _FAMILY_BY_SUFFIX.items() if family == "js")
+
 _LEXER_BY_FAMILY = {"jvm": "java", "csharp": "csharp", "php": "php", "swift": "swift",
                     "ruby": "ruby"}
 TYPE_REFERENCE_FAMILIES = frozenset(_LEXER_BY_FAMILY)
@@ -108,6 +110,71 @@ def _visible_namespaces(family: str, namespace: str, path: str, text: str) -> se
     return visible
 
 
+def _read_script_paths(root: Path) -> tuple:
+    """(aliases, base) from the project's tsconfig.json or jsconfig.json.
+
+    aliases are the `paths` patterns with their targets relative to root; base is
+    `baseUrl`, or None when the project sets none and bare imports name packages.
+    """
+    for name in ("tsconfig.json", "jsconfig.json"):
+        config = _read_jsonc(root / name)
+        if not isinstance(config, dict):
+            continue
+        options = config.get("compilerOptions")
+        options = options if isinstance(options, dict) else {}
+        base = options.get("baseUrl")
+        base_dir = posixpath.normpath(base) if isinstance(base, str) else "."
+        paths = options.get("paths")
+        aliases = [(pattern, [posixpath.normpath(posixpath.join(base_dir, target))
+                              for target in targets if isinstance(target, str)])
+                   for pattern, targets in (paths if isinstance(paths, dict) else {}).items()
+                   if isinstance(targets, list)]
+        return aliases, (base_dir if isinstance(base, str) else None)
+    return [], None
+
+
+def _script_file(base: str, exists) -> list:
+    """[the first file a script import of base names], or []: base itself, its TypeScript
+    source, base with an extension, or its folder's index file."""
+    stem, suffix = posixpath.splitext(base)
+    sources = [stem + source for source in _TYPESCRIPT_SOURCES.get(suffix, ())]
+    candidates = ([base] + sources + [base + extension for extension in _JS_EXTENSIONS] +
+                  [f"{base}/index{extension}" for extension in _JS_EXTENSIONS])
+    for candidate in candidates:
+        normalized = posixpath.normpath(candidate)
+        if not normalized.startswith("..") and exists(normalized):
+            return [normalized]
+    return []
+
+
+class ScriptResolver:
+    """Which file a JavaScript or TypeScript import names, found as the compiler finds it:
+    a relative path, a tsconfig or jsconfig `paths` alias, or a path under `baseUrl`."""
+
+    def __init__(self, root: Path):
+        self._aliases, self._base = _read_script_paths(Path(root))
+
+    def resolve(self, source: str, module: str, exists) -> list:
+        """[the file module names from source], or []; exists(path) says a path is a project file."""
+        if module.startswith("."):
+            return _script_file(posixpath.join(posixpath.dirname(source), module), exists)
+        for pattern, targets in self._aliases:
+            if pattern.endswith("*") and module.startswith(pattern[:-1]):
+                rest = module[len(pattern) - 1:]
+                for target in targets:
+                    found = _script_file(target.replace("*", rest), exists)
+                    if found:
+                        return found
+            elif module == pattern:
+                for target in targets:
+                    found = _script_file(target, exists)
+                    if found:
+                        return found
+        if self._base is not None:
+            return _script_file(posixpath.join(self._base, module), exists)
+        return []
+
+
 def _rust_crate_root(source: str) -> str:
     """The nearest enclosing `src` folder: where `crate::` paths start."""
     folders = source.split("/")[:-1]
@@ -146,8 +213,7 @@ class ModuleIndex:
         self._declared = {}
         self._references = {}
         self._visible = {}
-        self._ts_aliases = []
-        self._ts_base = None
+        self._scripts = ScriptResolver(self.root)
         self._go_module = None
         self._dart_package = None
         self._read_manifests()
@@ -155,21 +221,6 @@ class ModuleIndex:
     # --- learning the project -------------------------------------------------------
 
     def _read_manifests(self) -> None:
-        for name in ("tsconfig.json", "jsconfig.json"):
-            config = _read_jsonc(self.root / name)
-            if isinstance(config, dict):
-                options = config.get("compilerOptions") or {}
-                base = options.get("baseUrl")
-                base_dir = posixpath.normpath(base) if isinstance(base, str) else "."
-                if isinstance(base, str):
-                    self._ts_base = base_dir
-                for pattern, targets in (options.get("paths") or {}).items():
-                    if isinstance(targets, list):
-                        self._ts_aliases.append((pattern, [
-                            posixpath.normpath(posixpath.join(base_dir, target))
-                            for target in targets if isinstance(target, str)
-                        ]))
-                break
         go_mod = project_files.read_text(self.root / "go.mod") or ""
         self._go_module = _first(re.compile(r"^module\s+(\S+)", re.M), go_mod)
         pubspec = project_files.read_text(self.root / "pubspec.yaml") or ""
@@ -264,30 +315,8 @@ class ModuleIndex:
                 return [normalized]
         return []
 
-    def _js_candidates(self, base: str) -> list:
-        stem, suffix = posixpath.splitext(base)
-        sources = [stem + source for source in _TYPESCRIPT_SOURCES.get(suffix, ())]
-        return self._existing([base] + sources + [base + extension for extension in _JS_EXTENSIONS] +
-                              [f"{base}/index{extension}" for extension in _JS_EXTENSIONS])
-
     def _resolve_js(self, source: str, module: str) -> list:
-        if module.startswith("."):
-            return self._js_candidates(posixpath.join(posixpath.dirname(source), module))
-        for pattern, targets in self._ts_aliases:
-            if pattern.endswith("*") and module.startswith(pattern[:-1]):
-                rest = module[len(pattern) - 1:]
-                for target in targets:
-                    found = self._js_candidates(target.replace("*", rest))
-                    if found:
-                        return found
-            elif module == pattern:
-                for target in targets:
-                    found = self._js_candidates(target)
-                    if found:
-                        return found
-        if self._ts_base is not None:
-            return self._js_candidates(posixpath.join(self._ts_base, module))
-        return []
+        return self._scripts.resolve(source, module, self._files.__contains__)
 
     def _resolve_python(self, source: str, module: str) -> list:
         if module.startswith("."):

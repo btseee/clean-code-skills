@@ -32,7 +32,10 @@ Declare layers innermost first, in a fenced `clean-architecture` block:
     ```
 
 Globs match the path from the project root; `*` also crosses `/`, and a leading
-`**/` also matches a top-level folder.
+`**/` also matches a top-level folder. A JavaScript or TypeScript import is placed
+by the file it names, found as the compiler finds it: relative paths, tsconfig or
+jsconfig `paths` aliases, and `baseUrl`. Other imports are placed by their path when
+relative, otherwise by the layer names they contain.
 """
 
 from __future__ import annotations
@@ -44,6 +47,7 @@ import re
 import sys
 from pathlib import Path
 
+import import_resolution
 import project_files
 import project_imports
 
@@ -124,18 +128,26 @@ class Layering:
                 return name
         return None
 
-    def layer_of_import(self, module: str, source_path: str, exists) -> str | None:
-        """Classify one import from `source_path` into a declared layer.
+    def layer_of_import(self, module: str, source_path: str, exists, resolve=None) -> str | None:
+        """Classify one import from `source_path` into a declared layer."""
+        return self.place_import(module, source_path, exists, resolve)[0]
 
-        A relative import that resolves to a file on disk is placed by that file's
-        path and nothing else; one that resolves nowhere falls back to its name,
-        so `from ..infra.db import Db` still lands in `infra`. Returns None when
-        the import points outside every declared layer or cannot be placed.
+    def place_import(self, module: str, source_path: str, exists, resolve=None) -> tuple:
+        """(layer, path) for one import from `source_path`; path is the file it names, if found.
+
+        `resolve(source_path, module)` finds the file a script import names through
+        a tsconfig alias or `baseUrl`. A relative import that resolves to a file on
+        disk is placed by that file's path and nothing else; one that resolves
+        nowhere falls back to its name, so `from ..infra.db import Db` still lands
+        in `infra`. The layer is None when the import points outside every declared
+        layer or cannot be placed.
         """
-        resolved = project_imports.resolve_relative_import(source_path, module, exists)
+        resolved = resolve(source_path, module) if resolve is not None else None
+        if resolved is None:
+            resolved = project_imports.resolve_relative_import(source_path, module, exists)
         if resolved is not None:
-            return self.layer_of_path(resolved)
-        return self.layer_of_name(module)
+            return self.layer_of_path(resolved), resolved
+        return self.layer_of_name(module), None
 
 
 def parse_list(raw: str) -> list:
@@ -246,6 +258,7 @@ def find_config(root: Path, explicit: str | None) -> Path:
 
 def check_project(root: Path, layering: Layering) -> dict:
     violations = []
+    unlayered = []
     files_by_layer: dict = {}
     imports_checked = 0
     imports_unplaced = 0
@@ -254,6 +267,15 @@ def check_project(root: Path, layering: Layering) -> dict:
         return (root / relative_path).exists()
 
     walk = project_files.walk(root, project_imports.COMPILED_IMPORT_PATTERNS)
+    sources = set(walk.paths)
+    scripts = import_resolution.ScriptResolver(root)
+
+    def resolve(source_path: str, module: str):
+        if Path(source_path).suffix.lower() not in import_resolution.SCRIPT_SUFFIXES:
+            return None
+        found = scripts.resolve(source_path, module, sources.__contains__)
+        return found[0] if found else None
+
     for relative_path in walk.paths:
         path = root / relative_path
         source_layer = layering.layer_of_path(relative_path)
@@ -262,9 +284,13 @@ def check_project(root: Path, layering: Layering) -> dict:
         files_by_layer[source_layer] = files_by_layer.get(source_layer, 0) + 1
 
         for line_number, module, line_text in project_imports.extract_imports(path):
-            target_layer = layering.layer_of_import(module, relative_path, exists)
+            target_layer, target = layering.place_import(module, relative_path, exists, resolve)
             if target_layer is None:
                 imports_unplaced += 1
+                # A project file no layer claims: the check cannot judge this import.
+                if target in sources:
+                    unlayered.append({"file": relative_path, "line": line_number,
+                                      "import": module, "target": target})
                 continue
             imports_checked += 1
             if not layering.permits(source_layer, target_layer):
@@ -285,7 +311,23 @@ def check_project(root: Path, layering: Layering) -> dict:
         "scan_truncated": walk.truncated,
         "violation_count": len(violations),
         "violations": violations,
+        "unlayered_imports": unlayered,
     }
+
+
+def _unlayered_warning(unlayered: list) -> list:
+    """Imports of project files that no layer claims: unchecked, so never a silent pass."""
+    if not unlayered:
+        return []
+    count = len(unlayered)
+    lines = [f"  WARN: {count} import{'s reach' if count > 1 else ' reaches'} project files outside "
+             "every declared layer,",
+             "  so the Dependency Rule was not checked for them. Declare the layer each file",
+             "  belongs to, or confirm it belongs to none:"]
+    lines += [f"    {item['file']}:{item['line']} -> {item['target']}" for item in unlayered[:10]]
+    if count > 10:
+        lines.append(f"    ... and {count - 10} more.")
+    return lines + [""]
 
 
 def render_report(result: dict) -> str:
@@ -309,6 +351,7 @@ def render_report(result: dict) -> str:
     lines.append(f"  Cross-layer imports     : {result['cross_layer_imports_checked']}")
     lines.append(f"  Imports outside layers  : {result['imports_outside_layers']}")
     lines.append("")
+    lines += _unlayered_warning(result.get("unlayered_imports", []))
 
     if not result["violations"]:
         lines.append("  PASS: every source dependency points inward.")

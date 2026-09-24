@@ -6,6 +6,25 @@ from pathlib import Path
 import support  # puts the scripts folder on sys.path
 import check_boundaries as cb
 
+NEXTJS_LAYERS = ("```clean-architecture\nlayer domain = src/domain/**\n"
+                 "layer application = src/application/**\n"
+                 "layer infrastructure = src/lib/**, src/server/**\nlayer ui = app/**, src/app/**\n```\n")
+NESTJS_LAYERS = ("```clean-architecture\nlayer domain = **/domain/**\n"
+                 "layer application = src/**/*.service.ts\n"
+                 "layer infrastructure = src/**/*.entity.ts, src/**/*.repository.ts\n"
+                 "layer delivery = src/**/*.controller.ts, src/**/*.guard.ts\n"
+                 "layer main = src/main.ts, src/**/*.module.ts\n```\n")
+
+
+def check(files: dict, architecture: str, *flags):
+    """(exit code, output) of check_boundaries on a throwaway project holding files."""
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for path, text in dict(files, **{".clean/architecture.md": architecture}).items():
+            (root / path).parent.mkdir(parents=True, exist_ok=True)
+            (root / path).write_text(text, encoding="utf-8")
+        return support.run_on_ansi_console(cb.main, ["--root", str(root), *flags])
+
 
 class ClassificationTest(unittest.TestCase):
     """The same table CI runs, so moving the import parser cannot change a verdict."""
@@ -94,6 +113,52 @@ class CheckProjectTest(unittest.TestCase):
         self.assertEqual(result["violation_count"], 1)
         self.assertEqual((result["violations"][0]["file"], result["violations"][0]["line"]),
                          ("src/Domain/Order.cs", 1))
+
+    def test_an_import_through_a_tsconfig_path_alias_is_checked(self):
+        # create-next-app's default alias: `@/*` names `./src/*`.
+        code, output = check({
+            "tsconfig.json": '{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}\n',
+            "src/domain/pricing.ts": "import { db } from '@/lib/db';\nexport const price = () => db;\n",
+            "src/lib/db.ts": "export const db = 1;\n",
+            "src/app/orders/page.tsx": "import { price } from '@/domain/pricing';\n"
+                                       "export default function Page() { return price(); }\n",
+        }, NEXTJS_LAYERS)
+        self.assertEqual(code, 1)
+        self.assertIn("src/domain/pricing.ts:1: domain -> infrastructure (imports @/lib/db)", output)
+
+    def test_an_import_under_the_base_url_is_checked(self):
+        # The Nest CLI's default: `"baseUrl": "./"`, so `src/...` names a project file.
+        code, output = check({
+            "tsconfig.json": '{"compilerOptions": {"baseUrl": "./"}}\n',
+            "src/orders/domain/order.ts": "import { OrdersService } from 'src/orders/orders.service';\n"
+                                          "export class Order {}\n",
+            "src/orders/orders.service.ts": "export class OrdersService {}\n",
+        }, NESTJS_LAYERS)
+        self.assertEqual(code, 1)
+        self.assertIn("src/orders/domain/order.ts:1: domain -> application", output)
+
+    def test_a_folder_import_reaches_its_index_file(self):
+        code, output = check({
+            "src/domain/order.ts": "import { db } from '../lib';\nexport const order = db;\n",
+            "src/lib/index.ts": "export const db = 1;\n",
+        }, NEXTJS_LAYERS)
+        self.assertEqual(code, 1)
+        self.assertIn("src/domain/order.ts:1: domain -> infrastructure", output)
+
+    def test_an_import_of_a_project_file_outside_every_layer_is_a_warning(self):
+        files = {
+            "tsconfig.json": '{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}\n',
+            "src/domain/pricing.ts": "import { round } from '@/shared/round';\n"
+                                     "import { z } from 'zod';\nexport const price = round;\n",
+            "src/shared/round.ts": "export const round = Math.round;\n",
+        }
+        code, output = check(files, NEXTJS_LAYERS)
+        self.assertEqual(code, 0)
+        self.assertIn("WARN: 1 import reaches project files outside every declared layer", output)
+        self.assertIn("src/domain/pricing.ts:1 -> src/shared/round.ts", output)
+        code, output = check(files, NEXTJS_LAYERS, "--json")
+        result = json.loads(output)
+        self.assertEqual((code, result["violation_count"], result["imports_outside_layers"]), (0, 0, 2))
 
     def test_a_file_name_the_console_cannot_encode_is_still_reported(self):
         with tempfile.TemporaryDirectory() as directory:
