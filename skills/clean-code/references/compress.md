@@ -28,7 +28,8 @@ Before the first edit, list the targets with their token counts (words x 4/3).
 1. **Back up.** Copy each target to `<name>.original.md` beside it: `CLAUDE.md` becomes
    `CLAUDE.original.md`. Inside a rules folder a host scans (`.cursor/rules/`,
    `.github/instructions/`), put the backup one folder up, so no host loads it as a second rule
-   set. Keep backups until the user deletes them.
+   set. If the backup already exists, stop and ask: it may hold the only true original, so never
+   overwrite it. Keep backups until the user deletes them.
 2. **Rewrite**, one file at a time:
    - Cut articles where meaning holds, filler ("please note", "it is important to"), hedging ("try
      to", "generally"), pleasantries, repeated framing, and any rule a file states twice.

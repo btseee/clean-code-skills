@@ -157,7 +157,7 @@ direct code (A9). Book terms: `canon.md`; arguments: `architecture.md`.
 - **Intent:** track one business operation's changes and commit them together, atomically.
 - **Earns its place:** one operation changes several objects that must succeed or fail together.
 - **Over-engineered:** hand-written around an ORM session that already is one; wrapped around
-  single-row writes; kept alive across requests (a captive `DbContext`, G18).
+  single-row writes; kept alive across requests (a captive `DbContext`).
 - **Books:** the use case, not the controller, owns the transaction and sees a narrow commit port,
   never the session (the Dependency Rule); G31 when a forgotten flush loses writes.
 - **Packs:** EF Core `DbContext.SaveChanges()`, the SQLAlchemy `Session`, Doctrine
@@ -197,7 +197,8 @@ direct code (A9). Book terms: `canon.md`; arguments: `architecture.md`.
 - **Books:** G23; OCP; LSP: a caller never checks which strategy it holds; a one-dimensional
   partial boundary (`architecture.md`).
 - **Packs:** Spring injecting every bean of an interface as a `List` or `Map`, ASP.NET Core keyed
-  services, Angular's `OnPush` strategy, Passport strategies in Express.
+  services, Angular's `LocationStrategy` (`PathLocationStrategy`, `HashLocationStrategy`), Passport
+  strategies in Express.
 
 ### Adapter
 
