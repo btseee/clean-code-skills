@@ -105,19 +105,10 @@ time.sleep(0.2)  # provider rate limit: HTTP 429 when faster; PAY-231
 ## Over-built code the comments narrate
 
 Heavy narration often covers code that should not exist. Before polishing its comments, climb the
-minimal-code ladder (credited to the ponytail plugin) and stop at the first yes:
-
-1. Does it need to exist? A speculative option, a branch nothing reaches, or a wrapper nobody calls
-   goes (G9, F4).
-2. Does the codebase already have it? Call that (G5).
-3. Does the standard library, the platform, or an installed dependency do it? Use that, at the
-   installed version.
-4. Is it one line? Write the line.
-5. Only then write the minimum.
-
-Never cut validation, error handling, security checks, or accessibility to get shorter. Replacing
-code is not a comment edit: in a campaign it belongs to a structure batch, with tests; in surgical
-mode, report it unless the task covers it.
+minimal-code ladder in `SKILL.md` (credited to the ponytail plugin): unneeded code goes (G9, F4),
+existing code is reused (G5), and safety is never cut. Replacing code is not a comment edit: in a
+campaign it belongs to a structure batch, with tests; in surgical mode, report it unless the task
+covers it.
 
 ## Done when
 

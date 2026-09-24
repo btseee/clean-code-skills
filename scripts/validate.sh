@@ -311,12 +311,12 @@ skill_words="$(wc -w < "$skill_file" | tr -d '[:space:]')"
 skill_tokens=$(( skill_words * 4 / 3 ))
 
 [[ "$skill_lines" -le 500 ]] || fail "SKILL.md is $skill_lines lines; keep it under 500 and move depth into references/"
-[[ "$skill_tokens" -le 3000 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 3000 and move depth into references/"
+[[ "$skill_tokens" -le 1500 ]] || fail "SKILL.md is ~$skill_tokens tokens; keep it under 1500 and move depth into references/"
 pass "SKILL.md is within budget ($skill_lines lines, ~$skill_tokens tokens)"
 
 block_words="$(wc -w < "$TEMPLATE" | tr -d '[:space:]')"
 block_tokens=$(( block_words * 4 / 3 ))
-[[ "$block_tokens" -le 1200 ]] || fail "the managed block is ~$block_tokens tokens; keep it under 1200 — it loads on every turn"
+[[ "$block_tokens" -le 750 ]] || fail "the managed block is ~$block_tokens tokens; keep it under 750 — it loads on every turn"
 pass "managed block is within budget (~$block_tokens tokens)"
 
 # --- skill scripts ------------------------------------------------------------------

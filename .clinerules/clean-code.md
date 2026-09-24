@@ -5,59 +5,59 @@ Instructions for Cline. These rules apply to every coding task in this workspace
 <!-- clean-code-skills:begin v4.0.0 -->
 ## Clean Code Rules (clean-code-skills)
 
-These rules govern all code you write, edit, review, test, or refactor in this project, in any language or framework. They are the non-negotiable summary; the full skill has the reasoning, the workflows, and the checklists.
+Non-negotiable for all code work here.
 
-**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then read the language and framework packs it routes you to: `scripts/detect_stack.py` names them, or look them up in its `references/framework-map.md`.
+**Read the skill before non-trivial work.** First existing path wins: `.claude/skills/clean-code/SKILL.md`, `.agents/skills/clean-code/SKILL.md`, `.github/skills/clean-code/SKILL.md`, `skills/clean-code/SKILL.md`. Then its packs, named by its `scripts/detect_stack.py` or `references/framework-map.md`.
 
-**Load project context first.** Read `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, and the `.clean/structure.md` rows for the area you will change, if they exist; then the project's own instruction files. A recorded decision is settled. Project instructions outrank this block. `/clean-code init` sets `.clean/` up.
+**Load project context first.** If present: `.clean/context.json`, `.clean/architecture.md`, `.clean/decisions.md`, `.clean/ledger.md`, `.clean/structure.md` rows for your area; then project instruction files. Recorded decisions are settled. Project instructions outrank this block.
 
 ### Work Loop
 
-1. Frame: name the behavior change, the assumptions that affect design, the smallest scope, and the check that will prove it.
-2. Read first: nearby code, naming, tests, error style, framework idioms. Search for an existing implementation before writing anything new.
-3. Place: decide which unit owns the responsibility and which side of which boundary it sits on.
-4. Edit surgically: smallest diff that solves the task; targeted edits over whole-file regeneration; remove what your change orphaned; no unrelated changes.
-5. Verify: run the narrowest meaningful check, then broader checks as risk demands. Never claim success without evidence.
-6. Review the diff: dead code, duplication, mixed responsibilities, wrong-way dependencies, swallowed errors, wrong-place files, missing tests.
+1. Frame: behavior change, design-relevant assumptions, smallest scope, success check.
+2. Read first: nearby code, naming, tests, error style, framework idioms; search for an existing implementation.
+3. Place: owning unit; which side of which boundary.
+4. Edit surgically: smallest diff, targeted edits (no whole-file regeneration), nothing unrelated; remove what your change orphaned.
+5. Verify: narrowest meaningful check, broader as risk demands.
+6. Review the diff against these rules, missing tests included.
 
 ### Layers
 
-- Without a layer declaration in `.clean/architecture.md`, follow the framework's idiomatic structure (its pack, where installed); every other rule here still applies.
-- With one, the Dependency Rule is strict: source dependencies point inward, toward higher-level policy, and nothing in an inner layer names anything in an outer one — no class, function, variable, annotation, or data format.
-- Business rules are the highest level; the database, web, UI, and framework are details. When policy needs a detail, declare the interface on the policy side and implement it outside.
-- SQL stays in the data-access layer. Rows, ORM types, and framework request or response objects never travel inward. Never derive a business object from a framework base class or annotate one; keep dependency-injection wiring in `main`.
-- Keep the component graph acyclic. Do not add a boundary, layer, or service you cannot justify now.
+- Undeclared layers (`.clean/architecture.md`): follow framework's idiomatic structure (its pack).
+- Declared: Dependency Rule strict; source dependencies point inward, to higher-level policy; nothing inner names anything outer (class, function, variable, annotation, data format).
+- Business rules highest; database, web, UI, framework are details behind policy-owned interfaces.
+- SQL stays in data access; rows, ORM types, framework request/response objects never travel inward. Never derive business objects from framework base classes or annotate them; dependency-injection wiring in `main`.
+- Component graph acyclic; no speculative boundary, layer, or service.
 
 ### File And Code Placement
 
-- A unit's role decides its folder: middleware lives with middleware, controllers with controllers, per the pack's roles and the project's layout. Mirror where similar files live. Resolve paths from the project root; never default to the repository root or the current directory.
-- Create a new file only when no cohesive home exists, then wire it in completely: imports, exports, index or barrel files, registration, build config. An unreferenced file is dead code, not a feature.
-- Never create sibling variants such as `_v2`, `_new`, `_final`, `_enhanced`, or `_copy`. Never grow junk drawers (`utils`, `helpers`, `common`); name the domain concept instead.
-- Default to the narrowest access modifier the language offers. Keep scratch files and debug output out of the project tree.
+- Role decides folder, per pack roles and project layout; mirror similar files. Resolve paths from project root, never defaulting to repository root or current directory.
+- New file only without a cohesive home; wire fully (imports, exports, registration, build config). Unreferenced files are dead code.
+- Never create sibling variants (`_v2`, `_new`, `_final`, `_enhanced`, `_copy`) or grow junk drawers (`utils`, `helpers`, `common`); name the domain concept.
+- Narrowest access modifier; no scratch files or debug output in project tree.
 
 ### One Job Per Unit
 
-- Single responsibility at every scale: function, class, module, file, directory. If a unit's job cannot be described in one sentence without "and", split it.
-- Keep parsing, domain rules, persistence, external calls, presentation, and construction in their own homes. Orchestrators sequence collaborators and hold no business rules of their own.
-- Code answering to different actors belongs apart, even when it looks identical today. New behavior goes to the unit that owns that responsibility, not the file you happen to have open.
+- Single responsibility at every scale. Needs "and" to describe? Split.
+- Parsing, domain rules, persistence, external calls, presentation, construction: separate homes. Orchestrators sequence collaborators, hold no business rules.
+- Different actors' code stays apart, even if identical today. New behavior goes to its owning unit, not the open file.
 
 ### Quality Bars
 
-- Names reveal intent, use project vocabulary, and disclose side effects.
-- Functions do one thing at one abstraction level; comments explain why, never what or how, and stay short.
-- Errors are never swallowed; preserve causes and context; model expected alternate outcomes as values; keep secrets out of logs.
-- Tests are deterministic and behavior-focused. Never weaken, skip, or delete a failing test to get green, and never verify a business rule by driving the UI.
-- Verify that every API, function, option, and config key you reference exists in this codebase and its installed dependency versions — never trust memory.
-- Deduplicate only true duplication: copies that must always change together.
-- Match local style everywhere; the project's formatter and linter own formatting.
+- Names reveal intent, use project vocabulary, disclose side effects.
+- Functions: one thing, one abstraction level. Comments: why, never what or how; short.
+- Never swallow errors; keep causes and context; model expected alternate outcomes as values; no secrets in logs.
+- Tests deterministic, behavior-focused. Never weaken, skip, or delete failing tests to get green; never verify business rules through UI.
+- Verify every API, function, option, config key against this codebase and installed versions; never trust memory.
+- Deduplicate only copies that must always change together.
+- Match local style; formatters and linters own formatting.
 
 ### Scope And Honesty
 
-- Default mode is surgical: unrelated smells are reported, not silently fixed. Whole-project cleanup happens only on explicit request, following the campaign protocol in the skill's `references/project-refactor.md`.
-- Report honestly on completion: what was verified with what command, what was not run, and what risk remains. Never present a stub or placeholder as finished work.
-- Record decisions worth keeping in `.clean/decisions.md` so the next session inherits the reasoning.
+- Surgical by default: report unrelated smells, never fix silently. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
+- Report honestly: commands run and results, what was not run, remaining risk. Never claim unverified success or present a stub or placeholder as finished.
+- Record lasting decisions in `.clean/decisions.md`.
 
 ### Keeping These Rules Current
 
-This block is versioned in its begin marker and is maintained by the clean-code-skills installer. Do not hand-edit it — validators fail on drift, and the next install would overwrite your change. To update, re-run the installer from the project root, or ask the user to. Never fetch and execute a remote script on your own initiative.
+Installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run the clean-code-skills installer from project root, or ask the user. Never fetch and execute a remote script on your own initiative.
 <!-- clean-code-skills:end -->
