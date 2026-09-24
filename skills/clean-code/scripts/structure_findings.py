@@ -16,6 +16,7 @@ import re
 from collections import Counter, defaultdict
 from typing import Optional
 
+import project_files
 import symbol_model
 
 # Abstractions legitimately live beside the code that consumes them (the
@@ -63,6 +64,8 @@ _NOUN_ENDS = frozenset({"by", "for", "with", "from", "in", "to", "of", "on", "at
 _WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+")
 _FOLDER_GLOB = re.compile(r"^\*\*/([^*?/]+)/\*\*$")
 _LITERAL_FOLDER_GLOB = re.compile(r"^([^*?]+)/\*\*$")
+# Maven and Gradle keep JVM sources under a source set, then the package path.
+_JVM_SOURCE_SET = re.compile(r"^((?:.+/)?src/(?:main/)?(?:java|kotlin|scala))/")
 
 
 def split_identifier(name: str) -> list:
@@ -159,29 +162,104 @@ def _cased(name: str, parent: str, folders, language: str) -> str:
     return symbol_model.pascal_case(name) if pascal else name
 
 
-def _suggest(role: str, roled_file, homes: dict, roles, project_roots, folders) -> Optional[str]:
-    # A home in another project is not an option: moving code across a manifest boundary
-    # is a design decision, never a tidy-up.
-    path = roled_file.path
-    project = _project_of(path, project_roots)
-    in_project = {folder: count for folder, count in homes.get(role, {}).items()
-                  if not project or folder == project or folder.startswith(project + "/")}
-    if in_project:
+def _named_homes(files) -> dict:
+    """role -> the files that only a file-name glob makes its homes: `models.py`, `OrderService.java`."""
+    named = defaultdict(list)
+    for roled_file in files:
+        if roled_file.home_role and roled_file.home_by_name and not roled_file.is_test:
+            named[roled_file.home_role].append(roled_file.path)
+    return named
+
+
+def _common_folder(paths) -> str:
+    """The deepest folder that holds every path."""
+    common = []
+    for parts in zip(*[posixpath.dirname(path).split("/") for path in paths]):
+        if len(set(parts)) != 1:
+            break
+        common.append(parts[0])
+    return "/".join(common)
+
+
+class _Destinations:
+    """Where a symbol of one role should move, judged from the homes the project already has.
+
+    A home in another project is never an option: moving code across a manifest boundary
+    is a design decision, never a tidy-up.
+    """
+
+    def __init__(self, files, roles, project_roots):
+        self.roles = roles
+        self.project_roots = project_roots
+        self.folder_homes = _home_folders(files)
+        self.named_homes = _named_homes(files)
+        self.folders = _all_folders(files)
+        self.sources = [roled_file for roled_file in files if not roled_file.is_test]
+
+    def for_symbol(self, role: str, roled_file) -> Optional[str]:
+        """A home file beside it, the nearest home folder, a file named like the role's files
+        beside it, or the role's conventional folder, in that order."""
+        path = roled_file.path
         here = posixpath.dirname(path)
-        folder = max(in_project, key=lambda name: (_shared_depth(name, here), in_project[name], -len(name)))
-        return (folder + "/") if folder else "./"
-    source_root = _source_root(path)
-    root = source_root if len(source_root) > len(project) else project
-    for glob in roles.home_globs(role, path):
-        conventional = _FOLDER_GLOB.match(glob)
-        if conventional:
-            name = _cased(conventional.group(1), root, folders, roled_file.language)
-            return (root + "/" if root else "") + name + "/"
-        literal = _LITERAL_FOLDER_GLOB.match(glob)
-        if literal:
-            return literal.group(1) + "/"
-    globs = roles.home_globs(role, path)
-    return f"a file matching {globs[0]}" if globs else None
+        project = _project_of(path, self.project_roots)
+
+        def in_project(where: str) -> bool:
+            return not project or where == project or where.startswith(project + "/")
+
+        named = sorted(home for home in self.named_homes.get(role, ()) if in_project(home))
+        beside = [home for home in named if posixpath.dirname(home) == here]
+        suggestion = self._named_like(beside[0], roled_file) if beside else None
+        if suggestion:
+            return suggestion
+        folders = {folder: count for folder, count in self.folder_homes.get(role, {}).items()
+                   if in_project(folder)}
+        if folders:
+            folder = max(folders, key=lambda name: (_shared_depth(name, here), folders[name], -len(name)))
+            return (folder + "/") if folder else "./"
+        if named:
+            nearest = max(named, key=lambda home: (_shared_depth(posixpath.dirname(home), here), -len(home)))
+            suggestion = self._named_like(nearest, roled_file)
+            if suggestion:
+                return suggestion
+        return self._conventional(role, roled_file, project)
+
+    def _named_like(self, home: str, roled_file) -> Optional[str]:
+        """A file named as home is, beside roled_file: `shop/orders/models.py`, or a name
+        pattern such as `order/*Service.*`. None when roled_file is already named so, and its
+        folder, not its name, is the conflict."""
+        glob = self.roles.home(home).glob or home
+        name = posixpath.basename(glob)
+        if project_files.glob_match(name, posixpath.basename(roled_file.path)):
+            return None
+        here = posixpath.dirname(roled_file.path)
+        return f"{here}/{name}" if here else name
+
+    def _conventional(self, role: str, roled_file, project: str) -> Optional[str]:
+        """The role's conventional folder, under the language's source root; never a folder
+        invented at the repository root."""
+        root = self._source_root(roled_file, project)
+        globs = self.roles.home_globs(role, roled_file.path)
+        for glob in globs:
+            conventional = _FOLDER_GLOB.match(glob)
+            if conventional and root:
+                name = _cased(conventional.group(1), root, self.folders, roled_file.language)
+                return f"{root}/{name}/"
+            literal = _LITERAL_FOLDER_GLOB.match(glob)
+            if literal:
+                return literal.group(1) + "/"
+        return f"a file matching {globs[0]}" if globs else None
+
+    def _source_root(self, roled_file, project: str) -> str:
+        """`src`, `web/src`, the project folder, or a JVM source set's base package such as
+        `src/main/java/com/acme/shop`; "" for the repository root."""
+        source_set = _JVM_SOURCE_SET.match(roled_file.path)
+        if source_set:
+            family = LANGUAGE_FAMILY.get(roled_file.language, roled_file.language)
+            return _common_folder([source.path for source in self.sources
+                                   if source.path.startswith(source_set.group(1) + "/")
+                                   and LANGUAGE_FAMILY.get(source.language, source.language) == family])
+        source_root = _source_root(roled_file.path)
+        return source_root if len(source_root) > len(project) else project
 
 
 def _sibling_home(path: str, folders) -> Optional[str]:
@@ -201,8 +279,7 @@ def find_misplaced(files, roles, project_roots=()) -> list:
     A role the home `allow`s, and a symbol or file the project `accept`s, is not reported.
     `project_roots` are the folders holding a manifest; a suggestion stays in its file's project.
     """
-    homes = _home_folders(files)
-    folders = _all_folders(files)
+    destinations = _Destinations(files, roles, project_roots)
     found = []
     for roled_file in files:
         if roled_file.is_test:
@@ -218,14 +295,13 @@ def find_misplaced(files, roles, project_roots=()) -> list:
                         "path": roled_file.path, "line": item.symbol.line,
                         "symbol": item.symbol.name, "role": item.role,
                         "home_role": roled_file.home_role,
-                        "suggestion": _suggest(item.role, roled_file, homes, roles, project_roots,
-                                               folders),
+                        "suggestion": destinations.for_symbol(item.role, roled_file),
                     })
             continue
         distinct = {item.role for item in bearing}
         if len(distinct) == 1 and not _is_entry_point(roled_file.path):
             role = distinct.pop()
-            sibling = _sibling_home(roled_file.path, homes.get(role, {}))
+            sibling = _sibling_home(roled_file.path, destinations.folder_homes.get(role, {}))
             if sibling is not None:
                 found.append({
                     "path": roled_file.path, "line": 1, "symbol": None, "role": role,

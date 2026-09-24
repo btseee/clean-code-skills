@@ -129,6 +129,7 @@ def parse_roles(text: str, source: str) -> list:
 class Home(NamedTuple):
     role: Optional[str]
     by_name: bool       # only a file-name glob (`**/*Service.*`) grants it, never a folder glob
+    glob: Optional[str] = None      # the winning glob, as its statement writes it
 
 
 class Roles:
@@ -146,6 +147,7 @@ class Roles:
         """
         best_key = None
         best_role = None
+        best_glob = None
         folder_roles = set()
         for index, statement in enumerate(self.statements):
             if statement.kind != "role" or not statement.applies_to(relative_path):
@@ -157,8 +159,8 @@ class Roles:
                         folder_roles.add(statement.role)
                     key = (project_files.literal_weight(glob), -index)
                     if best_key is None or key > best_key:
-                        best_key, best_role = key, statement.role
-        return Home(best_role, best_role is not None and best_role not in folder_roles)
+                        best_key, best_role, best_glob = key, statement.role, glob
+        return Home(best_role, best_role is not None and best_role not in folder_roles, best_glob)
 
     def home_role(self, relative_path: str) -> Optional[str]:
         return self.home(relative_path).role

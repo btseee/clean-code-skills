@@ -41,14 +41,23 @@ def _where(item) -> str:
     return f"{item['path']}:{item['line']}"
 
 
+def _destination(suggestion) -> str:
+    """Where a finding sends code: a folder, a file, or its own file named like a pattern."""
+    if not suggestion:
+        return "its role's home"
+    folder, _, name = suggestion.rpartition("/")
+    if " " not in suggestion and any(mark in name for mark in "*?"):
+        return f"its own file named like {_code(name)}" + (f" in {_code(folder + '/')}" if folder else "")
+    return _code(suggestion)
+
+
 def _misplaced_line(item) -> str:
-    target = item["suggestion"] or "its role's home"
+    target = _destination(item["suggestion"])
     if item["symbol"] is None:
-        return (f"{_code(item['path'])} holds only {item['role']} code; move the file to "
-                f"{_code(target) if item['suggestion'] else target}.")
+        return f"{_code(item['path'])} holds only {item['role']} code; move the file to {target}."
     home = f"a {item['home_role']} file" if item["home_role"] else "this file"
     return (f"{_code(_where(item))} {_code(item['symbol'])} is {item['role']} in {home}; "
-            f"move it to {_code(target) if item['suggestion'] else target}.")
+            f"move it to {target}.")
 
 
 def _mixed_line(item) -> str:

@@ -146,6 +146,59 @@ class MapStructureTest(unittest.TestCase):
         }, ["references/frameworks/spring.md"])
         self.assertEqual(data["findings"]["misplaced"], [])
 
+    def test_a_django_model_in_a_view_moves_to_the_models_module_beside_it(self):
+        data = build_fixture({
+            "requirements.txt": "Django==5.2\n",
+            "shop/billing/models.py": "from django.db import models\n\n\n"
+                                      "class Invoice(models.Model):\n    total = models.IntegerField()\n",
+            "shop/orders/models.py": "from django.db import models\n\n\n"
+                                     "class Order(models.Model):\n    total = models.IntegerField()\n",
+            "shop/orders/views.py": "from django.db import models\nfrom django.views import View\n\n\n"
+                                    "class OrderListView(View):\n    def get(self, request):\n"
+                                    "        return None\n\n\n"
+                                    "class Refund(models.Model):\n    amount = models.IntegerField()\n",
+        }, ["references/frameworks/django.md"])
+        self.assertEqual([(item["path"], item["symbol"], item["suggestion"])
+                          for item in data["findings"]["misplaced"]],
+                         [("shop/orders/views.py", "Refund", "shop/orders/models.py")])
+
+    def test_a_spring_service_in_a_feature_package_gets_its_own_file_there(self):
+        order = "src/main/java/com/acme/shop/order"
+        data = build_fixture({
+            "pom.xml": "<project><dependencies><dependency><groupId>org.springframework.boot</groupId>"
+                       "<artifactId>spring-boot-starter-web</artifactId></dependency></dependencies></project>\n",
+            "src/main/java/com/acme/shop/billing/BillingService.java":
+                "package com.acme.shop.billing;\n\n@Service\npublic class BillingService {\n"
+                "  public void charge() { }\n}\n",
+            f"{order}/OrderController.java":
+                "package com.acme.shop.order;\n\n@RestController\npublic class OrderController {\n"
+                "  public String list() { return \"x\"; }\n}\n\n@Service\nclass OrderPricing {\n"
+                "  int price() { return 1; }\n}\n",
+            f"{order}/OrderService.java":
+                "package com.acme.shop.order;\n\n@Service\npublic class OrderService {\n"
+                "  public void place() { }\n}\n",
+        }, ["references/frameworks/spring.md"])
+        self.assertEqual([(item["path"], item["symbol"], item["suggestion"])
+                          for item in data["findings"]["misplaced"]],
+                         [(f"{order}/OrderController.java", "OrderPricing", f"{order}/*Service.*")])
+        self.assertIn(f"move it to its own file named like *Service.* in {order}/.",
+                      structure_report.render_summary(data))
+
+    def test_an_angular_service_in_a_component_gets_its_own_file_in_the_feature_folder(self):
+        data = build_fixture({
+            "package.json": '{"dependencies": {"@angular/core": "20.1.0"}}\n',
+            "src/app/orders/orders.component.ts":
+                "import { Component, Injectable } from '@angular/core';\n\n"
+                "@Component({ selector: 'app-orders', template: '' })\nexport class OrdersComponent {}\n\n"
+                "@Injectable({ providedIn: 'root' })\nexport class OrdersApi {\n  load() { return []; }\n}\n",
+            "src/app/users/users.service.ts":
+                "import { Injectable } from '@angular/core';\n\n@Injectable({ providedIn: 'root' })\n"
+                "export class UsersService {\n  load() { return []; }\n}\n",
+        }, ["references/frameworks/angular.md"])
+        self.assertEqual([(item["path"], item["symbol"], item["suggestion"])
+                          for item in data["findings"]["misplaced"]],
+                         [("src/app/orders/orders.component.ts", "OrdersApi", "src/app/orders/*.service.*")])
+
     def test_a_folder_home_counts_when_its_files_are_also_named_for_the_role(self):
         data = build_fixture({
             "src/app/services/user.service.ts": "export class UserService {}\n",

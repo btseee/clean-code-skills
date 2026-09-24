@@ -100,12 +100,13 @@ class PrecedenceTest(unittest.TestCase):
     def test_a_home_says_whether_only_a_file_name_grants_it(self):
         roles = roles_from(["role component = src/app/**/page.*, **/components/**",
                             "role service = **/services/**, **/*.service.*, **/*Service.*"])
-        self.assertEqual(roles.home("src/app/orders/page.tsx"), ("component", True))
-        self.assertEqual(roles.home("src/components/Card.tsx"), ("component", False))
-        self.assertEqual(roles.home("src/billing/BillingService.java"), ("service", True))
+        self.assertEqual(roles.home("src/app/orders/page.tsx"), ("component", True, "src/app/**/page.*"))
+        self.assertEqual(roles.home("src/components/Card.tsx"), ("component", False, "**/components/**"))
+        self.assertEqual(roles.home("src/billing/BillingService.java"), ("service", True, "**/*Service.*"))
         # The file name outweighs the folder here, but the folder is still a service home.
-        self.assertEqual(roles.home("src/app/services/user.service.ts"), ("service", False))
-        self.assertEqual(roles.home("src/auth.ts"), (None, False))
+        self.assertEqual(roles.home("src/app/services/user.service.ts"),
+                         ("service", False, "**/*.service.*"))
+        self.assertEqual(roles.home("src/auth.ts"), (None, False, None))
 
     def test_allow_statements_from_every_source_apply(self):
         roles = roles_from(["allow context = component"], ["allow context = hook"])

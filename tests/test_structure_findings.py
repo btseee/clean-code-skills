@@ -29,9 +29,10 @@ def sym(name, kind="function", line=1, exported=True, parent=None, exact=None, s
     return Symbol(name, kind, line, end_line or line + 6, exported, parent, "", "", exact, shape)
 
 
-def file(path, home, items, language="typescript", is_test=False):
+def file(path, home, items, language="typescript", is_test=False, by_name=False):
     return RoledFile(path, language, Path(path).suffix.lstrip("."), home, is_test,
-                     [RoledSymbol(symbol, role) for symbol, role in items], "", 20, 0, 0)
+                     [RoledSymbol(symbol, role) for symbol, role in items], "", 20, 0, 0,
+                     home_by_name=by_name)
 
 
 class MisplacedTest(unittest.TestCase):
@@ -105,9 +106,50 @@ class MisplacedTest(unittest.TestCase):
         self.assertEqual(findings.find_misplaced(lower, roles)[0]["suggestion"], "src/validators/")
 
     def test_a_new_csharp_folder_with_no_folders_beside_it_is_pascal_case(self):
+        files = [file("Api/AuthService.cs", "service", [(sym("AuthMiddleware", "class"), "middleware")],
+                      language="csharp")]
+        self.assertEqual(findings.find_misplaced(files, GENERIC, ["Api"])[0]["suggestion"],
+                         "Api/Middleware/")
+
+    def test_no_folder_is_invented_at_the_repository_root(self):
         files = [file("AuthService.cs", "service", [(sym("AuthMiddleware", "class"), "middleware")],
                       language="csharp")]
-        self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"], "Middleware/")
+        self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"],
+                         "a file matching **/middleware/**")
+
+    def test_a_home_named_for_the_role_beside_the_file_wins_over_a_distant_folder(self):
+        roles = with_statements("role view = **/views.py", "role model = **/models.py, **/models/**")
+        files = [
+            file("shop/orders/views.py", "view", [(sym("Refund", "class"), "model")], language="python"),
+            file("shop/orders/models.py", "model", [(sym("Order", "class"), "model")],
+                 language="python", by_name=True),
+            file("core/models/base.py", "model", [(sym("Base", "class"), "model")], language="python"),
+        ]
+        self.assertEqual(findings.find_misplaced(files, roles)[0]["suggestion"], "shop/orders/models.py")
+
+    def test_a_file_already_named_for_the_role_is_sent_to_the_roles_folder(self):
+        # TypeValidator.cs is named like a validator, and its folder makes it config: a file
+        # "named like *Validator.*" beside it would be itself.
+        roles = with_statements("role config = **/configuration/**",
+                                "role validator = **/validators/**, **/*Validator.*")
+        files = [
+            file("Core/Configuration/TypeValidator.cs", "config",
+                 [(sym("TypeValidator", "class"), "validator")], language="csharp"),
+            file("Core/Rules/NameValidator.cs", "validator", [(sym("NameValidator", "class"), "validator")],
+                 language="csharp", by_name=True),
+        ]
+        self.assertEqual(findings.find_misplaced(files, roles, ["Core"])[0]["suggestion"],
+                         "Core/Validators/")
+
+    def test_a_jvm_convention_folder_sits_under_the_base_package(self):
+        shop = "src/main/java/com/acme/shop"
+        files = [
+            file(f"{shop}/order/OrderController.java", "controller",
+                 [(sym("OrderCache", "class"), "repository")], language="java"),
+            file(f"{shop}/billing/Invoice.java", None, [(sym("Invoice", "class"), None)], language="java"),
+        ]
+        roles = with_statements("role controller = **/*Controller.*", "role repository = **/repository/**")
+        self.assertEqual(findings.find_misplaced(files, roles)[0]["suggestion"], f"{shop}/repository/")
 
     def test_an_entry_point_is_never_told_to_move_whole(self):
         files = [
