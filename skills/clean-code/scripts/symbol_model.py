@@ -145,6 +145,12 @@ def file_purpose(raw_lines: list, markers: tuple) -> str:
     return first_sentence(text)
 
 
+def _is_decorator(stripped: str, decorators: tuple) -> bool:
+    """A decorator is a line prefix, or a compiled pattern for shapes a prefix cannot name."""
+    return any(stripped.startswith(decorator) if isinstance(decorator, str)
+               else decorator.match(stripped) for decorator in decorators)
+
+
 def declaration_context(raw_lines: list, code_lines: list, index: int, prefixes: tuple,
                         max_above: int = 12, max_declaration: int = 3):
     """(context text, number of decorator lines) for the declaration at line index.
@@ -165,7 +171,7 @@ def declaration_context(raw_lines: list, code_lines: list, index: int, prefixes:
         # `})` can end a multi-line decorator; a lone `}` ends the previous block.
         ends_arguments = stripped[0] in ")]}" and (
             stripped.count(")") + stripped.count("]") > stripped.count("(") + stripped.count("["))
-        if pending > 0 or stripped.startswith(prefixes) or ends_arguments:
+        if pending > 0 or _is_decorator(stripped, prefixes) or ends_arguments:
             above.append(raw_lines[cursor].rstrip())
             pending = max(pending + closes - opens, 0)
             cursor -= 1

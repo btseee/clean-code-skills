@@ -842,6 +842,21 @@ class CFamilyTest(unittest.TestCase):
             """)
         self.assertEqual(result.symbols, [])
 
+    def test_the_doc_above_an_export_macro_belongs_to_the_function(self):
+        source = """
+            /* Splits x into a fraction and a power of two. */
+            NUMBA_EXPORT_FUNC(double)
+            numba_frexp(double x, int *exp)
+            {
+                return x;
+            }
+            """
+        for path in ("helper.c", "helper.cpp"):
+            with self.subTest(path=path):
+                [symbol] = extract(path, source).symbols
+                self.assertEqual((symbol.name, symbol.doc),
+                                 ("numba_frexp", "Splits x into a fraction and a power of two."))
+
     def test_attribute_lines_are_not_functions(self):
         source = """
             __attribute__((noinline))
@@ -1131,10 +1146,18 @@ class LinearTimeTest(unittest.TestCase):
             ("src/a.cpp", f"namespace{blank}{blank}\nFoo::bar(x){blank}{blank}\n"),
             ("src/words.h", "class Words {\n" + "  word\n" * 8000 + "};\n" + "word\n" * 8000),
             ("src/words.c", "word\n" * 8000),
+            ("src/static.c", "static\n" * 4000),
+            ("src/inline.cpp", "inline\n" * 4000),
         ]
         for path, text in cases:
             with self.subTest(path=path):
                 self.extract_quickly(path, text)
+
+    def test_gnu_style_keeps_static_above_the_return_type(self):
+        result = self.extract_quickly(
+            "src/list.c", "static\nint\nlist_grow(struct list *l)\n{\n    return 0;\n}\n")
+        [symbol] = result.symbols
+        self.assertEqual((symbol.name, symbol.exported), ("list_grow", False))
 
     def test_a_macro_table_without_a_body(self):
         table = "".join(f'ERROR_CODE(E_{n}, {n}, "message {n}")\n' for n in range(1000))

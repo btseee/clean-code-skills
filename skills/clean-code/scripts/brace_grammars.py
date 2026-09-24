@@ -502,13 +502,19 @@ _C_ATOM = r"(?:[^;{}()]|\{[^;{}()]*\})"
 _C_PARAMS = rf"\((?:{_C_ATOM}|\((?:{_C_ATOM}|\({_C_ATOM}*\))*\))*\)"
 _C_ATTRIBUTE = (r"(?:__attribute__[ \t]*\(\((?:[^()\n]|\([^()\n]*\))*\)\)|__declspec[ \t]*\([^()\n]*\)"
                 r"|\[\[[^\]\n]*\]\])")
-_C_DECORATORS = ("__attribute__", "__declspec", "[[")
+# A line holding only an all-caps macro call, as `NUMBA_EXPORT_FUNC(double)` or
+# `DLLEXPORT(void)` above the name it declares: the doc comment sits above the macro.
+_EXPORT_MACRO_LINE = re.compile(r"[A-Z_][A-Z0-9_]*[ \t]*\([^()\n]*\)$")
+_C_DECORATORS = ("__attribute__", "__declspec", "[[", _EXPORT_MACRO_LINE)
 
 
 def _c_mods(keywords: str) -> str:
     """Leading modifiers. A keyword may end its line, as GNU style's `static` above the
-    return type does; an attribute on its own line is a decorator instead."""
-    return rf"(?P<mods>(?:(?:{keywords})\s+|{_C_ATTRIBUTE}[ \t]+)*)"
+    return type does, but only one line break is crossed: from every line of a run of
+    keyword-only lines, `\\s+` re-read the rest of the run. An attribute on its own line
+    is a decorator instead."""
+    one_line = rf"(?:(?:{keywords})[ \t]+|{_C_ATTRIBUTE}[ \t]+)*"
+    return rf"(?P<mods>{one_line}(?:(?:{keywords})[ \t]*\r?\n{one_line})?)"
 
 
 _C_TYPE = _pattern(rf"^[ \t]*(?:typedef[ \t]+)?(?P<kind>struct|union|enum)[ \t]+(?P<name>{_WORD})"

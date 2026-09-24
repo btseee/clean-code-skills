@@ -41,6 +41,7 @@ GLOBAL_FUNCTION_LANGUAGES = frozenset({"c", "shell", "powershell", "r", "php"})
 # Frameworks give route files fixed names (`+page.svelte`, `pages/users/index.vue`). The
 # component the scanner names after such a file is known by its path, so it never clashes.
 PATH_NAMED_STEMS = frozenset({"index", "default", "error"})
+ROUTE_FOLDERS = frozenset({"pages", "routes", "layouts", "app"})
 
 LANGUAGE_FAMILY = {"typescript": "js", "javascript": "js", "vue": "js", "svelte": "js",
                    "java": "jvm", "kotlin": "jvm", "scala": "jvm",
@@ -249,8 +250,11 @@ def _can_clash(symbol, language: str) -> bool:
 
 
 def _named_by_path(symbol, path: str) -> bool:
+    """A SvelteKit `+page`, or an `index`/`default`/`error` file under a route folder."""
     stem = posixpath.basename(path).split(".")[0]
-    return symbol.kind == "component" and (stem.startswith("+") or stem.lower() in PATH_NAMED_STEMS)
+    in_route_folder = any(folder in ROUTE_FOLDERS for folder in path.split("/")[:-1])
+    return symbol.kind == "component" and (
+        stem.startswith("+") or (stem.lower() in PATH_NAMED_STEMS and in_route_folder))
 
 
 def find_name_clashes(files, roles) -> list:

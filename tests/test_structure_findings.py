@@ -180,6 +180,14 @@ class NameClashTest(unittest.TestCase):
         self.assertEqual([group["name"] for group in findings.find_name_clashes(files, GENERIC)],
                          ["UserCard"])
 
+    def test_components_named_like_route_files_outside_route_folders_still_clash(self):
+        components = [("src/components/shop/Error.vue", "Error"),
+                      ("src/components/admin/Error.vue", "Error")]
+        files = [file(path, None, [(sym(name, "component"), None)], language="vue")
+                 for path, name in components]
+        self.assertEqual([group["name"] for group in findings.find_name_clashes(files, GENERIC)],
+                         ["Error"])
+
     def test_private_names_never_clash(self):
         files = [
             file("src/Shape.java", None, [(sym("Helper", "class", exported=False), None)],
