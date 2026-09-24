@@ -4,6 +4,16 @@ Use this protocol when the task itself is cleanup: "clean up this project", "ref
 
 The protocol is designed for how agents actually fail at large refactors: context windows overflow mid-task, sessions end before the work does, early batches get forgotten by late batches, and enthusiasm at file 3 becomes inconsistency by file 30. Every step below exists to make progress durable and verifiable.
 
+## Contents
+
+- Phase 0: contract
+- Phase 1: inventory and baseline
+- Phase 2: plan in batches
+- Phase 3: execute batch by batch
+- Phase 4: consistency sweep and close
+- The ledger; stop conditions; what this protocol is not
+- Leaving it better than a checklist would
+
 ## Phase 0: Contract
 
 Agree with the user before touching code:
@@ -53,8 +63,8 @@ Split the campaign into batches sized so that one batch fits comfortably in one 
 Order batches by risk and value:
 
 1. Safety first: dead code removal, obvious duplication with a single caller, formatting via the project's formatter. Low risk, shrinks the problem.
-2. Naming and readability: renames, explanatory variables, comment cleanup — including shrinking comment blocks into names, extractions, or docs. Low risk with tooling support.
-3. **Placement**: move every file and symbol that the audit confirmed as misplaced or mixed (the map's findings are its evidence, not its verdict) to its intended home, and rewire completely — imports, exports, registrations, build config. One behavior-preserving batch (or one per module), verified before and after; after each move, `scripts/map_structure.py --path <folder>` should no longer report it. A half-moved file is worse than an unmoved one. This batch exists because "the files never end up in the right folders" is what happens when placement is left to ride along with other edits.
+2. Naming and readability: renames, explanatory variables, and comment cleanup per `comments.md`, starting with the files the map reports as `comment_heavy`. Low risk with tooling support.
+3. **Placement**: start from the `## Proposed moves` section of `.clean/structure.md`, one `from -> to (why)` line per move, drawn from misplaced symbols, file families, and junk-drawer splits. Confirm each move against the code (the map's findings are its evidence, not its verdict) and drop or amend any the audit rejected. Then move every file and symbol the audit confirmed as misplaced or mixed to its intended home, and rewire completely — imports, exports, registrations, build config. One behavior-preserving batch (or one per module), verified before and after; after each move, `scripts/map_structure.py --path <folder>` should no longer report it. A half-moved file is worse than an unmoved one. This batch exists because "the files never end up in the right folders" is what happens when placement is left to ride along with other edits.
 4. **Package idioms**: align usage with what each installed dependency intends, per the versions in `.clean/context.json` and `framework-map.md` — replace hand-rolled code with the facility the library already provides, fix APIs used against their documented shape. Version *upgrades* are not part of this batch; each one is a `decisions.md` entry for the user.
 5. Structure: extractions, responsibility splits. Medium risk; needs tests.
 6. Boundaries and error handling: wrapping third-party APIs, normalizing failure paths. Higher risk; needs contract awareness.

@@ -34,7 +34,7 @@ behavior before altering it.
 
 **6. Plan the edit.** Decide which unit owns the responsibility, which side of which boundary the
 change sits on, and what the smallest diff looks like. For anything non-trivial, write the plan down
-before editing.
+before editing, under the headings in `plan.md`.
 
 ## During
 
@@ -62,8 +62,9 @@ commonest invented API is one from a version you remember rather than the versio
 
 ## After
 
-**14. Run the checks.** The narrowest meaningful check first, then broader ones as risk demands. Use
-the project's real command, from `.clean/context.json` or the project's own docs.
+**14. Run the checks.** Rate the change LOW, MEDIUM, or HIGH (Risk Levels in `review-checklist.md`)
+and run what that level owes: the narrowest meaningful check first, then broader ones. Use the
+project's real command, from `.clean/context.json` or the project's own docs.
 
 **15. Review the impact.** Who calls what you changed? What did you orphan? Is anything now
 unreferenced, half-wired, or newly duplicated?

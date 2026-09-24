@@ -7,8 +7,8 @@ decides *whether* to act; this file says *what* the usual action is.
 risk, or your own work introduced it. Otherwise report it separately without touching it. In
 campaign mode, log it in the ledger and handle it in its batch.
 
-Cite smell IDs from `chapter-map.md` (G17, N7, T5...) so findings stay unambiguous and
-cross-referenceable.
+Cite smell IDs from `chapter-map.md` (G17, N7, T5...) and the agent smells A1-A10 from
+`review-checklist.md`, so findings stay unambiguous and cross-referenceable.
 
 ## Code-level smells
 
@@ -50,6 +50,13 @@ shape every later change.
 | GUI-driven business tests | business rules verified by driving the UI | test through the use case; keep the UI humble |
 | Premature service split | a process or network boundary that separates behavior but shares a data record | draw the boundary inside the service instead, or collapse it |
 | Accidental deduplication | one helper serving two actors, or two change rates | split it back apart; owners differ, so the code should too |
+
+## Agent smells
+
+A1-A10 carry their signal and response in `review-checklist.md`. In your own diff, an agent smell
+always passes the scope gate, because your work introduced it: fix it before completion. In a change
+you review, report it with its ID and rank it by the list below: A1 and A8 as wrong behavior, A7 as
+blocked verification, A10 as a wrong-way dependency, A5 as duplicated knowledge.
 
 ## Priority when several apply
 

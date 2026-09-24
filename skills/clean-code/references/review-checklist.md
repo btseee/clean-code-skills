@@ -1,6 +1,16 @@
 # Clean-Code Review Checklist
 
-Use this for code reviews and final diff reviews. Findings should be specific, behavior-grounded, and ordered by severity. Cite smell IDs from `chapter-map.md` (G17, N7, T5...) when they apply, so findings stay unambiguous and cross-referenceable.
+Use this for code reviews and final diff reviews. Findings should be specific, behavior-grounded, and ordered by severity. Cite smell IDs from `chapter-map.md` (G17, N7, T5...) and the agent smells below (A1-A10) when they apply, so findings stay unambiguous and cross-referenceable.
+
+## Contents
+
+- The checklist: correctness, simplicity, placement and structure, responsibility, readability,
+  maintainability, error handling, tests and verification, concurrency and state
+- Review output format: findings ranked P0-P3
+- The `review` command
+- Risk levels: LOW, MEDIUM, HIGH, and the checks each owes
+- Full clean-code scan
+- Self-check before completion: agent smells A1-A10, anti-loopholes
 
 ## Correctness
 
@@ -65,14 +75,59 @@ Use this for code reviews and final diff reviews. Findings should be specific, b
 
 ## Review Output Format
 
-Lead with findings. For each finding, include:
+Lead with findings, highest rank first. For each finding, include:
 
-- severity
+- rank (P0-P3) and smell ID
 - file and line or smallest useful location
 - exact risk
 - suggested fix or verification
 
+| Rank | Means | For example |
+| --- | --- | --- |
+| P0 | wrong behavior, data loss, or a security hole; blocks the merge | a call the installed version lacks (A1), a missing authorization check, a weakened test hiding a failure (A8) |
+| P1 | breaks a rule that makes the next change unsafe; fix before merging | an outward dependency (A10), a swallowed error (G4), an unverified "done" (A7), changed behavior with no test (T1) |
+| P2 | raises the cost of every change; fix now if cheap, otherwise record it | a duplicate implementation (A5), misplaced code (A6, G17), a vague name (N1) |
+| P3 | readability and consistency | a redundant comment (C3), drift from local style (G11) |
+
+The ranks match the audit's Critical, High, Medium, and Low (`audit-report.md`).
+
 Then list open questions, test gaps, and a short summary only after findings.
+
+## The `review` Command
+
+For `/clean-code review [files]` or "review my change". Reviews the current change and edits
+nothing.
+
+1. **Collect the change:** working-tree edits (`git diff`), then staged edits (`git diff --cached`),
+   then any files named in the command. Untracked files count as changed. No change and no names:
+   say so and stop.
+2. **Map it:** `scripts/map_structure.py --changed` limits the map's findings to files git reports
+   as changed; outside a git repository it maps everything. By hand: grep `.clean/structure.md` for
+   each changed path.
+3. **Check boundaries:** with layers declared in `.clean/architecture.md`, run
+   `scripts/check_boundaries.py` (exit 1: violations; exit 2: no declaration, or its globs match no
+   file). Without a declaration, read each changed file's imports and name each one's layer or pack
+   role.
+4. **Read the diff** against the checklist above and the self-check below, A1-A10 included. Check
+   that the change got the verification its risk level owes (Risk Levels); a missing check is a
+   finding.
+5. **Report** per Review Output Format: findings first, ranked P0-P3, each with a smell ID. Offer
+   fixes; apply none unless asked.
+
+## Risk Levels
+
+Rate every change before calling it done. Weigh scope, blast radius, uncertainty, and
+reversibility; the highest factor sets the level, and doubt rounds up.
+
+| Level | When | Owes before completion |
+| --- | --- | --- |
+| LOW | one unit, no boundary crossed, easily reversed | the targeted test, or the narrowest check that exercises the change |
+| MEDIUM | several units, or a public interface: an exported function or type, a route, a CLI flag, a config key | unit and integration tests for the area; `scripts/map_structure.py --path <area>` |
+| HIGH | crosses a boundary, or touches data (schema, migration, persisted format), security, or concurrency; hard to reverse | the full suite, `scripts/check_boundaries.py`, the map on the area, and a written rollback note |
+
+A rollback note says how to undo the change: which commit to revert, which migration runs down,
+which flag turns it off, and what data needs repair. Report the level and each check's result in
+the handoff. A check that cannot run is named with the risk it leaves, never skipped silently.
 
 ## Full Clean-Code Scan
 
@@ -99,27 +154,23 @@ If the findings are numerous enough that fixing them becomes a project of its ow
 The failure patterns most specific to AI-generated code, and the rationalizations that lead to them.
 Check your own diff against both tables before saying the work is done.
 
-### Agent Failure Modes
+### Agent Smells (A1-A10)
 
-| Failure | Counter-behavior |
-| --- | --- |
-| Invented API: calling functions, methods, options, or config keys that do not exist | Verify against the actual codebase, dependency versions, and lockfile — not memory |
-| Reinvented helper: writing logic that already exists in the project or its libraries | Search for existing implementations before writing; extend rather than duplicate |
-| Wrong-place file: new files at the repo root, in the current directory, or outside conventions | Put each role in its home per the pack and local layout; mirror similar artifacts |
-| Sibling-variant file: `service_v2.py`, `utils_new.ts`, `final_component.tsx` | Edit the original; version control keeps history |
-| Nearest-file gravity: logic added to whatever file was open, growing god files | Route behavior to the unit that owns the responsibility |
-| Shortest-path wiring: injecting a repository into a controller because it is fewer steps | Go through the layer that owns the rule; the skipped layer may hold the only authorization check |
-| Detail leaking inward: an ORM type, framework annotation, or HTTP object in a business rule | Keep the name of every outer-circle thing out of inner-circle code |
-| Framework as architecture: structure named after the stack, business objects derived from framework classes | Name packages after the domain; wrap the framework at the edge |
-| Regeneration loss: rewriting a whole file and silently dropping error handling, comments, or edge cases | Make targeted edits; when a rewrite is necessary, diff it against the original before finishing |
-| Patch-without-understanding: changing code whose behavior you have not traced | Read callers, tests, and data flow first |
-| Premature abstraction: a layer, boundary, or service introduced for a need nobody has yet | Leave the option open instead; build the boundary at the inflection point |
-| Eager deduplication: merging two similar blocks owned by different actors or changing at different rates | Confirm it is true duplication first; accidental duplication is harder to unmerge than to leave |
-| Placeholder as done: stubs, `pass`, "in a real implementation...", hardcoded demo values | Ship working code or state plainly what is unfinished |
-| Test-blessing: weakening assertions or skipping tests until the suite passes | Fix the code or report the conflict; never bury the signal |
-| Unwired artifact: a new file, route, or migration that nothing references | Complete registration and imports; prove reachability |
-| Scope creep: drive-by renames, reformatting, dependency bumps | Trace every changed line back to the request |
-| False completion: "this should work now" without running anything | Run the verification, quote the result, name what was not run |
+Cite these beside the book's IDs. In your own diff each one passes the scope gate: fix it before
+completion.
+
+| ID | Smell | Signal | Response |
+| --- | --- | --- | --- |
+| A1 | Hallucinated API | a function, method, option, flag, or config key you did not find in this codebase or the installed version | look it up at the installed version (source, types, lockfile, docs for that version); replace or remove it |
+| A2 | Unverified dependency | a new package or import added without checking its registry name, the lockfile, or whether an installed dependency already does the job | confirm the exact name and resolved version, since an invented name may be one an attacker registered; prefer what is installed; record a new dependency in `.clean/decisions.md` |
+| A3 | Context loss | an edit from a stale or partial read: it contradicts a recorded decision or the ledger, restores deleted code, changes behavior never traced, or a whole-file rewrite drops error handling and edge cases | re-read the target files, their callers and tests, and the `.clean/` state; make targeted edits; diff any rewrite against the original |
+| A4 | Scope creep | changed lines that trace to no request: drive-by renames, reformatting, dependency bumps | revert them; report them as findings instead |
+| A5 | Duplicate implementation | a helper, file, or sibling variant (`_v2`, `_new`, `_copy`) paralleling one that exists | search before writing; extend the original and delete the copy; merge only true duplication, never code owned by different actors |
+| A6 | Wrong-file gravity | logic added to whatever file was open; a god file growing; a new file at the repository root or in the current directory | place by role, per the pack and the local layout; move the code to the unit that owns it |
+| A7 | Phantom success | "should work now" with nothing run; a stub, `pass`, placeholder, or demo value presented as done; a new file, route, or migration nothing references | run the check and quote the result; name what did not run; finish the wiring, or state plainly what is unfinished |
+| A8 | Test weakening | an assertion loosened; a test skipped, deleted, or rewritten to match the bug; a snapshot re-accepted unread | restore the test; fix the code, or report the conflict and stop |
+| A9 | Speculative abstraction | an interface with one implementation, a factory for one type, an option, layer, or service nobody needs yet | delete it and write the direct code (`patterns.md`); abstract when the second real case arrives |
+| A10 | Silent architecture drift | an outward import; an ORM, framework, or HTTP type in a business rule; a skipped layer; a new cycle; structure named after the stack | run `scripts/check_boundaries.py` or read the imports; invert the dependency, route through the skipped layer (it may hold the only authorization check), or wrap the framework at the edge; record any intended architecture change in `.clean/decisions.md` |
 
 ### Anti-Loopholes
 

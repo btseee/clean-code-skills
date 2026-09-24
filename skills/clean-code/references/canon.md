@@ -106,6 +106,7 @@ Cite these directly in findings. Full catalogue and the cross-reference table ar
 
 | Group | Range | Covers |
 | --- | --- | --- |
+| **A** | A1-A10 | Agent smells: failure patterns of AI-written code, not from the book. Signal and response in `review-checklist.md` |
 | **C** | C1-C5 | Comments |
 | **E** | E1-E2 | Environment: multi-step build or test |
 | **F** | F1-F4 | Functions: arguments, output args, flags, dead functions |

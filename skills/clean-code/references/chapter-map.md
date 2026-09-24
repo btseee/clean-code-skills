@@ -8,7 +8,8 @@ This is an agent-oriented synthesis of the full clean-code source structure: 17 
 - Chapters 1–16: clean code, names, functions, comments, formatting, objects and data, errors,
   boundaries, unit tests, classes, systems, emergence, concurrency, successive refinement, JUnit
   internals, refactoring SerialDate
-- Chapter 17: smells and heuristics — the smell catalogue with IDs (C, E, F, G1–G36, J, N, T)
+- Chapter 17: smells and heuristics — the smell catalogue with IDs (C, E, F, G1–G36, J, N, T),
+  plus the agent smells A1–A10
 - Appendix A: concurrency II; Appendix B: SerialDate source; Appendix C: cross references
 - Coverage pressure scenarios
 
@@ -519,6 +520,22 @@ principle, not the syntax.
 - T7: failure patterns not investigated
 - T8: coverage patterns not inspected
 - T9: slow tests that discourage frequent runs
+
+### Agent Smells (A)
+
+Not from the book: failure patterns of AI-written code, cited beside the IDs above. Signal and
+response for each: `review-checklist.md`, Self-Check Before Completion.
+
+- A1: hallucinated API
+- A2: unverified dependency
+- A3: context loss (related: G21)
+- A4: scope creep
+- A5: duplicate implementation (related: G5)
+- A6: wrong-file gravity (related: G17)
+- A7: phantom success (related: G2)
+- A8: test weakening (related: G4)
+- A9: speculative abstraction (related: G12)
+- A10: silent architecture drift (related: the Dependency Rule)
 
 Agent questions:
 
