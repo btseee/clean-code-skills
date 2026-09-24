@@ -91,14 +91,14 @@ def _parse_statement(line: str, where: str) -> Statement:
     if ignored:
         return Statement("ignore-name", None, (), _compile(ignored.group("value"), where), where)
     allowed = _ALLOW.match(line)
-    if allowed and _split(allowed.group("roles")):
+    guests = _split(allowed.group("roles")) if allowed else ()
+    if guests:
         return Statement("allow", _role_name(allowed.group("home"), where), (),
-                         tuple(_role_name(role, where) for role in _split(allowed.group("roles"))),
-                         where)
+                         tuple(_role_name(role, where) for role in guests), where)
     accepted = _ACCEPT.match(line)
-    if accepted and (accepted.group("symbols") is None or _split(accepted.group("symbols"))):
-        return Statement("accept", None, (),
-                         (accepted.group("glob"), _split(accepted.group("symbols") or "")), where)
+    symbols = _split(accepted.group("symbols") or "") if accepted else ()
+    if accepted and (accepted.group("symbols") is None or symbols):
+        return Statement("accept", None, (), (accepted.group("glob"), symbols), where)
     parsed = _STATEMENT.match(line)
     if parsed is None:
         raise RolesError(f"{where}: cannot parse {line!r}")

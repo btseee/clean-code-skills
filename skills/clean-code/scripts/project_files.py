@@ -104,7 +104,7 @@ def _opening_comment(text: str) -> str:
     """The comment text before a file's first line of code, lowercased."""
     comments = []
     closer = None
-    for line in text.lstrip("﻿").split("\n", GENERATED_HEAD_LINES)[:GENERATED_HEAD_LINES]:
+    for line in text.lstrip("\ufeff").split("\n", GENERATED_HEAD_LINES)[:GENERATED_HEAD_LINES]:
         stripped = line.strip()
         if closer:
             comments.append(stripped)

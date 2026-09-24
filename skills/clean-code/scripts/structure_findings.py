@@ -164,11 +164,11 @@ def _suggest(role: str, roled_file, homes: dict, roles, project_roots, folders) 
     # is a design decision, never a tidy-up.
     path = roled_file.path
     project = _project_of(path, project_roots)
-    homes_here = {folder: count for folder, count in homes.get(role, {}).items()
+    in_project = {folder: count for folder, count in homes.get(role, {}).items()
                   if not project or folder == project or folder.startswith(project + "/")}
-    if homes_here:
+    if in_project:
         here = posixpath.dirname(path)
-        folder = max(homes_here, key=lambda name: (_shared_depth(name, here), homes_here[name], -len(name)))
+        folder = max(in_project, key=lambda name: (_shared_depth(name, here), in_project[name], -len(name)))
         return (folder + "/") if folder else "./"
     source_root = _source_root(path)
     root = source_root if len(source_root) > len(project) else project

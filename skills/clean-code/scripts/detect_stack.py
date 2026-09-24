@@ -298,7 +298,7 @@ PACKAGE_JSON_SECTIONS = ("dependencies", "devDependencies", "peerDependencies", 
 def package_json_dependencies(text: str) -> Optional[set]:
     """The dependency names a package.json declares, or None when it is not a JSON object."""
     try:
-        data = json.loads(text.lstrip("﻿"))
+        data = json.loads(text.lstrip("\ufeff"))
     except ValueError:
         return None
     if not isinstance(data, dict):
