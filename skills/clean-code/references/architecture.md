@@ -24,8 +24,8 @@ question of the form "where should this live and what may it know about?"
 The whole subject reduces to one rule and one question.
 
 **The Dependency Rule: source code dependencies must point only inward, toward higher-level
-policies.** Nothing in an inner circle may know anything about an outer circle. In particular the
-*name* of anything declared in an outer circle must not appear in inner-circle code — no class,
+policies.** Nothing in an inner circle may know anything about an outer circle: no *name*
+declared in an outer circle may appear in inner-circle code — no class,
 function, variable, annotation, or data format.
 
 **The question to ask before every dependency: which direction does this line cross, and why?**
@@ -35,14 +35,14 @@ function, variable, annotation, or data format.
 Each programming paradigm *removes* a capability rather than adding one, and each removal is what a
 discipline is:
 
-- **Structured programming imposes discipline on direct transfer of control.** Sequence, selection
+- **Structured programming restricts direct transfer of control.** Sequence, selection
   and iteration are enough to build anything, and they make units small enough to falsify with a
   test. That is also the honest limit of testing: **tests show the presence of bugs, never their
   absence** — correctness is demonstrated by failing to prove incorrectness, which is why
   decomposition into testable units is an architectural concern and not a style preference.
 - **Object orientation imposes discipline on indirect transfer of control.** Its architectural
-  payoff is not encapsulation or inheritance; it is that polymorphism gives **absolute control over
-  every source-code dependency in the system** — any dependency, anywhere, can be pointed the other
+  payoff is not encapsulation or inheritance; it is that polymorphism gives **control over the direction
+  of every source-code dependency** — any dependency, anywhere, can be pointed the other
   way. That is the entire mechanism behind the Dependency Rule: without it the rule would be an
   aspiration, with it the rule is a choice.
 - **Functional programming imposes discipline on assignment.** See the state section below.
@@ -60,7 +60,7 @@ are no deadlocks without mutable locks. That makes mutability a placement decisi
 implementation detail:
 
 - **Segregate mutability.** Split the system into components that mutate and components that do
-  not, and push as much processing as possible into the immutable ones. Protect what must mutate
+  not, and move as much of the processing as you can into the immutable ones. Protect what must mutate
   (transactions, actors, a transactional-memory discipline) and keep it small and named.
 - **Event sourcing** is the extreme of the same idea: store the transactions, not the state, and
   recompute state by replaying them. Applications become create-and-read only, and the concurrent-
@@ -72,7 +72,7 @@ drawing time, long before any lock is written.
 
 ## Level, policy, and detail
 
-**Level is distance from the inputs and outputs.** The farther a policy sits from I/O, the higher
+**Level is distance from input and output.** The further a policy sits from I/O, the higher
 its level. This is the definition that decides placement, and it is not the same as call order: a
 function that calls `readChar` and `writeChar` is *higher* level than they are, even though it is
 the caller.
@@ -98,7 +98,7 @@ and it must be acyclic.
 - A **use case** describes how an automated system is used: input, output, processing steps. It
   holds *application-specific* rules and orchestrates the Entities.
 
-The dependency follows: **use cases depend on Entities; Entities do not depend on use cases.** Use
+The dependency follows: **use cases depend on Entities, never the reverse.** Use
 cases are closer to I/O, so they are lower level.
 
 Practical test: if the rule is still true with pen and paper, it belongs in an Entity. If it exists
@@ -174,8 +174,7 @@ for one is "not yet, but I might", use a partial boundary and know its specific 
 Prefer Strategy over Facade when the client must not recompile. Whichever you pick, add
 compile-time or automated enforcement — a partial boundary does not maintain itself.
 
-Implement a boundary at the inflection point where the cost of building it drops below the cost of
-going without it. Declare each boundary interface in the component that *uses* it: the API is owned
+Implement a boundary once building it has become cheaper than going on without it. Declare each boundary interface in the component that *uses* it: the API is owned
 by the user, not the implementer.
 
 ## SOLID, as dependency rules
@@ -233,8 +232,8 @@ dependencies refer only to abstractions, never to concretions.
   fine; it is stable. Depending on a volatile concrete class of your own is not.
 - The four practices: do not refer to a volatile concrete class; do not derive from one
   (inheritance is the strongest and most rigid source relationship); do not override a concrete
-  function (you inherit its dependencies rather than escaping them); never mention the name of
-  anything concrete and volatile.
+  function (you inherit its dependencies rather than escaping them); never name a concrete, volatile
+  class.
 - Creating an object is itself a concrete dependency, so policy code must not `new` a volatile
   class. Use an abstract factory.
 - Violations cannot be removed entirely — gather them into a small number of concrete components,
@@ -291,8 +290,8 @@ Useful when you need evidence rather than opinion about a component graph.
 - **SDP in metric form:** `I` should *decrease* in the direction of dependency. Before adding a
   dependency from A to B, check that `I(A) > I(B)`. A stable component depending on a deliberately
   flexible one destroys the flexible one's changeability without editing a line of it.
-- **Abstractness `A = Na / Nc`**, where `Nc` is the number of classes in the component and `Na` the
-  number of abstract classes and interfaces. `A = 0` means nothing abstract; `A = 1` means nothing
+- **Abstractness `A = Na / Nc`**, where `Nc` is the number of classes in the component and `Na` counts
+  its abstract classes and interfaces. `A = 0` means nothing abstract; `A = 1` means nothing
   but abstractions.
 - **The Main Sequence** is the line from `(I=1, A=0)` to `(I=0, A=1)`. The two endpoints are the
   most desirable positions: stable and abstract, or unstable and concrete.
@@ -338,12 +337,12 @@ allowing them to circulate as objects is an architectural error. Confine SQL and
 tabular structure to the outermost utilities. Handle storage performance inside the access
 mechanism, not by reshaping business rules.
 
-**The web is a detail.** The GUI is a detail, the web is a GUI, so the web is an I/O device. The
+**The web is a detail.** The web is one more GUI, and a GUI is an I/O device. The
 moment-to-moment interaction with a UI is genuinely hard to abstract, but the *use case* boundary is
 not: gather complete input, process it, return output data, all in plain structures. Keep HTTP,
 session, and widget concepts out of business rules.
 
-**`main` is the ultimate detail** — the lowest-level policy, the dirtiest component, and the only
+**`main` is the ultimate detail** — the policy at the lowest level, the dirtiest component, and the only
 one nothing else depends on. All wiring, configuration loading, and framework binding belong there.
 Treat `main` as a plugin: prefer a separate `main` per environment, jurisdiction, or customer over
 configuration branches inside policy code.
@@ -460,9 +459,9 @@ Three ways to separate components, in increasing cost:
 3. **Service level** — reduce dependencies to data structures exchanged over the network, so each
    unit is independent of the others' source and binaries.
 
-The best mode is hard to know early and changes as a system matures, so **push the decoupling to the
-point where a service could be formed if it became necessary, then leave the components in the same
-address space as long as possible.** Keep the progression reversible in both directions. Never write
+The best mode is hard to know early and changes as a system matures, so **decouple far enough that a
+component could become a service if it had to, then keep the components in one address space for
+as long as you can.** Keep the progression reversible in both directions. Never write
 code that depends on the current mode — no hard-coded network hop, no assumption of a shared address
 space.
 

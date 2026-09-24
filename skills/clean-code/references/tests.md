@@ -25,7 +25,7 @@ wrote, mostly re-asserts your own assumptions.
 
 ## Why clean tests matter more than clean production code
 
-Tests preserve and enhance the flexibility, maintainability and reusability of the production code —
+Tests are what keep production code flexible, maintainable, and reusable —
 the *-ilities*. The logic is direct: tests are what let you change code without fear, so the higher
 your test quality, the less you fear change, and the more you improve the design.
 
@@ -109,7 +109,7 @@ and the place a bug appeared is the place the next one will.
 ## Failure modes to avoid
 
 - **Structural coupling to production code** — a test class per production class, a test method per
-  production method. This is one of the strongest and most insidious forms of coupling: it makes
+  production method. This is among the tightest and least visible kinds of coupling: it makes
   tests fragile and production code rigid, and it blocks the divergence that should happen as
   production code grows more general while tests grow more specific.
 - **Driving business rules through the UI.** The GUI is the most volatile surface in the system, so a

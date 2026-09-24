@@ -36,8 +36,8 @@ Apply this as:
 
 ### The Boy Scout Rule, and where this skill departs from it
 
-The source rule is to leave the code a little cleaner than you found it — change one variable name
-for the better, break up one function that is slightly too large, remove one small duplication —
+The source rule is to leave the code a little cleaner than you found it — rename one variable
+for the better, split one function that has grown slightly too large, remove one small duplication —
 every time you check code in.
 
 **This skill deliberately narrows that rule, and you should know it is a departure.** An agent

@@ -110,8 +110,8 @@ Rules (the unit tests enforce the ones marked checked):
 - At most two code examples, each at most eight lines.
 - Verify every API, file convention, and configuration key against official documentation for the
   versions in "Applies to", and record the sources in `docs/pack-sources.md`.
-- No book text. Before committing, compare the pack against the local, gitignored books for shared
-  runs of eight or more words, and rewrite any hit.
+- No book text. Before committing, run `python scripts/check_originality.py <pack>`, which compares
+  it against the local, gitignored books for shared runs of eight or more words, and rewrite any hit.
 - Add the pack to the `clean-packs` index in `references/framework-map.md` (checked: every pack is
   indexed, every indexed path exists, every label is one `detect_stack.py` reports).
 

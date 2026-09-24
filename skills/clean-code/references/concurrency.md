@@ -1,6 +1,6 @@
 # Concurrency
 
-Concurrency decouples *what* gets done from *when* it gets done, which improves throughput and
+Concurrency separates *what* is done from *when* it is done, which improves throughput and
 structure — and introduces a class of defect that ordinary testing does not catch. Read this before
 writing or changing anything that runs in more than one thread, task, process, or request handler
 that shares state.
@@ -59,8 +59,8 @@ Most concurrency problems you meet are a variant of one of these three.
 
 ## Locking discipline
 
-- **Beware dependencies between synchronized methods.** More than one synchronized method on the
-  same shared object invites subtle failure: each call is atomic, the sequence is not. Where a
+- **Beware dependencies between synchronized methods.** Two or more synchronized methods on one
+  shared object invite subtle failure: each call is atomic, the sequence is not. Where a
   sequence must be atomic, provide one method that does the whole sequence — client-side locking and
   adapted server-side locking both work, but they must be chosen deliberately, not stumbled into.
 - **Keep synchronized sections small.** Locks are expensive and every critical section is a
