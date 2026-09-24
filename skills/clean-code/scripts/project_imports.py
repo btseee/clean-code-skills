@@ -109,6 +109,19 @@ def imports_in_text(suffix: str, text: str) -> list:
     return [(line_number, module) for line_number, module, _ in _scan(suffix, text)]
 
 
+_ANGLE_INCLUDE = re.compile(r"^\s*#\s*(?:import|include)\s*<")
+
+
+def resolvable_imports(suffix: str, text: str) -> list:
+    """The modules text imports, marked for resolving them to project files.
+
+    A C-family `#include <x.h>` keeps a leading `<`: unlike a quoted include, it
+    never names a file beside the includer or by its basename alone.
+    """
+    return ["<" + module if _ANGLE_INCLUDE.match(line) else module
+            for _, module, line in _scan(suffix, text)]
+
+
 def extract_imports(path: Path):
     """(line, module, source line) for every import in the file at path."""
     if path.suffix.lower() not in COMPILED_IMPORT_PATTERNS:

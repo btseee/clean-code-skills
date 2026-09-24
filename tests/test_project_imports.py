@@ -133,6 +133,29 @@ class ModuleIndexTest(unittest.TestCase):
         index = build_index({"include/geo/shape.h": "", "src/shape.c": ""})
         self.assertEqual(index.resolve("src/shape.c", "geo/shape.h"), ["include/geo/shape.h"])
 
+    def test_system_includes_resolve_only_by_their_path(self):
+        index = build_index({"src/net/ssl.h": "", "src/core/time.h": "", "src/app/main.c": "",
+                             "include/mylib/api.h": ""})
+        modules = project_imports.resolvable_imports(
+            ".c", '#include <openssl/ssl.h>\n#include <sys/time.h>\n#include <mylib/api.h>\n'
+                  '#include "time.h"\n')
+        self.assertEqual([index.resolve("src/app/main.c", module) for module in modules],
+                         [[], [], ["include/mylib/api.h"], ["src/core/time.h"]])
+
+    def test_typescript_esm_imports_name_the_emitted_file(self):
+        index = build_index({"src/api/routes.ts": "", "src/domain/order.ts": "", "src/ui/view.tsx": "",
+                             "src/ui/app.tsx": "", "src/lib/a.mts": "", "src/lib/b.cts": ""})
+        cases = [
+            ("src/api/routes.ts", "../domain/order.js", ["src/domain/order.ts"]),
+            ("src/ui/app.tsx", "./view.jsx", ["src/ui/view.tsx"]),
+            ("src/ui/app.tsx", "./view.js", ["src/ui/view.tsx"]),
+            ("src/api/routes.ts", "../lib/a.mjs", ["src/lib/a.mts"]),
+            ("src/api/routes.ts", "../lib/b.cjs", ["src/lib/b.cts"]),
+        ]
+        for source, module, expected in cases:
+            with self.subTest(module=module):
+                self.assertEqual(index.resolve(source, module), expected)
+
     def test_shell_source_with_a_script_directory_prefix(self):
         index = build_index({"scripts/lib/log.sh": "", "scripts/deploy.sh": ""})
         module = project_imports.imports_in_text(".sh", 'source "$(dirname "$0")/lib/log.sh"')[0][1]
@@ -167,6 +190,39 @@ class ModuleIndexTest(unittest.TestCase):
         index = build_index(files)
         self.assertEqual(index.resolve_type_references("App/Core/Jobs/Runner.cs"),
                          ["App/Core/Clock.cs", "Other/Settings.cs"])
+
+    def test_an_import_does_not_make_its_parent_namespace_visible(self):
+        index = build_index({
+            "src/Domain/Status.cs": "namespace Shop.Domain;\npublic enum Status { Ok }\n",
+            "src/Domain/Orders/Order.cs": "namespace Shop.Domain.Orders;\npublic class Order {}\n",
+            "src/Web/HealthController.cs":
+                "using Shop.Domain.Orders;\nnamespace Shop.Web;\npublic class HealthController {\n"
+                "  public int Status { get; set; }\n  public Order Last { get; set; }\n}\n",
+            "java/com/acme/order/Priority.java": "package com.acme.order;\npublic enum Priority { HIGH }\n",
+            "java/com/acme/order/OrderService.java":
+                "package com.acme.order;\npublic class OrderService {}\n",
+            "java/com/acme/web/Health.java":
+                "package com.acme.web;\nimport com.acme.order.OrderService;\n"
+                "public class Health { int Priority; OrderService service; }\n",
+        })
+        self.assertEqual(index.resolve_type_references("src/Web/HealthController.cs"),
+                         ["src/Domain/Orders/Order.cs"])
+        self.assertEqual(index.resolve_type_references("java/com/acme/web/Health.java"), [])
+        self.assertEqual(index.resolve("java/com/acme/web/Health.java", "com.acme.order.OrderService"),
+                         ["java/com/acme/order/OrderService.java"])
+
+    def test_a_using_inside_a_namespace_block_is_relative_to_it(self):
+        index = build_index({
+            "Core/Application.cs": "namespace Inklusit.Core\n{\n    public static class Application {}\n}\n",
+            "Core/Status.cs": "namespace Inklusit.Core\n{\n    public enum Status { Ok }\n}\n",
+            "Services/Cluster.cs":
+                "using Core;\nnamespace Inklusit.Service.Cluster\n{\n    using Core;\n\n"
+                "    public class Cluster { void Run() { Application.Start(); } }\n}\n",
+            "Services/Top.cs":
+                "using Core;\nnamespace Inklusit.Service.Top;\npublic class Top { Status s; }\n",
+        })
+        self.assertEqual(index.resolve_type_references("Services/Cluster.cs"), ["Core/Application.cs"])
+        self.assertEqual(index.resolve_type_references("Services/Top.cs"), [])
 
     def test_ambiguous_type_names_resolve_to_nothing(self):
         index = build_index({

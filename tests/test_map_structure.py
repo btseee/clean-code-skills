@@ -127,6 +127,20 @@ class MapStructureTest(unittest.TestCase):
         self.assertEqual(map_structure.stack_for(self.root, "frameworks/react.md"),
                          (["references/frameworks/react.md"], {}))
 
+    def test_system_includes_draw_no_edges(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root, {
+                "src/net/ssl.h": "int ssl_init(void);\n",
+                "src/core/time.h": "int now(void);\n",
+                "src/app/main.c": "#include <openssl/ssl.h>\n#include <sys/time.h>\n"
+                                  "int main(void)\n{\n    return 0;\n}\n",
+            })
+            data = map_structure.build_map(root, packs=[], depth=2)
+        files = {entry["path"]: entry for entry in data["files"]}
+        self.assertEqual(files["src/app/main.c"]["imports"], [])
+        self.assertEqual(data["edges"], [])
+
     def test_a_malformed_roles_file_is_an_error(self):
         (self.root / ".clean" / "roles.md").write_text("```clean-roles\nnonsense\n```\n",
                                                        encoding="utf-8")

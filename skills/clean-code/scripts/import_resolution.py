@@ -47,6 +47,9 @@ SCOPED_FAMILIES = frozenset({"jvm", "csharp", "php"})
 _IMPORT_SUFFIX = {"jvm": ".java", "csharp": ".cs", "php": ".php"}
 
 _JS_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".vue", ".svelte")
+# Under node16/nodenext resolution a relative import names the emitted file, `./order.js`,
+# while the project holds `order.ts`.
+_TYPESCRIPT_SOURCES = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts",), ".cjs": (".cts",)}
 _TYPE_KINDS = frozenset({"class", "interface", "enum", "struct", "trait", "protocol", "record",
                          "object", "module"})
 _CAPITALIZED = re.compile(r"\b[A-Z][A-Za-z0-9_]{2,}\b")
@@ -82,20 +85,26 @@ def _visible_namespaces(family: str, namespace: str, path: str, text: str) -> se
     """Namespaces whose types this file can name without qualifying them.
 
     C# sees its own namespace and every enclosing one; Java, Kotlin, Scala, and PHP
-    see only their own. All of them add what they import.
+    see only their own. All of them add what they import, and only that: `using
+    Shop.Domain.Orders;` does not make `Shop.Domain` visible, and a single-type import
+    is already an edge of its own. A C# using inside the namespace block is relative
+    to it: there `using Core;` also names `App.Core` for code in `App.Web`.
     """
     separator = "\\" if family == "php" else "."
     visible = {namespace}
+    enclosing = []
+    relative_after = None
     if family == "csharp":
         parts = namespace.split(".")
-        visible |= {".".join(parts[:end]) for end in range(1, len(parts))}
-    for _, module in project_imports.imports_in_text(_IMPORT_SUFFIX[family], text):
+        enclosing = [".".join(parts[:end]) for end in range(1, len(parts) + 1)] if namespace else []
+        visible |= set(enclosing)
+        declared = _CSHARP_NAMESPACE.search(text)
+        relative_after = text.count("\n", 0, declared.start()) + 1 if declared else None
+    for line, module in project_imports.imports_in_text(_IMPORT_SUFFIX[family], text):
         module = module.strip(separator).strip("*").rstrip(separator + "._")
-        if family == "php":
-            module = module.lower()
-        visible.add(module)
-        if separator in module:
-            visible.add(module.rsplit(separator, 1)[0])
+        visible.add(module.lower() if family == "php" else module)
+        if relative_after is not None and line > relative_after:
+            visible |= {f"{outer}.{module}" for outer in enclosing}
     return visible
 
 
@@ -256,7 +265,9 @@ class ModuleIndex:
         return []
 
     def _js_candidates(self, base: str) -> list:
-        return self._existing([base] + [base + extension for extension in _JS_EXTENSIONS] +
+        stem, suffix = posixpath.splitext(base)
+        sources = [stem + source for source in _TYPESCRIPT_SOURCES.get(suffix, ())]
+        return self._existing([base] + sources + [base + extension for extension in _JS_EXTENSIONS] +
                               [f"{base}/index{extension}" for extension in _JS_EXTENSIONS])
 
     def _resolve_js(self, source: str, module: str) -> list:
@@ -385,6 +396,9 @@ class ModuleIndex:
                                "lib/" + name, name])
 
     def _resolve_include(self, source: str, module: str) -> list:
+        if module.startswith("<"):
+            # A system include names a project file only by its path under an include root.
+            return self._existing([root + module[1:] for root in _INCLUDE_ROOTS])
         found = self._existing([posixpath.join(posixpath.dirname(source), module)] +
                                [root + module for root in _INCLUDE_ROOTS])
         if found:

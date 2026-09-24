@@ -119,8 +119,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         roled_files.append(roled)
         index.add(path, text, symbols)
         if not roled.is_test:
-            modules[path] = [module for _, module in
-                             project_imports.imports_in_text(Path(path).suffix, text)]
+            modules[path] = project_imports.resolvable_imports(Path(path).suffix, text)
 
     sources = set(modules)
     file_imports = {}
