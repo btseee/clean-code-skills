@@ -15,9 +15,10 @@ import bisect
 import re
 from typing import NamedTuple, Optional
 
-import source_lexer
-import symbol_model
-from symbol_model import Symbol
+from source import lexer as source_lexer
+
+from . import model as symbol_model
+from .model import Symbol
 
 _CLASS = re.compile(r"^(?P<indent>[ \t]*)class[ \t]+(?P<name>[A-Z]\w*(?:::[A-Z]\w*)*)(?P<rest>[^\n]*)",
                     re.M)

@@ -9,9 +9,9 @@ from unittest import mock
 
 import support  # puts the scripts folder on sys.path
 import map_structure
-import project_files
-import project_symbols
-import structure_report
+import symbols as project_symbols
+from source import files as project_files
+from structure import report as structure_report
 
 FIXTURE = {
     "package.json": '{"dependencies": {"express": "4.19.2"}}\n',

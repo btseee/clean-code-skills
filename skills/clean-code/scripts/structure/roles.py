@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-import project_files
+from source import files as project_files
 
 BLOCK = re.compile(r"```clean-roles[ \t]*\n(.*?)```", re.S)
 _STATEMENT = re.compile(r"^(?P<kind>role|name|signal)[ \t]+(?P<role>[^\s\[=]+)[ \t]*"

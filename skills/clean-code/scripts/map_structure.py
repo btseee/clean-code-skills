@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Map every source file: what it declares, which role it plays, whether it belongs.
 
-One walk reads each file once. Symbols come from project_symbols, roles from
+One walk reads each file once. Symbols come from the symbols package, roles from
 the clean-roles conventions (the project's .clean/roles.md, then the framework
-packs, then the generic block), dependencies from import_resolution. The result
+packs, then the generic block), dependencies from source.resolution. The result
 is evidence for judgement -- misplaced, mixed, duplicated, clashing, and
 synonymous code, component metrics, and cycles -- never a verdict.
 
@@ -27,15 +27,15 @@ import time
 from collections import Counter
 from pathlib import Path
 
-import component_metrics
 import detect_stack
-import import_resolution
-import project_files
-import project_imports
-import project_symbols
-import structure_findings
-import structure_report
-import structure_roles
+import symbols as project_symbols
+from source import files as project_files
+from source import imports as project_imports
+from source import resolution as import_resolution
+from structure import findings as structure_findings
+from structure import metrics as component_metrics
+from structure import report as structure_report
+from structure import roles as structure_roles
 
 SCHEMA_VERSION = 1
 SKILL_ROOT = Path(__file__).resolve().parent.parent

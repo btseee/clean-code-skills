@@ -27,9 +27,9 @@ import posixpath
 import re
 from pathlib import Path
 
-import project_files
-import project_imports
-import source_lexer
+from . import files as project_files
+from . import imports as project_imports
+from . import lexer as source_lexer
 
 _FAMILY_BY_SUFFIX = {
     ".js": "js", ".jsx": "js", ".mjs": "js", ".cjs": "js", ".ts": "js", ".tsx": "js",

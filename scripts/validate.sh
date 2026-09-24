@@ -59,7 +59,7 @@ required_files=(
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"
-  "skills/clean-code/scripts/project_files.py"
+  "skills/clean-code/scripts/source/files.py"
   "skills/clean-code/scripts/map_structure.py"
   "skills/clean-code/assets/templates/architecture.md"
   "skills/clean-code/assets/templates/decisions.md"
@@ -332,10 +332,12 @@ else
 fi
 
 if [[ -n "$SKILL_PYTHON" ]]; then
-  for script in "$ROOT_DIR"/skills/clean-code/scripts/*.py; do
+  # The scripts folder holds the four CLIs plus the source, symbols, and structure
+  # packages; walk it recursively so a subpackage module gets the same checks.
+  while IFS= read -r -d '' script; do
     "$SKILL_PYTHON" -c "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8').read())" "$script" \
       || fail "${script#$ROOT_DIR/} is not valid Python"
-  done
+  done < <(find "$ROOT_DIR/skills/clean-code/scripts" -name '*.py' -print0 | sort -z)
   pass "skill scripts parse"
 
   # The scripts promise Python 3.8+. The running interpreter is usually newer, so ask the
@@ -352,11 +354,12 @@ except (TypeError, ValueError):
     print("WARN: this Python cannot check the 3.8 grammar; skipped")
     sys.exit(0)
 bad = []
-for path in sorted(root.glob("*.py")):
+# Walk the CLIs and the source, symbols, and structure packages alike.
+for path in sorted(root.rglob("*.py")):
     try:
         ast.parse(path.read_text(encoding="utf-8"), feature_version=(3, 8))
     except SyntaxError as error:
-        bad.append(f"{path.name}:{error.lineno}: {error.msg}")
+        bad.append(f"{path.relative_to(root).as_posix()}:{error.lineno}: {error.msg}")
 if bad:
     print("\n".join(bad))
     sys.exit(1)
@@ -376,20 +379,27 @@ ALLOWED = {
 }
 
 root = pathlib.Path(sys.argv[1]) / "skills" / "clean-code" / "scripts"
-ALLOWED |= {path.stem for path in root.glob("*.py")}  # sibling modules in the same folder
+# First-party names: the top-level CLIs, and the source, symbols, and structure
+# packages a CLI or a package module reaches with `import symbols` or
+# `from source import files`.
+ALLOWED |= {path.stem for path in root.glob("*.py")}
+ALLOWED |= {path.name for path in root.iterdir()
+            if path.is_dir() and (path / "__init__.py").is_file()}
 bad = []
-for path in sorted(root.glob("*.py")):
+for path in sorted(root.rglob("*.py")):
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                continue  # a relative import always names a sibling in the same package
             names = [node.module or ""]
         else:
             continue
         for name in names:
             if name.split(".")[0] not in ALLOWED:
-                bad.append(f"{path.name}: {name}")
+                bad.append(f"{path.relative_to(root).as_posix()}: {name}")
 
 if bad:
     print("third-party imports found: " + ", ".join(bad))

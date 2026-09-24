@@ -1,7 +1,7 @@
 import unittest
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import project_files
+from source import files as project_files
 
 
 class GlobMatchTest(unittest.TestCase):

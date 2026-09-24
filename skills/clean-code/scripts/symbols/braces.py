@@ -16,9 +16,10 @@ import bisect
 import re
 from typing import Callable, NamedTuple, Optional
 
-import source_lexer
-import symbol_model
-from symbol_model import Symbol
+from source import lexer as source_lexer
+
+from . import model as symbol_model
+from .model import Symbol
 
 
 class Pattern(NamedTuple):

@@ -14,7 +14,7 @@ import posixpath
 import re
 from pathlib import Path
 
-import project_files
+from . import files as project_files
 
 _INCLUDE = r"""^\s*#\s*(?:import|include)\s*[<"]([^>"]+)[>"]"""
 _JS_FROM = r"""from\s+['"]([^'"]+)['"]"""

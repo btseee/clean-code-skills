@@ -13,11 +13,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-import brace_grammars
-import symbols_braces
-import symbols_python
-import symbols_ruby
-from symbol_model import FileSymbols, Symbol  # noqa: F401  (re-exported for callers)
+from . import grammars as brace_grammars
+from . import braces as symbols_braces
+from . import python_source as symbols_python
+from . import ruby_source as symbols_ruby
+from .model import FileSymbols, Symbol  # noqa: F401  (re-exported for callers)
 
 LANGUAGE_BY_SUFFIX = {
     ".py": "python", ".pyi": "python",

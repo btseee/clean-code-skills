@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import import_resolution
-import project_imports
-import project_symbols
+import symbols as project_symbols
+from source import imports as project_imports
+from source import resolution as import_resolution
 
 
 class ImportsInTextTest(unittest.TestCase):

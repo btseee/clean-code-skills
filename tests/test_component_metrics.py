@@ -1,7 +1,7 @@
 import unittest
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import component_metrics
+from structure import metrics as component_metrics
 
 
 def by_name(result):

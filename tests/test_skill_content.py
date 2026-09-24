@@ -6,7 +6,7 @@ import unittest
 import support
 import check_boundaries
 import detect_stack
-import structure_roles
+from structure import roles as structure_roles
 
 REFERENCES = support.SKILL_ROOT / "references"
 LANGUAGE_HEADINGS = ["Names", "Functions And Types", "Errors", "Modules And Visibility",

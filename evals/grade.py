@@ -34,7 +34,7 @@ SKILL_ROOT = REPO_ROOT / "skills" / "clean-code"
 SCRIPTS_DIR = SKILL_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-import project_files  # noqa: E402  (the skill's scripts folder, put on the path above)
+from source import files as project_files  # noqa: E402  (the skill's scripts folder, put on the path above)
 
 REQUIRED_FIELDS = {
     "file_exists": ("glob",),

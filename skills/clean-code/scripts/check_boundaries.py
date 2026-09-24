@@ -47,9 +47,9 @@ import re
 import sys
 from pathlib import Path
 
-import import_resolution
-import project_files
-import project_imports
+from source import files as project_files
+from source import imports as project_imports
+from source import resolution as import_resolution
 
 CONFIG_BLOCK_PATTERN = re.compile(
     r"```(?:clean-architecture|clean-arch|architecture)\s*\n(.*?)```",

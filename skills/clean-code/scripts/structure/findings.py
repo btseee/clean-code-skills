@@ -16,8 +16,8 @@ import re
 from collections import Counter, defaultdict
 from typing import Optional
 
-import project_files
-import symbol_model
+from source import files as project_files
+from symbols import model as symbol_model
 
 # Abstractions legitimately live beside the code that consumes them (the
 # Dependency Inversion Principle), so a repository interface in the domain is

@@ -1,7 +1,7 @@
 import unittest
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import source_lexer
+from source import lexer as source_lexer
 
 
 def body_pair(text, language):

@@ -27,8 +27,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-import project_files
-from project_files import TEST_DIR_NAMES, TEST_FILE_PATTERN, is_skippable
+from source import files as project_files
+from source.files import TEST_DIR_NAMES, TEST_FILE_PATTERN, is_skippable
 
 SCHEMA_VERSION = 1
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Declaration grammars for the brace-delimited languages.
 
-Each grammar tells symbols_braces what a declaration looks like in one language.
+Each grammar tells symbols.braces what a declaration looks like in one language.
 The engine never names a language; this module never walks a file.
 
 Standard library only.
@@ -12,11 +12,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import source_lexer
-import symbol_model
-import symbols_braces
-from symbol_model import Symbol
-from symbols_braces import Grammar, Pattern
+from source import lexer as source_lexer
+
+from . import braces as symbols_braces
+from . import model as symbol_model
+from .braces import Grammar, Pattern
+from .model import Symbol
 
 C_DOC = ("//", "/*", "*")
 HASH_DOC = ("#",)

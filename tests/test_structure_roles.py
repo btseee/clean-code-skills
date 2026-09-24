@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import project_symbols
-import structure_roles
+import symbols as project_symbols
+from structure import roles as structure_roles
 
 
 def block(*lines):

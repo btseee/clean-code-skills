@@ -28,8 +28,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-import project_files
-from project_files import is_test_path
+from source import files as project_files
+from source.files import is_test_path
 
 CODE_EXTENSIONS = frozenset({
     ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue", ".svelte",

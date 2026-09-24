@@ -2,10 +2,10 @@ import unittest
 from pathlib import Path
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import structure_findings as findings
-import structure_roles
-from structure_roles import RoledFile, RoledSymbol
-from symbol_model import Symbol
+from structure import findings
+from structure import roles as structure_roles
+from structure.roles import RoledFile, RoledSymbol
+from symbols.model import Symbol
 
 GENERIC = structure_roles.Roles(structure_roles.parse_roles(
     "```clean-roles\n"

@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
-import project_symbols
+import symbols as project_symbols
 
 
 def extract(path, source):
@@ -116,7 +116,7 @@ class PythonTest(unittest.TestCase):
         self.assertEqual(extract("fine.py", "x = 1\n").unparsed, "")
 
     def test_a_parser_that_gives_up_marks_the_file_instead_of_crashing(self):
-        with mock.patch("symbols_python.ast.parse", side_effect=RecursionError("too deep")):
+        with mock.patch("symbols.python_source.ast.parse", side_effect=RecursionError("too deep")):
             result = extract("strings.py", "TABLE = 'a' + 'b'\n")
         self.assertEqual(result.symbols, [])
         self.assertIn("RecursionError", result.unparsed)
