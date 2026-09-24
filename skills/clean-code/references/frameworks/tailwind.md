@@ -26,12 +26,12 @@ ignore-name = ^cn$
 const SIZE = { sm: "px-2 py-1 text-xs", lg: "px-4 py-2 text-base" };
 ```
 
-- Extract a class string repeated across more than a couple of call sites into a real framework component, not `@apply`; `@apply` still works but re-adds the specificity and build-order problem utilities exist to avoid (G5).
+- Extract a class string repeated across more than a couple of call sites into a real framework component, not `@apply`; `@apply` works but re-adds the specificity and build-order problem utilities exist to avoid (G5).
 - Put every design token — color, spacing, radius, font — in `@theme`; reserve an arbitrary value (`top-[117px]`) for a one-off that will never recur (G25).
 - Merge conditional classes with `clsx` (or the project's equivalent) for readability, and `tailwind-merge` wherever two conditional utilities can target the same CSS property, so the last one wins deliberately instead of by accidental cascade order (G3).
 - Sort classes with `prettier-plugin-tailwindcss`; never hand-order a long `className` string.
-- Let automatic content detection find templates; reach for an explicit `@source` only for a path it cannot see on its own — outside the project root, or `.gitignore`d.
-- Configure class-based dark mode with `@custom-variant dark (&:where(.dark, .dark *));` in the CSS entry point rather than reaching for a removed `darkMode` config key; v4's default with no configuration at all is `prefers-color-scheme`.
+- Let automatic content detection find templates; reach for an explicit `@source` only for a path it cannot see — outside the project root, or `.gitignore`d.
+- Configure class-based dark mode with `@custom-variant dark (&:where(.dark, .dark *));` in the CSS entry point rather than reaching for a removed `darkMode` config key; v4's default with no configuration is `prefers-color-scheme`.
 
 ## Layers
 
@@ -43,12 +43,12 @@ Applies only when `.clean/architecture.md` declares layers.
 
 ## Tests
 
-- Snapshot or visual-regression test a component's rendered output when a design token changes, the same as any other UI pack; Tailwind adds no test primitive of its own.
+- Snapshot or visual-regression test a component's rendered output when a design token changes, the same as any other UI pack; Tailwind adds no test primitive.
 - Add a lint step that fails on a template-literal-built class name — a Tailwind-aware ESLint plugin's unknown-classname rule, or a project regex check — so the smell is caught before review.
 
 ## Enforce
 
-- A Tailwind-aware ESLint plugin for class validity and consistent ordering, as a backstop to `prettier-plugin-tailwindcss`; confirm its Tailwind v4 support before adopting one — several of the ecosystem's plugins were still catching up to v4 as of this writing.
+- A Tailwind-aware ESLint plugin for class validity and consistent ordering, as a backstop to `prettier-plugin-tailwindcss`; confirm its Tailwind v4 support before adopting one.
 - `languages/css.md`'s Stylelint config still applies to any hand-written CSS beside the generated utilities.
 - `prettier-plugin-tailwindcss` in the Prettier config so class order never bikesheds a review.
 

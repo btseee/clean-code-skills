@@ -26,6 +26,7 @@ role extension = **/extensions.py
 
 ## Rules
 
+- Name a Blueprint for its feature, matching the package (`Blueprint("orders", __name__)` in `app/orders/routes.py`), so its endpoint prefix and `url_for` target stay obvious (N3).
 - Build the app with an application factory (`create_app`); never construct a module-level `Flask(__name__)` that many other modules import (G18).
 - Give every feature its own `Blueprint`, registered in the factory; never route directly on the app object outside the factory (G17).
 - Create extension instances unbound in `extensions.py` and bind them with `init_app(app)` inside the factory, so no module needs `from app import db` to reach one (G22).
@@ -54,14 +55,14 @@ layer main        = app/__init__.py, app/config.py
 
 - Build the app with the factory in a fixture (`create_app("testing")`) and use its `test_client()`; never share one mutated app instance across tests.
 - Test `services.py` functions directly, with no client and no request context, wherever the rule does not need one.
-- Push an application context (`app.app_context()`) only where a test truly needs `current_app` or the database; keep the rest context-free.
+- Push an application context (`app.app_context()`) only where a test needs `current_app` or the database; keep the rest context-free.
 - Fake an external call behind the port a service depends on, not by monkeypatching a library deep in the call stack.
 
 ## Enforce
 
 - Ruff for style; mypy or pyright against Flask's typed `Blueprint`/`Flask` signatures.
 - import-linter to forbid `services.py` importing `flask`, and to forbid feature packages importing each other's internals.
-- Flask's own `flask routes` command to check every blueprint is registered as expected.
+- Flask's own `flask routes` command to check every blueprint is registered.
 
 ## Smells
 

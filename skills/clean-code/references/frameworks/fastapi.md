@@ -8,7 +8,7 @@
 - `app/routers/` (or `routes/`) — one module per resource; each declares an `APIRouter` and its path operations.
 - `app/schemas/` — Pydantic `BaseModel` request and response models.
 - `app/models/` — ORM models (SQLAlchemy `DeclarativeBase` subclasses, or SQLModel classes with `table=True`).
-- `app/dependencies.py` (or `deps.py`) — shared `Depends()` callables: auth, pagination, a database session.
+- `app/dependencies.py` (or `deps.py`) — shared `Depends()` callables: auth, pagination, database session.
 - `app/services.py` (or `app/<feature>/service.py`) — business rules called from routers.
 - `app/crud/` — the persistence functions a service or router calls to read and write models.
 - `app/config.py` — a `pydantic-settings` `BaseSettings` subclass, loaded once.
@@ -29,10 +29,10 @@ role repository = **/crud/**
 
 ## Rules
 
-- Never perform blocking I/O (a sync DB driver, `requests`, a file read) inside an `async def` path operation; use an async client, or a sync `def` route, which FastAPI runs in a thread pool.
+- Never perform blocking I/O (sync DB driver, `requests`, file read) inside an `async def` path operation; use an async client, or a sync `def` route, which FastAPI runs in a thread pool.
 - Never return an ORM model with no `response_model` or return-type annotation; declare one built from a Pydantic schema so persistence-only fields never leak into the API by accident (G8).
 - Validate every request body and query with a Pydantic schema; a path operation never reads raw `Request` JSON past that boundary.
-- Push a cross-cutting concern (auth, a DB session, pagination) into a `Depends()` callable instead of repeating it in every path operation (G5).
+- Push a cross-cutting concern (auth, DB session, pagination) into a `Depends()` callable instead of repeating it in every path operation (G5).
 - Load configuration once through a `pydantic-settings` `BaseSettings` subclass; never call `os.environ.get` inside a router or service.
 - Keep a router's path operations thin: validate through the schema, call one service or crud function, return.
 

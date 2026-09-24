@@ -23,6 +23,7 @@ ignore-name = ^(load|actions|GET|POST|PUT|PATCH|DELETE|handle|handleError|handle
 
 ## Rules
 
+- Name a component file PascalCase (`UserCard.svelte`); SvelteKit's own `+page.svelte`, `+layout.svelte`, `+server.ts`, `+error.svelte` are mandated names, never renamed (N3).
 - Use runes (`$state`, `$derived`, `$effect`, `$props`, `$bindable`) as the default reactivity model; do not mix in Svelte 4's `$:` reactive statements in the same component (G11).
 - Fetch and load data in a `load` function (`+page.ts`, `+page.server.ts`, `+layout.ts`, `+layout.server.ts`), not in a component's script block; the component receives `data` as a prop.
 - Keep secrets and server-only calls behind `src/lib/server`, importable only from `+page.server.ts`, `+server.ts`, or another server module; `$env/static/private` is restricted the same way.
@@ -62,9 +63,9 @@ layer ui             = src/routes/**, src/lib/components/**
 
 ## Smells
 
-- A component's script block calling `fetch` directly instead of a `load` function (G17) — the case this pack exists to prevent.
+- A component's script block calling `fetch` directly instead of a `load` function (G17).
 - A database client or `$env/static/private` import reachable from a file the client bundle also imports (secret leak).
 - `hooks.server.ts` making a business decision instead of an auth or boundary check (G17).
 - Svelte 4 `$:` statements mixed into an otherwise runes-mode component (G11).
 - A `.svelte.ts` store exporting a mutable `let` instead of encapsulated runes state (G18).
-- A `+server.ts` handler holding the rule itself instead of calling the shared module that owns it (G5).
+- A `+server.ts` handler holding the rule instead of calling the shared module that owns it (G5).

@@ -6,7 +6,7 @@
 
 - `src/main.ts` — bootstraps the application; the composition root for global pipes, filters, guards, and interceptors.
 - `src/app.module.ts` — the root module; imports every feature module.
-- `src/<feature>/<feature>.module.ts` — wires one feature's controllers and providers together.
+- `src/<feature>/<feature>.module.ts` — wires one feature's controllers and providers.
 - `src/<feature>/<feature>.controller.ts` — routes; parses the request via DTOs and delegates to the service.
 - `src/<feature>/<feature>.service.ts` — `@Injectable()`; the feature's business rules.
 - `src/<feature>/dto/` — request and response shapes, validated at the boundary.
@@ -39,11 +39,12 @@ role entity = **/*.entity.ts, **/entities/**
 
 ## Rules
 
+- Name a file for its role suffix (`orders.controller.ts`, `orders.service.ts`, `orders.module.ts`) and its class to match (`OrdersController`, `OrdersService`, `OrdersModule`) — resource first, role suffix last (N3).
 - Keep a controller to routing only: validate via a DTO or pipe, call one service method, return its result; no business rule inside a controller (G17).
 - Keep guards, interceptors, pipes, and filters single-purpose: a guard decides yes or no, an interceptor wraps, a pipe transforms or validates, a filter maps an exception to a response — never smuggle a business rule into any of them (G17).
 - Validate and shape input at the boundary with DTOs and pipes (`ValidationPipe`, or on NestJS 12 the `schema` option of `@Body()`/`@Query()`/`@Param()` with a registered `StandardSchemaValidationPipe`, for Zod, Valibot, or ArkType); a service receives already-valid data.
 - Never return a persistence entity straight from a controller; map it to a DTO so the wire format and the storage schema can change independently (DTO).
-- Inject dependencies through the constructor. Reach for `forwardRef()` only when two providers or modules truly need each other, and treat a growing web of them as a sign that a shared abstraction is missing (G13).
+- Inject dependencies through the constructor. Reach for `forwardRef()` only when two providers or modules need each other, and treat a growing web of them as a sign that a shared abstraction is missing (G13).
 - Wire global pipes, filters, guards, and interceptors once in `main.ts`; do not scatter equivalent registrations across feature modules (Main as the ultimate detail).
 - Keep a module's `providers` limited to what its own feature owns; import another feature's module to reuse its exports instead of redeclaring the same provider (G5).
 
@@ -66,7 +67,7 @@ layer main           = src/main.ts, src/**/*.module.ts
 ## Tests
 
 - Unit-test services as plain classes; construct them directly, or via `Test.createTestingModule` when they need the DI container, with fakes for their dependencies.
-- Test a guard's `canActivate` or a pipe's `transform` directly, with a hand-built `ExecutionContext` or `ArgumentMetadata`; no HTTP call needed for that.
+- Test a guard's `canActivate` or a pipe's `transform` directly, with a hand-built `ExecutionContext` or `ArgumentMetadata`; no HTTP call needed.
 - Reserve `@nestjs/testing`'s `createNestApplication` plus `supertest` for a handful of routes that prove the whole pipeline, not every branch.
 - Fake the clock, queue, and outbound HTTP client at the provider boundary; never hit a real network or database from a unit test (F.I.R.S.T.).
 

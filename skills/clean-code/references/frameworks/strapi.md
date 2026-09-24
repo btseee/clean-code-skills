@@ -30,7 +30,7 @@ role content-type = src/api/*/content-types/**
 ## Rules
 
 - Put every Document Service call (`strapi.documents(uid)...`) in a service; a controller calls its own service, never `strapi.documents` directly (G17).
-- Override only the action a request truly needs inside `createCoreController`'s callback; leave the rest to the generated default (small classes, Ch10).
+- Override only the action a request needs inside `createCoreController`'s callback; leave the rest to the generated default (small classes, Ch10).
 - Keep a policy to one authorization decision; compute the business rule in a service and have the policy call it, not reimplement it (G14).
 - Reserve lifecycle hooks (`content-types/*/lifecycles.*`) for bookkeeping on the record's own fields; put a request-triggered business rule in a service method instead, since Strapi 5 changed when and how often these hooks fire under the Document Service API.
 - Validate a custom route's input the same way the generated routes do, before it reaches a service.

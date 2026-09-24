@@ -33,11 +33,11 @@ signal service [ts] = @Injectable\(|@Service\(
 - Write standalone components, directives, and pipes; `standalone: true` is the default since v19, and a new `NgModule`-based one needs `standalone: false` stated explicitly.
 - Since v20, `ng generate` no longer appends `Component`/`Service`/`Directive`/`Pipe` to new names by default; name for the concept (`Orders`, not `OrdersService`) unless the project's `angular.json` still requests suffixes — match whichever this project already does (G11).
 - Prefer functional guards, interceptors, and resolvers (`CanActivateFn`, `HttpInterceptorFn`, `ResolveFn`) over class-based ones; they need no `@Injectable()` ceremony for a single decision.
-- Hold state in `signal()`, derive it with `computed()`, and accept it through `input()`/`model()`; never derive a value into a second signal that `computed()` should own instead (G5).
+- Hold state in `signal()`, derive it with `computed()`, and accept it through `input()`/`model()`; never derive a value into a second signal that `computed()` should own (G5).
 - Write every component to work without Zone.js and under `OnPush` — new apps are zoneless since v21, and `OnPush` is the default strategy since v22: change state through signals and inputs, never by mutating an object in place and waiting for the view to notice.
 - Use `effect()` only to synchronize with something outside Angular's reactivity; a template or a computed signal answers most other needs (G31).
 - Never subscribe inside a `subscribe` callback; compose with `switchMap`, `mergeMap`, or `toSignal` instead (G30, G31).
-- Keep templates free of method calls that carry business logic; bind to a signal or a getter that itself calls the one function that owns the rule (G6).
+- Keep templates free of method calls that carry business logic; bind to a signal or a getter that calls the one function that owns the rule (G6).
 - Inject collaborators with `inject()` or the constructor, never `new` a service directly (DIP).
 
 ## Layers
@@ -61,7 +61,7 @@ layer main           = src/main.ts
 - New projects get Vitest (`@angular/build:unit-test`) since v21, while older ones may still run Karma; check which one this project runs before assuming either.
 - Test a component through `TestBed` and its rendered template or public API, never a private method.
 - Test an injected service by providing a fake for its own dependencies (`HttpClient`, a repository), not the real network.
-- Test a business rule as a plain function or class, with no `TestBed` needed at all.
+- Test a business rule as a plain function or class, with no `TestBed` needed.
 
 ## Enforce
 
@@ -76,4 +76,4 @@ layer main           = src/main.ts
 - A template expression calling a method that fetches or mutates instead of reading a signal (G6, N7).
 - A `shared/` folder accumulating components, pipes, and services with nothing in common (G17).
 - A class-based guard or interceptor added for a single, stateless check that a functional one would express in three lines (G32).
-- A component injecting `HttpClient` directly instead of an injectable service the component only calls (G17) — the case this pack exists to prevent.
+- A component injecting `HttpClient` directly instead of an injectable service the component only calls (G17).

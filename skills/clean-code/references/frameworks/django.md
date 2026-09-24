@@ -35,6 +35,7 @@ ignore-name = ^(Meta|get_queryset|get|post|put|patch|delete|dispatch|get_context
 
 ## Rules
 
+- Name a model singular PascalCase (`Order`, not `Orders` or `order`) and an app lowercase (`orders`, not `OrdersApp`) (N3).
 - Put a rule on the model when only that model's own invariants govern it; put it in `services.py` when it spans models, calls out, or has steps to sequence (framework-first; SRP by actor).
 - Keep `views.py` thin: parse the request, call one service or selector, shape the response; never branch a business decision inside a view (G17).
 - Never put business flow in a signal handler; a receiver calls a service function and does nothing else (G17, G31).
@@ -63,7 +64,7 @@ layer main        = manage.py, */settings/**, */apps.py
 
 - Use `django.test.TestCase` for database-backed tests, each wrapped in a transaction; use plain pytest functions for pure logic in `services.py`/`selectors.py`.
 - Build fixtures with a factory (factory_boy) or plain helper functions, not fixture files that hide what a test depends on.
-- Use the Django test client or DRF's `APIClient` for view tests; assert status code and body shape, not query count, unless the test is specifically about query count (`assertNumQueries`).
+- Use the Django test client or DRF's `APIClient` for view tests; assert status code and body shape, not query count, unless the test is about query count (`assertNumQueries`).
 - Never point a test at a real external service; fake the gateway behind its port.
 
 ## Enforce

@@ -29,11 +29,12 @@ role plugin = **/plugins/**
 
 ## Rules
 
+- Name a single-file component PascalCase, multi-word (`UserProfile.vue`, not `Profile.vue`), so it never collides with an existing or future HTML element (N3).
 - Write `<script setup>` with `defineProps`, `defineEmits`, and `defineModel`; do not add Options API code to a new component.
 - Never mutate a prop; treat it as read-only and emit an event, or use `defineModel` for two-way binding (F2).
 - Compute derived values with `computed`; reach for `watch` or `watchEffect` only to synchronize with something outside Vue's reactivity — a subscription, the DOM, a timer (G31).
 - Extract logic two components both need into a composable named `use<Thing>` that returns refs or computed values, never a plain mutable object (G5, G17).
-- Keep templates free of business logic: a template calls a computed property or a method, it does not compute one inline (G6).
+- Keep templates free of business logic: a template calls a computed property or method, never computing one inline (G6).
 - Fetch through Nuxt's `useFetch`/`useAsyncData`, or a query library in plain Vue; never call `fetch` directly inside `<script setup>`.
 - Key `v-for` by a stable id, never the array index, when the list can reorder (G3).
 - Give each Pinia store one domain concept and the name `use<Thing>Store`; do not grow one store into a global bucket (G17).
@@ -59,7 +60,7 @@ layer ui             = **/components/**, **/pages/**, **/layouts/**, **/composab
 - Test components with Vue Testing Library or `@vue/test-utils`, asserting on rendered output, not internal refs.
 - Call a composable inside a minimal host component (or a `withSetup` test helper); test the business rule it delegates to as a plain function, unrendered.
 - Mock network calls at the boundary (MSW) rather than mocking `useFetch` internals.
-- Reserve `@nuxt/test-utils` for tests that truly need the Nuxt runtime; keep ordinary unit tests plain and fast.
+- Reserve `@nuxt/test-utils` for tests that need the Nuxt runtime; keep ordinary unit tests plain and fast.
 
 ## Enforce
 
@@ -71,7 +72,7 @@ layer ui             = **/components/**, **/pages/**, **/layouts/**, **/composab
 
 - A prop reassigned inside the child instead of emitted or bound with `defineModel` (F2, G17).
 - A `watch` recomputing a value that `computed` should own (G5, G31).
-- Business logic written directly inside a `<template>` expression (G6).
+- Business logic written inside a `<template>` expression (G6).
 - A composable returning a plain mutable object instead of refs or computed, so callers lose reactivity (G26).
 - `server/api/**` importing a Vue component or a `#app` runtime symbol (wrong-direction dependency, G17).
-- Two components each holding their own copy of the same computation instead of one shared composable (G5) — the duplication this pack exists to prevent.
+- Two components each holding their own copy of the same computation instead of one shared composable (G5).

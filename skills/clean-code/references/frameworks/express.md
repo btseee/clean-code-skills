@@ -30,7 +30,7 @@ allow route = middleware
 - Validate and sanitize input in middleware or at the top of the controller; a service trusts the shape of what it receives.
 - Register exactly one central error-handling middleware, mounted last with all four parameters `(err, req, res, next)`, and let thrown errors and `next(err)` calls reach it.
 - Never put a stack trace or a raw error message in a response body; log the error and answer with a safe message and status code.
-- Async route handlers and middleware that throw or return a rejected promise reach `next(err)` on their own in Express 5; do not wrap every handler in `try/catch` or a helper like `express-async-handler` just to forward errors.
+- Async route handlers and middleware that throw or return a rejected promise reach `next(err)` on their own in Express 5; do not wrap every handler in `try/catch` or a helper like `express-async-handler` to forward errors.
 - Give each resource its own router file instead of one flat file of `app.get`/`app.post` calls.
 - Write new wildcard and optional-segment routes in Express 5's path-to-regexp v8 syntax (`/*splat`, `/:file{.:ext}`); the Express 4 forms no longer match the same thing (G3).
 
@@ -54,7 +54,7 @@ layer main        = src/app.*, src/server.*, src/config/**
 
 - Test services as plain functions with no HTTP layer involved.
 - Test routes with `supertest` against the exported `app`, without a real listening socket.
-- Mock outbound HTTP calls and the database at the boundary the service depends on, not inside the service itself.
+- Mock outbound HTTP calls and the database at the boundary the service depends on, not inside the service.
 - Cover the error middleware directly: a thrown error from a route must produce the documented status and body (T5).
 
 ## Enforce

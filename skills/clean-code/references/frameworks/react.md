@@ -4,7 +4,7 @@
 
 ## Structure
 
-- `src/features/<feature>/` — one feature's components, hooks, and API calls, together.
+- `src/features/<feature>/` — one feature's components, hooks, and API calls.
 - `src/components/` — shared presentational components used by several features.
 - `src/hooks/` — shared custom hooks (`useDebounce`, `useMediaQuery`).
 - `src/api/` or `src/services/` — HTTP clients and data access; no JSX.
@@ -26,19 +26,20 @@ ignore-name = ^(App|Root|Layout|Page|Providers|Router)$
 
 ## Rules
 
-- Keep components pure: the same props and state render the same output, with no side effects during render.
+- Name components PascalCase in PascalCase files (`UserCard.tsx`); name event-handler props `on<Thing>` (`onSave`) and their handlers `handle<Thing>` (`handleSave`) (N3).
+- Keep components pure: same props and state render the same output, no side effects during render.
 - Follow the Rules of Hooks: call hooks only at the top level of components and custom hooks.
-- Keep state as close as possible to where it is used; lift it only when two components need it.
+- Keep state as close as possible to its use; lift it only when two components need it.
 - Never store derived data in state; compute it during render (G5).
 - Use effects only to synchronize with systems outside React — subscriptions, the DOM, timers. Respond to events in event handlers, not effects.
-- Fetch data outside render effects: through the framework's loaders or server components, or a query library (TanStack Query, SWR) that handles caching, races, and cancellation.
-- Extract reusable stateful logic into a custom hook named `use<Thing>`, and repeated markup into a component.
+- Fetch data outside render effects: through the framework's loaders, server components, or a query library (TanStack Query, SWR) handling caching, races, and cancellation.
+- Extract reusable stateful logic into a custom hook named `use<Thing>`, repeated markup into a component.
 - Key list items by stable data identity, never the array index when order can change.
 - With React Compiler on, hand-write `useMemo`, `useCallback`, or `memo` only where profiling shows a need.
 - Pass `ref` as an ordinary prop; new code does not need `forwardRef`.
 - Keep business rules out of components: a component calls a hook or function that owns the rule (G17).
 - Build accessible controls: semantic elements first, labels on inputs, keyboard support for custom widgets.
-- Never render HTML from strings with `dangerouslySetInnerHTML` unless it is sanitized.
+- Never render HTML from strings with `dangerouslySetInnerHTML` unless sanitized.
 
 ## Layers
 
@@ -59,7 +60,7 @@ layer main           = src/main.tsx, src/app/**
 
 ## Tests
 
-- Test behavior through the rendered output with Testing Library: query by role and label, interact with `user-event`, assert what the user sees.
+- Test behavior through rendered output with Testing Library: query by role and label, interact with `user-event`, assert what the user sees.
 - Mock the network at the boundary with MSW rather than mocking modules.
 - Test custom hooks through a component or `renderHook`, and business rules as plain functions without rendering.
 - Keep snapshots small and deliberate; a large snapshot asserts nothing anyone reads (T1).

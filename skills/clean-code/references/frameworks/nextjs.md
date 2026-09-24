@@ -26,8 +26,8 @@ ignore-name = ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|default|generateMetadata|
 
 ## Rules
 
-- Keep Server Components the default; add `'use client'` only to the leaf that truly needs state or browser APIs, never to a whole route tree (G17, G8).
-- Put the business rule in a plain module under `lib/`, not inside `page.tsx` or `route.ts`; both call it, neither redefines it (G5) — a page and its matching API route must share one rule, not two copies.
+- Keep Server Components the default; add `'use client'` only to the leaf that needs state or browser APIs, never to a whole route tree (G17, G8).
+- Put the business rule in a plain module under `lib/`, not inside `page.tsx` or `route.ts`; a page and its matching API route both call it, neither redefines it (G5).
 - Never read a secret through `NEXT_PUBLIC_*`; that prefix is inlined into the client bundle verbatim. Use a server-only environment variable and guard the module with `import "server-only"`.
 - Never assume a `fetch` is cached: since 15 it is not, by default. Opt in around the one function or component that is safe to share — `{ cache: "force-cache" }` or `next: { revalidate }` on 15, `"use cache"` with `cacheComponents` enabled on 16.
 - Rename `middleware.ts` to `proxy.ts` and its exported function to `proxy` on 16; `middleware.ts` still works there only for Edge-runtime cases, and is deprecated.
@@ -53,7 +53,7 @@ layer ui             = app/**, src/app/**
 ## Tests
 
 - Test a Server Action or a `lib/` business function as a plain async function; it needs no request or render.
-- Reserve Testing Library and Playwright for behavior that truly needs the DOM or a real navigation through `proxy.ts`.
+- Reserve Testing Library and Playwright for behavior that needs the DOM or a real navigation through `proxy.ts`.
 - Mock the network at the boundary (MSW) for Client Components rather than mocking a hook or module.
 - Use the project's runner (Vitest or Jest) for units; keep route-handler tests calling the exported `GET`/`POST` function directly where the runner allows it.
 
@@ -67,7 +67,7 @@ layer ui             = app/**, src/app/**
 
 - `'use client'` on a file that does no interactive work, dragging its whole subtree to the client (G8, G17).
 - A secret read through `process.env.NEXT_PUBLIC_*` (leaks to the browser).
-- The same rule computed inline in both a page and its API route instead of one shared module (G5) — the case this pack exists to prevent.
+- The same rule computed inline in both a page and its API route instead of one shared module (G5).
 - `middleware.ts`/`proxy.ts` making an authorization decision with business meaning instead of a cheap boundary check (G17).
-- A `"use cache"` boundary drawn around a whole page instead of the one function or component that is actually safe to share (G6).
+- A `"use cache"` boundary drawn around a whole page instead of the one function or component that is safe to share (G6).
 - Data fetched inside a Client Component effect instead of a Server Component or a query library (G31).

@@ -26,11 +26,12 @@ signal config = @Configuration\b|@ConfigurationProperties\b
 
 ## Rules
 
+- Name a class for its stereotype: `OrdersController`, `OrdersService`, `OrdersRepository` — resource first, the annotation's suffix last (N3).
 - Inject every dependency through the constructor onto a `final` field; Spring wires a class's sole constructor with no `@Autowired` needed, and field injection hides a class's real dependencies from its own tests (G8).
-- Put `@Transactional` on public service methods, never on a controller or a private method: Spring's proxy cannot intercept a call that never arrives through it, so a private `@Transactional` method silently runs with no transaction at all (G2).
+- Put `@Transactional` on public service methods, never on a controller or a private method: Spring's proxy cannot intercept a call that never arrives through it, so a private `@Transactional` method silently runs with no transaction (G2).
 - Never call an `@Transactional` method on `this`; self-invocation bypasses the proxy the same way a private method does — move the method to a collaborator bean.
 - Keep JPA entities out of the controller's request and response types; map to and from a DTO at the web boundary so a column rename cannot change the API (G8).
-- Centralize exception-to-response mapping in one `@RestControllerAdvice`; do not repeat the same `try`/`catch` in every controller method (G5).
+- Centralize exception-to-response mapping in one `@RestControllerAdvice`; do not repeat `try`/`catch` in every controller method (G5).
 - Validate an incoming request body with Jakarta Bean Validation (`@Valid` plus constraint annotations) at the controller; do not hand-check fields again in the service.
 - Let a circular bean dependency fail fast instead of breaking it open with `@Lazy`: two beans that need each other directly are a design problem, not a wiring inconvenience (G13).
 - On Spring Framework 7, annotate nullable parameters and returns with `org.jspecify.annotations.Nullable`; Spring's own `@Nullable` is deprecated in its favor.
@@ -63,11 +64,11 @@ layer main        = src/main/java/**/*Application.java, src/main/java/**/config/
 - ArchUnit `layeredArchitecture()` for the declared layers, plus a `noClasses()...resideInAPackage("..domain..").should().dependOnClassesThat().resideInAPackage("..web..")` rule for the direction that matters most.
 - ArchUnit `noFields().should().beAnnotatedWith(Autowired.class)` to fail the build the moment field injection appears.
 - Spring Modulith `ApplicationModules.of(Application.class).verify()`, run as a JUnit 5 test, for module boundaries.
-- Checkstyle and PMD from the Java pack apply unchanged; this framework adds no linter of its own.
+- Checkstyle and PMD from the Java pack apply unchanged; this framework adds no linter.
 
 ## Smells
 
-- Field injection instead of a constructor parameter, hiding what a class actually depends on (G8).
+- Field injection instead of a constructor parameter, hiding what a class depends on (G8).
 - `@Transactional` on a private method, or reached only through self-invocation, so no transaction ever opens (G2).
 - Two `@Service` beans injecting each other directly, kept alive only by `@Lazy` (G13).
 - A JPA `@Entity` returned or accepted directly by a `@RestController`, coupling the wire format to the schema (G8).
