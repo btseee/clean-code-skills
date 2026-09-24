@@ -275,3 +275,22 @@ agent reports an API the pack names as missing.
 
 - `use_build_context_synchronously` lint rule: <https://dart.dev/tools/linter-rules/use_build_context_synchronously>
 - `package:flutter_lints` current: <https://pub.dev/packages/flutter_lints>
+
+### TensorFlow (`frameworks/tensorflow.md`)
+
+- Current stable release: <https://pypi.org/project/tensorflow/>
+- TensorFlow 2.16+ ships Keras 3 by default; legacy `tf_keras` is opt-in: <https://blog.tensorflow.org/2024/03/whats-new-in-tensorflow-216.html>
+- Keras 3 is multi-backend and a standalone package: <https://keras.io/keras_3/>
+- `.keras` is the whole-model save format; `model.export()` is the serving path: <https://keras.io/guides/serialization_and_saving/>
+- Determinism with `set_random_seed` and `enable_op_determinism`: <https://www.tensorflow.org/api_docs/python/tf/keras/utils/set_random_seed>
+- Ruff `NPY002`, legacy `np.random` calls: <https://docs.astral.sh/ruff/rules/numpy-legacy-random/>
+
+### PyTorch (`frameworks/pytorch.md`)
+
+- Current stable release: <https://pypi.org/project/torch/>
+- `torch.compile` and its modes: <https://docs.pytorch.org/docs/stable/generated/torch.compile.html>
+- `torch.inference_mode()` for inference; it does not set eval mode: <https://docs.pytorch.org/docs/stable/generated/torch.autograd.grad_mode.inference_mode.html>
+- Save and load `state_dict`, not the pickled model: <https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html>
+- Seeds, deterministic algorithms, and `DataLoader` worker seeding: <https://docs.pytorch.org/docs/main/notes/randomness.html>
+- Lightning 2.x namespaces (`lightning.pytorch`, `pytorch-lightning`): <https://lightning.ai/docs/pytorch/stable/generated/CHANGELOG.html>
+

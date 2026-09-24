@@ -78,6 +78,8 @@ framework Jetpack Compose = frameworks/jetpack-compose.md
 framework SwiftUI = frameworks/swiftui-uikit.md
 framework UIKit = frameworks/swiftui-uikit.md
 framework Flutter = frameworks/flutter.md
+framework TensorFlow = frameworks/tensorflow.md
+framework PyTorch = frameworks/pytorch.md
 supersede NestJS > Express
 supersede Strapi > React
 ```

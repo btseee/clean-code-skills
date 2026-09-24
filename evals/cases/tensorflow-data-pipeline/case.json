@@ -1,0 +1,37 @@
+{
+  "id": "tensorflow-data-pipeline",
+  "pack": "frameworks/tensorflow.md",
+  "prompt": "Add random horizontal-flip and brightness augmentation to the training images before they reach the model.",
+  "expected_output": "The image pipeline moves onto a tf.data.Dataset, with the flip and brightness augmentation applied as a .map() step inside it, not bolted onto the training loop; nothing lands at the repository root.",
+  "expectations": [
+    {
+      "type": "file_contains",
+      "glob": "data/**",
+      "pattern": "tf\\.data\\.Dataset",
+      "text": "The data pipeline builds a tf.data.Dataset"
+    },
+    {
+      "type": "file_contains",
+      "glob": "data/**",
+      "pattern": "\\.map\\(",
+      "text": "Augmentation runs as a .map() step inside the pipeline"
+    },
+    {
+      "type": "file_contains",
+      "glob": "data/**",
+      "pattern": "(?i)flip|brightness|augment",
+      "text": "The pipeline applies the requested flip/brightness augmentation"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "training/**",
+      "pattern": "(?i)flip|brightness|augment",
+      "text": "Augmentation logic stays in the data pipeline, not the training loop"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

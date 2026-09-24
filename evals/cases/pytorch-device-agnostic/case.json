@@ -1,0 +1,37 @@
+{
+  "id": "pytorch-device-agnostic",
+  "pack": "frameworks/pytorch.md",
+  "prompt": "This trains a small classifier on MNIST-style data. Add an evaluation loop that runs val_loader through the model after each epoch and prints the validation loss, and make sure the script still runs on a machine with no GPU.",
+  "expected_output": "An evaluation loop runs val_loader through the model in eval() mode under no_grad() or inference_mode() after each epoch; the script resolves its device once instead of hard-coding .cuda(), so it also runs on CPU-only machines; nothing lands at the repository root beyond what was already there.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "*.py",
+      "pattern": "\\.cuda\\(",
+      "text": "No hard-coded .cuda() remains; the script resolves its device instead"
+    },
+    {
+      "type": "file_contains",
+      "glob": "*.py",
+      "pattern": "\\.eval\\(\\)",
+      "text": "model.eval() runs before evaluation"
+    },
+    {
+      "type": "file_contains",
+      "glob": "*.py",
+      "pattern": "no_grad\\(\\)|inference_mode\\(\\)",
+      "text": "Evaluation runs under torch.no_grad() or torch.inference_mode()"
+    },
+    {
+      "type": "file_contains",
+      "glob": "train.py",
+      "pattern": "in val_loader",
+      "text": "The new evaluation loop actually iterates val_loader"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}
