@@ -91,6 +91,29 @@ class MapStructureTest(unittest.TestCase):
         self.assertEqual(misplaced[0]["symbol"], "authMiddleware")
         self.assertEqual(misplaced[0]["suggestion"], "src/middleware/")
 
+    def test_suggestions_stay_inside_the_project_that_holds_the_file(self):
+        write_fixture(self.root, {
+            "Billing/Billing.csproj": "<Project Sdk=\"Microsoft.NET.Sdk\" />\n",
+            "Billing/Services/InvoiceService.cs": """
+                namespace Billing.Services;
+                public class InvoiceService {}
+                public class InvoiceValidator {}
+                """,
+            "Shared/Shared.csproj": "<Project Sdk=\"Microsoft.NET.Sdk\" />\n",
+            "Shared/Validators/NameValidator.cs": """
+                namespace Shared.Validators;
+                public class NameValidator {}
+                """,
+        })
+        roles = ".clean/roles.md"
+        (self.root / roles).write_text(
+            "```clean-roles\nrole service = **/Services/**\nname service = Service$\n"
+            "role validator = **/Validators/**\nname validator = Validator$\n```\n",
+            encoding="utf-8")
+        data = map_structure.build_map(self.root, packs=[], depth=2)
+        found = [item for item in data["findings"]["misplaced"] if item["symbol"] == "InvoiceValidator"]
+        self.assertEqual([item["suggestion"] for item in found], ["Billing/Validators/"])
+
     def test_synonyms_imports_and_purposes_are_recorded(self):
         data = map_structure.build_map(self.root, packs=[], depth=2)
         self.assertEqual([item["noun"] for item in data["findings"]["synonyms"]], ["user"])

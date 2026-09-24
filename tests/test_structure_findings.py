@@ -72,6 +72,19 @@ class MisplacedTest(unittest.TestCase):
         self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"],
                          "web/src/middleware/")
 
+    def test_a_suggestion_never_leaves_the_files_own_project(self):
+        files = [
+            file("Core/Services/auth.ts", "service", [
+                (sym("AuthService", "class"), "service"),
+                (sym("authMiddleware", line=12), "middleware"),
+            ]),
+            file("Exchange/middleware/cors.ts", "middleware", [(sym("corsMiddleware"), "middleware")]),
+        ]
+        self.assertEqual(findings.find_misplaced(files, GENERIC)[0]["suggestion"],
+                         "Exchange/middleware/")
+        suggestion = findings.find_misplaced(files, GENERIC, ["", "Core", "Exchange"])[0]["suggestion"]
+        self.assertEqual(suggestion, "Core/middleware/")
+
     def test_an_entry_point_is_never_told_to_move_whole(self):
         files = [
             file("lib/main.dart", None, [(sym("LoginApp", "class"), "guard")], language="dart"),

@@ -101,6 +101,13 @@ def _file_entry(roled_file, imports: list) -> dict:
     }
 
 
+def _project_roots(root: Path) -> list:
+    """Every folder holding a manifest: each is one project in a monorepo or solution."""
+    paths = [Path(path) for path in project_files.walk(root).paths]
+    manifests = detect_stack.find_manifests(root, [(path, path.name) for path in paths])
+    return sorted({manifest["path"].rpartition("/")[0] for manifest in manifests})
+
+
 def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     """The whole structure map of the project at root, as JSON-ready data."""
     roles = structure_roles.load_roles(SKILL_ROOT, packs, root, scopes)
@@ -157,7 +164,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         "symbol_count": sum(1 for roled in production for item in roled.symbols
                             if item.symbol.parent is None),
         "findings": {
-            "misplaced": structure_findings.find_misplaced(roled_files, roles),
+            "misplaced": structure_findings.find_misplaced(roled_files, roles, _project_roots(root)),
             "mixed": structure_findings.find_mixed(roled_files),
             "duplicates": structure_findings.find_duplicates(roled_files),
             "name_clashes": structure_findings.find_name_clashes(roled_files, roles),

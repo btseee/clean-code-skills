@@ -118,14 +118,24 @@ def _home_folders(files) -> dict:
     return homes
 
 
-def _suggest(role: str, path: str, homes: dict, roles) -> Optional[str]:
-    root = _source_root(path)
-    folders = homes.get(role)
+def _project_of(path: str, project_roots) -> str:
+    """The deepest folder holding a manifest that contains path; "" for the repository root."""
+    owners = [root for root in project_roots if root and path.startswith(root + "/")]
+    return max(owners, key=len) if owners else ""
+
+
+def _suggest(role: str, path: str, homes: dict, roles, project_roots=()) -> Optional[str]:
+    # A home in another project is not an option: moving code across a manifest boundary
+    # is a design decision, never a tidy-up.
+    project = _project_of(path, project_roots)
+    folders = {folder: count for folder, count in homes.get(role, {}).items()
+               if not project or folder == project or folder.startswith(project + "/")}
     if folders:
-        # The nearest home, so a monorepo never sends code into another project.
         here = posixpath.dirname(path)
         folder = max(folders, key=lambda name: (_shared_depth(name, here), folders[name], -len(name)))
         return (folder + "/") if folder else "./"
+    source_root = _source_root(path)
+    root = source_root if len(source_root) > len(project) else project
     for glob in roles.home_globs(role, path):
         conventional = _FOLDER_GLOB.match(glob)
         if conventional:
@@ -148,8 +158,11 @@ def _sibling_home(path: str, folders) -> Optional[str]:
     return max(beside, key=lambda folder: folders[folder]) if beside else None
 
 
-def find_misplaced(files, roles) -> list:
-    """Symbols whose role differs from where they live, with a suggested home."""
+def find_misplaced(files, roles, project_roots=()) -> list:
+    """Symbols whose role differs from where they live, with a suggested home.
+
+    `project_roots` are the folders holding a manifest; a suggestion stays in its file's project.
+    """
     homes = _home_folders(files)
     found = []
     for roled_file in files:
@@ -165,7 +178,8 @@ def find_misplaced(files, roles) -> list:
                         "path": roled_file.path, "line": item.symbol.line,
                         "symbol": item.symbol.name, "role": item.role,
                         "home_role": roled_file.home_role,
-                        "suggestion": _suggest(item.role, roled_file.path, homes, roles),
+                        "suggestion": _suggest(item.role, roled_file.path, homes, roles,
+                                               project_roots),
                     })
             continue
         distinct = {item.role for item in bearing}
