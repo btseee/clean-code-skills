@@ -4,9 +4,9 @@
 
 ## Structure
 
-- `app/models/` — Active Record models and the domain rules that belong on them (the `model` role).
+- `app/models/` — Active Record models and the domain rules belonging to them (the `model` role).
 - `app/controllers/` — thin controllers: params in, one call out, one response (the `controller` role).
-- `app/services/` — a multi-step business transaction that does not belong to one model (the `service` role).
+- `app/services/` — a multi-step business transaction not belonging to one model (the `service` role).
 - `app/jobs/` — background work queued through Active Job (the `job` role).
 - `app/mailers/` — outgoing email content and delivery (the `mailer` role).
 - `app/channels/` — Action Cable connections and broadcasts (the `channel` role).
@@ -39,21 +39,22 @@ ignore-name = ^(ApplicationRecord|ApplicationController|ApplicationJob|Applicati
 ## Rules
 
 - Keep controllers thin: params in, one call to a model method or a service object, one response out; no query logic or branching business rules in an action (G30).
+- Name a model singular (`Order`), a controller and table plural (`OrdersController`, `orders`), its file `orders_controller.rb`.
 - Put a rule on the model when one object owns it; reach for a service object under `app/services/` when a transaction spans several models or an external call. Both homes are idiomatic Rails — choose by ownership, not habit.
-- Never add an `after_create`, `after_save`, or `after_commit` callback to trigger a side effect that belongs to the use case (charging a card, sending an email, calling an API); call it explicitly from the action or the service instead (G31, G17).
-- Always filter params with `params.expect(...)` (Rails 8) or `params.require(...).permit(...)`; never pass raw `params` straight into `.new` or `.update` (G24).
-- Always add `includes`/`preload`/`eager_load` before a view or serializer walks an association in a loop; an unbatched query inside a loop is an N+1.
+- Never add an `after_create`, `after_save`, or `after_commit` callback to trigger a side effect that belongs to the use case (charging a card, sending an email, calling an API); call it explicitly from the action or the service (G31, G17).
+- Filter params with `params.expect(...)` (Rails 8) or `params.require(...).permit(...)`; never pass raw `params` straight into `.new` or `.update` (G24).
+- Add `includes`/`preload`/`eager_load` before a view or serializer walks an association in a loop; an unbatched query inside a loop is an N+1.
 - Keep authorization out of the controller body: call a policy object (`UserPolicy.new(current_user, record).edit?`) instead of inlining a role check (G17).
 - Validate on the model, not only in the controller or a form object, so invalid data cannot reach the database through another path (G5).
-- Never rescue an exception in a controller only to render nothing; render a real error response or let Rails' own exception handling produce one (G4).
+- Never rescue an exception in a controller only to render nothing; render a real error response or let Rails' exception handling produce one (G4).
 
 ## Layers
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- Active Record models and controllers are the framework's persistence and delivery layer, not the domain layer. When layers are declared, move domain rules into plain Ruby objects under `app/domain/` or `lib/`, orchestrated by services under `app/services/`, and let the model stay a thin persistence adapter.
-- Declare a port as a small role module or a documented duck type in the domain; a model, a mailer, or an external API client implements it. Framework and ORM types (`ActiveRecord::Base`, `ActionController::Base`, a `params` hash) never cross into the domain layer (the Dependency Rule).
-- Compose the object graph in a Rails initializer (`config/initializers/`); a domain object never queries `ActiveRecord` or instantiates a mailer itself.
+- Active Record models and controllers are the framework's persistence and delivery layer, not domain. When declared, move domain rules into plain Ruby objects under `app/domain/` or `lib/`, orchestrated by services under `app/services/`; let the model stay a thin persistence adapter.
+- Declare a port as a role module or documented duck type in the domain; a model, a mailer, or an external API client implements it. Framework and ORM types (`ActiveRecord::Base`, `ActionController::Base`, a `params` hash) never cross into the domain layer (the Dependency Rule).
+- Compose the object graph in a Rails initializer (`config/initializers/`); a domain object never queries `ActiveRecord` or instantiates a mailer.
 
 ```clean-architecture
 layer domain      = app/domain/**, lib/**
@@ -65,11 +66,11 @@ layer main        = config/initializers/**
 
 ## Tests
 
-- Test business rules as plain Ruby objects or models with RSpec or Minitest, without booting the full request stack when a unit test suffices (F.I.R.S.T.).
+- Test business rules as plain Ruby objects or models with RSpec or Minitest, without booting the request stack when a unit test suffices (F.I.R.S.T.).
 - Test controllers with request specs (`spec/requests`) asserting status and body, not controller internals.
 - Use `ActiveJob::TestHelper` (`assert_enqueued_with`, `perform_enqueued_jobs`) instead of asserting on a job's internals.
 - Stub third-party calls (WebMock or VCR); never let a test hit a real external API.
-- Keep system specs (Capybara) for real user flows; never use one to verify a single business rule a model spec already covers more cheaply (F.I.R.S.T.).
+- Keep system specs (Capybara) for real user flows; never use one to verify a single business rule a model spec covers more cheaply (F.I.R.S.T.).
 
 ## Enforce
 
@@ -80,7 +81,7 @@ layer main        = config/initializers/**
 
 ## Smells
 
-- A callback chain on a model that reaches into unrelated systems (email, billing, a third-party API) instead of one persistence concern (G17, G31).
+- A callback chain on a model reaching into unrelated systems (email, billing, a third-party API) instead of one persistence concern (G17, G31).
 - A controller action with conditional business logic instead of one call out (G30, G6).
 - `params` passed straight into `.create`/`.update` with no `permit` (G24).
 - A view or serializer looping over an association with no `includes`, producing N+1 queries.

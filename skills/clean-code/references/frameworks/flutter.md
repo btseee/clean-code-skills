@@ -8,7 +8,7 @@
 - `lib/screens/` or `lib/pages/` — one full-page widget per app destination.
 - `lib/widgets/` — small, reusable widgets shared across screens.
 - `lib/notifiers/` or `lib/providers/` — `ChangeNotifier`/`Notifier`/`AsyncNotifier` classes holding UI state.
-- `lib/blocs/` or `lib/cubits/` — `Bloc`/`Cubit` classes, where the project follows that pattern instead.
+- `lib/blocs/` or `lib/cubits/` — `Bloc`/`Cubit` classes, where the project follows that pattern.
 - `lib/repositories/` — data-access contracts and their implementations.
 - `lib/services/` — a thin wrapper around one external API or platform channel.
 - `lib/models/` — immutable data classes and their (de)serialization.
@@ -29,10 +29,11 @@ ignore-name = ^(MyApp|App)$
 
 ## Rules
 
-- Keep a widget small; extract a child widget instead of nesting builders or nested ternaries inside one `build` (G30).
-- Mark every constructor `const` where its fields allow it; a widget that cannot be `const` rebuilds when it could have been skipped.
+- Keep a widget small; extract a child widget instead of nesting builders or ternaries inside one `build` (G30).
+- Name a widget class UpperCamelCase (`OrderCard`) and its file lowercase_with_underscores (`order_card.dart`).
+- Mark every constructor `const` where its fields allow it; a widget that cannot be `const` rebuilds when it could be skipped.
 - Never perform I/O, start a timer, or navigate as a side effect of `build`; `build` runs on every frame and must stay pure — start work in `initState`, a lifecycle callback, or an event handler (G17).
-- Hold loading, data, and error explicitly (a small sealed result type, or three fields) in a notifier, cubit, or `State`, and let the widget render each — never infer status from nullability alone (G26).
+- Hold loading, data, and error explicitly (a sealed result type, or three fields) in a notifier, cubit, or `State`, and let the widget render each — never infer status from nullability alone (G26).
 - Check `context.mounted` (or the `State`'s `mounted`) after an `await` before touching `BuildContext` again (`use_build_context_synchronously`).
 - Dispose every controller, stream subscription, or listener created in `initState` inside `dispose`.
 - Key a widget a parent may reorder or replace, so Flutter matches state to the right element, never the list index, when order can change.
@@ -41,9 +42,9 @@ ignore-name = ^(MyApp|App)$
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- Widgets, `State`, notifiers, and blocs are the delivery layer: they render and dispatch; they never decide a business rule themselves.
-- A repository implements an interface the application layer declares; a widget or notifier never constructs an `http.Client` or a database driver itself.
-- Compose the dependency graph in `main.dart` and pass collaborators down through constructors; a widget never reaches for a global singleton to find one.
+- Widgets, `State`, notifiers, and blocs are the delivery layer: render and dispatch; never decide a business rule.
+- A repository implements an interface the application layer declares; a widget or notifier never constructs an `http.Client` or a database driver.
+- Compose the dependency graph in `main.dart` and pass collaborators through constructors; a widget never reaches for a global singleton.
 
 ```clean-architecture
 layer domain         = lib/domain/**
@@ -58,7 +59,7 @@ layer main           = lib/main.dart
 - Test a widget with `flutter_test`'s `testWidgets` and `WidgetTester`: pump it, then assert on the rendered tree, never on a private field.
 - Test a notifier, cubit, or bloc as a plain object — construct it, call its methods, assert what it emits — with no widget tree involved.
 - Fake the repository or service interface in every widget and notifier test; a test never makes a real network call.
-- Use `bloc_test` for a Bloc/Cubit's state-sequence assertions where the project already depends on the bloc package.
+- Use `bloc_test` for a Bloc/Cubit's state-sequence assertions where the project depends on the bloc package.
 
 ## Enforce
 
@@ -68,7 +69,7 @@ layer main           = lib/main.dart
 
 ## Smells
 
-- `build` calling `http`, a database, or `Future.delayed` directly (G17, G30).
+- `build` calling `http`, a database, or `Future.delayed` (G17, G30).
 - A widget hundreds of lines long, mixing layout, formatting, and business rules (G30).
 - The same validation rule duplicated between a widget and its notifier (G5).
 - `setState` or `BuildContext` used after an `await` with no `mounted` check (G3).

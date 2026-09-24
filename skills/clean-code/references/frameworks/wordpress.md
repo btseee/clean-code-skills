@@ -4,7 +4,7 @@
 
 ## Structure
 
-- `plugin-name.php` — header and bootstrap only: constants, the activation/deactivation hooks, a call into the main class.
+- `plugin-name.php` — header and bootstrap only: constants, activation/deactivation hooks, a call into the main class.
 - `includes/**` — environment-agnostic core classes: the main plugin class, its hook loader, activator, deactivator, i18n.
 - `admin/**` — admin-screen classes, settings pages, and the assets they enqueue.
 - `public/**` — front-end hooks, shortcodes, and the assets they enqueue.
@@ -26,22 +26,22 @@ allow plugin-core = rest-controller, widget
 
 ## Rules
 
-- Follow WordPress's own naming convention where `php.md`'s PSR style would otherwise apply: snake_case functions and methods (`get_user_settings()`), `Capitalized_Words` classes (`My_Plugin_Admin`), UPPER_SNAKE constants — this deliberately overrides PSR-1 in WordPress code (N3).
-- Prefix every global — function, hook name, option key, transient key, class, constant — with the plugin's own prefix, or namespace it; an unprefixed `activate()` collides with any other plugin that declares one (G13).
+- Follow WordPress's own naming convention where `php.md`'s PSR style would otherwise apply: snake_case functions and methods (`get_user_settings()`), `Capitalized_Words` classes (`My_Plugin_Admin`), UPPER_SNAKE constants — this overrides PSR-1 in WordPress code (N3).
+- Prefix every global — function, hook name, option key, transient key, class, constant — with the plugin's prefix, or namespace it; an unprefixed `activate()` collides with any other plugin that declares one (G13).
 - Sanitize every value read from `$_GET`, `$_POST`, or `$_REQUEST` on the way in (`sanitize_text_field()`, `absint()`, or another `sanitize_*` matching its shape); trust nothing from the request (G3).
 - Escape every value on the way to output — `esc_html()`, `esc_attr()`, `esc_url()`, `esc_js()` — or run it through `wp_kses()`/`wp_kses_post()` when it must carry limited HTML; never `echo` a raw request or database value.
 - Verify a nonce (`wp_verify_nonce()`, `check_admin_referer()`) and a capability (`current_user_can()`) before any state-changing action; missing either makes correct escaping moot.
-- Build every query that includes a variable through `$wpdb->prepare()`; never interpolate a value directly into SQL (G26).
+- Build every query that includes a variable through `$wpdb->prepare()`; never interpolate a value into SQL (G26).
 - Extend `WP_REST_Controller` for a REST endpoint and give every route a `permission_callback`; an omitted one defaults public and is a security hole, not a shortcut (G4).
-- Declare a block's metadata in `block.json` with `"apiVersion": 3`, and build its assets with `@wordpress/scripts` rather than hand-rolled enqueue and localization code; from WordPress 7.1 the post editor is always iframed, whatever a block's `apiVersion`, so test every block inside the iframe.
-- Autoload plugin classes through Composer PSR-4 (`"MyPlugin\\": "includes/"`); PSR-4 governs autoloading only, not the naming convention above.
+- Declare a block's metadata in `block.json` with `"apiVersion": 3`, and build its assets with `@wordpress/scripts` rather than hand-rolled enqueue and localization code; from WordPress 7.1 the post editor is iframed, whatever a block's `apiVersion`, so test every block inside the iframe.
+- Autoload plugin classes through Composer PSR-4 (`"MyPlugin\\": "includes/"`); PSR-4 governs autoloading, not the naming convention above.
 
 ## Layers
 
 Applies only when `.clean/architecture.md` declares layers.
 
-- Hook callbacks, shortcode handlers, REST controllers, and block render callbacks are delivery: they translate a WordPress request or lifecycle event into a call on a plain class.
-- Business rules live in plain PHP classes under `includes/**` that take scalars or value objects, never a `WP_REST_Request`, `WP_Post`, or the global `$wpdb`.
+- Hook callbacks, shortcode handlers, REST controllers, and block render callbacks are delivery: translate a WordPress request or lifecycle event into a call on a plain class.
+- Business rules live in plain PHP classes under `includes/**` taking scalars or value objects, never a `WP_REST_Request`, `WP_Post`, or the global `$wpdb`.
 - Declare an interface for `$wpdb`, the HTTP API, or an external SDK on the business side; implement and swap it in a class under `includes/**`, never inline in a hook callback.
 - Register every hook from one place — the plugin's loader class or main file — never scattered `add_action()` calls inside a business class.
 
@@ -55,7 +55,7 @@ layer main        = **/includes/class-*-loader.php
 ## Tests
 
 - Bootstrap with `wp-env` (`@wordpress/env`) so tests run the real WordPress PHPUnit suite, not a hand-mocked `wp_*` shim.
-- Test a hook's effect by firing it (`do_action()`, `apply_filters()`) and asserting the result, not that the callback was merely registered.
+- Test a hook's effect by firing it (`do_action()`, `apply_filters()`) and asserting the result, not that the callback was registered.
 - Dispatch REST requests through `rest_do_request()` and assert status and body shape, including the unauthorized case (T5).
 - Build fixtures with `WP_UnitTestCase`'s factories (`self::factory()->post->create()`); never seed through raw `$wpdb` inserts.
 
