@@ -159,6 +159,10 @@ class SignatureTest(unittest.TestCase):
         ("require github.com/beego/beego/v2 v2.3.0", "Beego"),
         ("<groupId>org.springframework</groupId>", "Spring"),
         ('implementation("androidx.compose.ui:ui")', "Jetpack Compose"),
+        ('{"devDependencies": {"tailwindcss": "^4.1.0"}}', "Tailwind CSS"),
+        ('"require": {"drupal/core-recommended": "^11.0"}', "Drupal"),
+        ('"require": {"johnpbloch/wordpress": "^6.4"}', "WordPress"),
+        ('"require": {"roots/wordpress": "^6.4"}', "WordPress"),
     ]
 
     def test_new_framework_signatures(self):
@@ -181,9 +185,132 @@ class SignatureTest(unittest.TestCase):
 
     def test_every_new_label_is_emittable(self):
         for label in ("SvelteKit", "Strapi", "Beego", "Spring", "Jetpack Compose", "Ktor",
-                      "SwiftUI", "UIKit", "ASP.NET Core"):
+                      "SwiftUI", "UIKit", "ASP.NET Core",
+                      "Tailwind CSS", "Drupal", "WordPress", "Unity"):
             self.assertIn(label, detect_stack.EMITTABLE_FRAMEWORKS)
         self.assertIn("C#", detect_stack.EMITTABLE_LANGUAGES)
+
+
+class NewPackFrameworkDetectionTest(unittest.TestCase):
+    """Tailwind CSS, Drupal, WordPress, and Unity, run end to end through build_context."""
+
+    def test_tailwindcss_dependency_in_package_json_is_detected(self):
+        directory = make_project({
+            "package.json": '{"devDependencies": {"tailwindcss": "^4.1.0"}}\n',
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Tailwind CSS", context["frameworks"])
+
+    def test_tailwind_css_import_without_package_json_is_detected(self):
+        directory = make_project({
+            "src/styles/app.css": '@import "tailwindcss";\n',
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Tailwind CSS", context["frameworks"])
+
+    def test_css_file_without_tailwind_markers_is_not_detected(self):
+        directory = make_project({
+            "src/app.css": ".badge { color: red; }\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertNotIn("Tailwind CSS", context["frameworks"])
+
+    def test_drupal_core_recommended_in_composer_json_is_detected(self):
+        directory = make_project({
+            "composer.json": '{"require": {"php": ">=8.3", "drupal/core-recommended": "^11.0"}}\n',
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Drupal", context["frameworks"])
+
+    def test_drupal_info_yml_is_detected_without_composer_json(self):
+        directory = make_project({
+            "web/modules/custom/greeting/greeting.info.yml":
+                "name: Greeting\ntype: module\ncore_version_requirement: ^10 || ^11\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Drupal", context["frameworks"])
+
+    def test_wordpress_dependency_in_composer_json_is_detected(self):
+        directory = make_project({
+            "composer.json": '{"require": {"php": ">=8.1", "johnpbloch/wordpress": "^6.4"}}\n',
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("WordPress", context["frameworks"])
+
+    def test_wp_config_requiring_wp_settings_is_detected_as_wordpress(self):
+        directory = make_project({
+            "wp-config.php": "<?php\ndefine('DB_NAME', 'wordpress');\n"
+                             "require_once ABSPATH . 'wp-settings.php';\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("WordPress", context["frameworks"])
+
+    def test_wordpress_plugin_header_is_detected_without_composer_json(self):
+        directory = make_project({
+            "greeting-widget.php": "<?php\n/**\n * Plugin Name: Greeting Widget\n"
+                                   " * Version: 1.0.0\n */\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("WordPress", context["frameworks"])
+
+    def test_wordpress_theme_style_css_is_detected(self):
+        directory = make_project({
+            "style.css": "/*\nTheme Name: Example Theme\nAuthor: Test\n*/\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("WordPress", context["frameworks"])
+
+    def test_plain_php_file_without_wordpress_markers_is_not_detected(self):
+        directory = make_project({
+            "src/Greeter.php": "<?php\nclass Greeter {\n    public function hello() {\n"
+                               "        return 'hi';\n    }\n}\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertNotIn("WordPress", context["frameworks"])
+
+    def test_unity_project_version_file_is_detected(self):
+        directory = make_project({
+            "ProjectSettings/ProjectVersion.txt":
+                "m_EditorVersion: 6000.3.12f1\nm_EditorVersionWithRevision: 6000.3.12f1 (0000000000000)\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Unity", context["frameworks"])
+
+    def test_unity_packages_manifest_is_detected(self):
+        directory = make_project({
+            "Packages/manifest.json": '{"dependencies": {"com.unity.ugui": "2.0.0"}}\n',
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Unity", context["frameworks"])
+
+    def test_using_unityengine_in_cs_file_is_detected(self):
+        directory = make_project({
+            "Assets/Player.cs": "using UnityEngine;\n\npublic class Player : MonoBehaviour {}\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("Unity", context["frameworks"])
+
+    def test_requirements_txt_pins_pytorch_and_tensorflow(self):
+        directory = make_project({
+            "requirements.txt": "torch==2.3.0\ntensorflow==2.16.1\n",
+        })
+        with directory:
+            context = detect_stack.build_context(Path(directory.name))
+        self.assertIn("PyTorch", context["frameworks"])
+        self.assertIn("TensorFlow", context["frameworks"])
 
 
 class BuildContextTest(unittest.TestCase):

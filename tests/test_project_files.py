@@ -1,7 +1,19 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
 from source import files as project_files
+
+
+def make_tree(files: dict) -> tempfile.TemporaryDirectory:
+    """A temporary directory populated with the given relative-path -> content files."""
+    directory = tempfile.TemporaryDirectory()
+    for relative_path, text in files.items():
+        target = Path(directory.name) / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    return directory
 
 
 class GlobMatchTest(unittest.TestCase):
@@ -24,8 +36,6 @@ class GlobMatchTest(unittest.TestCase):
                 self.assertEqual(project_files.glob_match(pattern, path), expected)
 
     def test_read_text_drops_a_byte_order_mark(self):
-        import tempfile
-        from pathlib import Path
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "a.cs"
             path.write_bytes(b"\xef\xbb\xbfnamespace X;\n")
@@ -75,6 +85,49 @@ class GlobMatchTest(unittest.TestCase):
     def test_literal_weight_ranks_the_more_specific_pattern_higher(self):
         self.assertEqual(project_files.literal_weight("**/middleware/**"), 10)
         self.assertEqual(project_files.literal_weight("**/*.middleware.*"), 12)
+
+
+class FrameworkOwnedDirsTest(unittest.TestCase):
+    """walk() prunes a framework's own rebuildable or third-party folders."""
+
+    def test_a_unitys_library_files_are_dropped_but_assets_files_are_kept(self):
+        with make_tree({
+            "Assets/Player.cs": "public class Player {}\n",
+            "ProjectSettings/ProjectVersion.txt": "m_EditorVersion: 6000.3.12f1\n",
+            "Library/ShaderCache/shader.bin": "binary\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertIn("Assets/Player.cs", result.paths)
+        self.assertIn("ProjectSettings/ProjectVersion.txt", result.paths)
+        self.assertFalse(any(path.startswith("Library/") for path in result.paths))
+
+    def test_a_library_folder_without_unitys_siblings_is_kept(self):
+        with make_tree({"Library/catalog.txt": "not a unity project\n"}) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertIn("Library/catalog.txt", result.paths)
+
+    def test_a_drupal_docroot_drops_core_and_contrib_but_keeps_custom(self):
+        with make_tree({
+            "web/core/core.php": "<?php\n",
+            "web/modules/contrib/foo/foo.info.yml": "name: Foo\n",
+            "web/modules/custom/greeting/greeting.info.yml": "name: Greeting\n",
+            "web/sites/default/settings.php": "<?php\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertNotIn("web/core/core.php", result.paths)
+        self.assertNotIn("web/modules/contrib/foo/foo.info.yml", result.paths)
+        self.assertIn("web/modules/custom/greeting/greeting.info.yml", result.paths)
+
+    def test_wordpress_core_directories_are_skipped(self):
+        with make_tree({
+            "wp-includes/functions.php": "<?php\n",
+            "wp-admin/index.php": "<?php\n",
+            "wp-content/plugins/hello/hello.php": "<?php\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertNotIn("wp-includes/functions.php", result.paths)
+        self.assertNotIn("wp-admin/index.php", result.paths)
+        self.assertIn("wp-content/plugins/hello/hello.php", result.paths)
 
 
 if __name__ == "__main__":

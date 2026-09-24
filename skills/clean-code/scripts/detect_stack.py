@@ -104,7 +104,7 @@ MANIFEST_SUFFIXES = {
 FRAMEWORK_SIGNATURES = [
     ("react", "React"), ("next", "Next.js"), ("vue", "Vue"), ("nuxt", "Nuxt"),
     ("@angular/core", "Angular"), ("svelte", "Svelte"), ("@sveltejs/kit", "SvelteKit"),
-    ("solid-js", "SolidJS"),
+    ("solid-js", "SolidJS"), ("tailwindcss", "Tailwind CSS"),
     ("express", "Express"), ("fastify", "Fastify"), ("nestjs", "NestJS"),
     ("@nestjs/core", "NestJS"), ("hono", "Hono"), ("@strapi/strapi", "Strapi"),
     ("django", "Django"), ("flask", "Flask"), ("fastapi", "FastAPI"),
@@ -116,6 +116,7 @@ FRAMEWORK_SIGNATURES = [
     ("akka", "Akka"), ("mediatr", "MediatR"), ("dapper", "Dapper"),
     ("rails", "Ruby on Rails"), ("sinatra", "Sinatra"),
     ("laravel", "Laravel"), ("symfony", "Symfony"),
+    ("drupal/core", "Drupal"), ("johnpbloch/wordpress", "WordPress"), ("roots/wordpress", "WordPress"),
     ("gin-gonic", "Gin"), ("beego", "Beego"), ("gofiber/fiber", "Fiber"),
     ("labstack/echo", "Echo"),
     ("actix", "Actix"), ("axum", "Axum"), ("rocket", "Rocket"), ("tokio", "Tokio"),
@@ -125,13 +126,35 @@ FRAMEWORK_SIGNATURES = [
     ("tensorflow", "TensorFlow"), ("torch", "PyTorch"), ("pandas", "pandas"),
 ]
 
-# Frameworks that no manifest names: Apple's UI frameworks ship with the platform,
-# so only the sources' imports reveal them. (suffixes, pattern, label)
+# Frameworks no manifest names, or whose manifest is missing on some projects: Apple's
+# UI frameworks ship with the platform, and a Tailwind, Drupal, WordPress, or Unity
+# project may have no package.json/composer.json at all -- so only the sources, or a
+# file the framework itself owns, reveal them. (suffixes, pattern, label)
+# The suffix test is `path.lower().endswith(suffixes)`, so a full file tail
+# (".info.yml", "projectsettings/projectversion.txt") works as a suffix too.
 SOURCE_FRAMEWORK_SIGNATURES = (
     ((".swift",), re.compile(r"^[ \t]*import[ \t]+SwiftUI\b", re.M), "SwiftUI"),
     ((".swift",), re.compile(r"^[ \t]*import[ \t]+UIKit\b", re.M), "UIKit"),
     ((".m", ".mm", ".h"), re.compile(r"^[ \t]*(?:#import[ \t]*<UIKit/|@import[ \t]+UIKit\b)", re.M),
      "UIKit"),
+    # A standalone-CLI, Rails, Django, or Phoenix project styled with Tailwind has no
+    # package.json to name it; its CSS entry point does.
+    ((".css",), re.compile(
+        r'^[ \t]*@import[ \t]+["\']tailwindcss["\']|^[ \t]*@tailwind[ \t]+(?:base|components|utilities)\b',
+        re.M), "Tailwind CSS"),
+    # A module repository has no root composer.json, only its own .info.yml.
+    ((".info.yml",), re.compile(r"^core_version_requirement[ \t]*:", re.M), "Drupal"),
+    # A plugin's header comment, its hook calls, or wp-config.php's require of
+    # wp-settings.php; this also covers a wp-content/ tree, whose plugins and themes
+    # carry these.
+    ((".php",), re.compile(
+        r"^[ \t/*#@]*Plugin Name[ \t]*:|\badd_(?:action|filter)[ \t]*\(|wp-settings\.php",
+        re.M), "WordPress"),
+    # A theme's style.css header.
+    ((".css",), re.compile(r"^[ \t/*#@]*Theme Name[ \t]*:", re.M), "WordPress"),
+    ((".cs",), re.compile(r"^[ \t]*using[ \t]+UnityEngine\b", re.M), "Unity"),
+    (("projectsettings/projectversion.txt",), re.compile(r"^m_EditorVersion[ \t]*:", re.M), "Unity"),
+    (("packages/manifest.json",), re.compile(r'"com\.unity\.'), "Unity"),
 )
 SOURCE_SCAN_FILES = 200
 SOURCE_SCAN_LINES = 60

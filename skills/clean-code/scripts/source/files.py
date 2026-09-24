@@ -27,7 +27,19 @@ SKIP_DIRS = frozenset({
     "bin", "obj", "build", "dist", "out", "target", "_build", "deps",
     "coverage", "htmlcov", ".next", ".nuxt", ".svelte-kit", ".parcel-cache",
     "Pods", "Carthage", ".cargo", ".stack-work", "cmake-build-debug", "migrations",
+    "wp-admin", "wp-includes",
 })
+
+# A folder a framework owns, pruned only where the framework's own layout proves it:
+# Unity's Library/Temp/Logs/UserSettings are rebuildable caches beside Assets and
+# ProjectSettings, and a Drupal docroot's composer-installed core, or a modules,
+# themes, or profiles folder's composer-installed contrib, are not the project's code.
+# (sibling folder names that must all be present, folder names to prune)
+FRAMEWORK_OWNED_DIRS = (
+    (frozenset({"Assets", "ProjectSettings"}), frozenset({"Library", "Temp", "Logs", "UserSettings"})),
+    (frozenset({"core", "modules", "sites"}), frozenset({"core"})),
+    (frozenset({"contrib", "custom"}), frozenset({"contrib"})),
+)
 
 TEST_DIR_NAMES = frozenset({
     "test", "tests", "spec", "specs", "__tests__", "testing",
@@ -88,7 +100,11 @@ def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
     """
     paths: list = []
     for current_dir, subdirs, filenames in os.walk(root):
-        subdirs[:] = sorted(name for name in subdirs if not is_skippable(name))
+        sibling_dirs = frozenset(subdirs)
+        pruned = frozenset().union(*(prune_names for required, prune_names in FRAMEWORK_OWNED_DIRS
+                                      if required <= sibling_dirs))
+        subdirs[:] = sorted(name for name in subdirs
+                             if not is_skippable(name) and name not in pruned)
         for filename in sorted(filenames):
             path = Path(current_dir) / filename
             if suffixes is not None and path.suffix.lower() not in suffixes and filename not in names:
