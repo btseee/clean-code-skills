@@ -38,6 +38,23 @@ jobs:
         shell: pwsh
         run: ./scripts/validate.ps1
 
+  python-3-8:
+    name: Python 3.8 floor
+    # The scripts promise Python 3.8. The validator's 3.8 grammar check runs on a newer
+    # parser, which accepts some syntax 3.8 rejects, so run the real thing. Pinned because
+    # 3.8 builds exist only for older runner images.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+      - name: Skill scripts compile
+        run: python -m compileall -q skills/clean-code/scripts
+
   lint-markdown:
     name: Lint markdown
     runs-on: ubuntu-latest
