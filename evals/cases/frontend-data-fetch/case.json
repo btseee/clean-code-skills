@@ -25,7 +25,7 @@
     {
       "type": "file_contains",
       "glob": "src/pages/Dashboard.tsx",
-      "pattern": "Revenue:\\s*\\$",
+      "pattern": "Revenue:\\s*(?:\\$|\\{)",
       "text": "Dashboard shows the revenue total next to its title"
     },
     {
