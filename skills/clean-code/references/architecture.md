@@ -1,9 +1,8 @@
 # Architecture
 
-Clean code is about the lines inside a unit. Architecture is about the lines *between* units:
-where they run, and which way the dependencies cross them. Read this file when a task involves
-placement across layers, a new dependency, a boundary, a framework or database decision, or any
-question of the form "where should this live and what may it know about?"
+Clean code is the lines inside a unit; architecture is the lines *between* — where they run and
+which way dependencies cross. Read this for placement across layers, a new dependency, a
+boundary, or a framework or database decision.
 
 ## Contents
 
@@ -32,122 +31,109 @@ function, variable, annotation, or data format.
 
 ## Why the rule is even possible: the three paradigms
 
-Each programming paradigm *removes* a capability rather than adding one, and each removal is what a
-discipline is:
+Each paradigm *removes* a capability; the removal is the discipline:
 
-- **Structured programming restricts direct transfer of control.** Sequence, selection
-  and iteration are enough to build anything, and they make units small enough to falsify with a
-  test. That is also the honest limit of testing: **tests show the presence of bugs, never their
-  absence** — correctness is demonstrated by failing to prove incorrectness, which is why
-  decomposition into testable units is an architectural concern and not a style preference.
-- **Object orientation imposes discipline on indirect transfer of control.** Its architectural
-  payoff is not encapsulation or inheritance; it is that polymorphism gives **control over the direction
-  of every source-code dependency** — any dependency, anywhere, can be pointed the other
-  way. That is the entire mechanism behind the Dependency Rule: without it the rule would be an
-  aspiration, with it the rule is a choice.
-- **Functional programming imposes discipline on assignment.** See the state section below.
+- **Structured programming restricts direct transfer of control** — sequence, selection, and
+  iteration build anything, and keep units small enough to falsify with a test: **tests show the
+  presence of bugs, never their absence.**
+- **Object orientation disciplines indirect transfer of control.** Its payoff is not encapsulation
+  or inheritance but that polymorphism gives **control over the direction of every source-code
+  dependency** — the mechanism behind the Dependency Rule: without it the rule is an aspiration,
+  with it a choice.
+- **Functional programming disciplines assignment** — see State and mutability, below.
 
-**The plugin argument** is why inverted dependencies matter beyond tidiness. A plugin depends on its
-host, so nothing the plugin does can break the host, while the host can drop the plugin at will —
-a deliberately **asymmetric** relationship. Point the arrows so that the business rules are the
-host and the UI, the database and the framework are the plugins, and changes to those details
-*cannot* propagate into policy. Every boundary in this file is that argument applied somewhere.
+**The plugin argument:** a plugin depends on its host and cannot break it, while the host drops the
+plugin at will — a deliberately **asymmetric** relationship. Point the arrows so business rules are
+the host and the UI, database, and framework are plugins, so detail changes cannot propagate into
+policy.
 
 ## State and mutability as an architectural choice
 
-Every race condition, deadlock, and concurrent-update defect traces to a mutable variable — there
-are no deadlocks without mutable locks. That makes mutability a placement decision, not an
-implementation detail:
+Every race condition, deadlock, and concurrent-update defect traces to a mutable variable — no
+deadlocks without mutable locks. Mutability is a placement decision, not an implementation detail:
 
-- **Segregate mutability.** Split the system into components that mutate and components that do
-  not, and move as much of the processing as you can into the immutable ones. Protect what must mutate
-  (transactions, actors, a transactional-memory discipline) and keep it small and named.
-- **Event sourcing** is the extreme of the same idea: store the transactions, not the state, and
-  recompute state by replaying them. Applications become create-and-read only, and the concurrent-
-  update problem disappears because nothing updates. Version control works exactly this way.
+- **Segregate mutability** — split the system into mutating and non-mutating components, moving as
+  much processing as you can into the immutable ones; keep what must mutate small, named, and
+  protected (transactions, actors, transactional memory).
+- **Event sourcing** goes further: store transactions, not state, and recompute by replaying them.
+  Applications become create-and-read only, and concurrent-update problems disappear because
+  nothing updates — version control works this way.
 
-The operational detail — locking discipline, the named execution models, how to test any of it — is
-in `concurrency.md`. This section exists because *where mutation lives* is decided at boundary-
-drawing time, long before any lock is written.
+The operational detail — locking discipline, execution models, how to test any of it — is in
+`concurrency.md`. *Where mutation lives* is a boundary-drawing decision, made long before any lock.
 
 ## Level, policy, and detail
 
-**Level is distance from input and output.** The further a policy sits from I/O, the higher
-its level. This is the definition that decides placement, and it is not the same as call order: a
-function that calls `readChar` and `writeChar` is *higher* level than they are, even though it is
-the caller.
+**Level is distance from input and output** — not call order: a function calling `readChar` and
+`writeChar` is *higher* level than they are, even though it is the caller. The further a policy
+sits from I/O, the higher its level.
 
 - **Policy** is the business rules: the reason the software exists.
-- **Detail** is everything that helps policy talk to the world: the database, the web, the UI, the
-  framework, the delivery mechanism, the device, the protocol.
+- **Detail** is everything that helps policy talk to the world: database, web, UI, framework,
+  delivery mechanism, device, protocol.
 
-Group policies that change for the same reasons at the same times into the same level. Different
-reasons or different rates mean different levels, and therefore different components.
+Group same-reason, same-rate policies into one level; different reasons or rates mean different
+levels and components.
 
-Design so that **low-level components depend on high-level ones**, never the reverse. The
-component dependency graph is a graph of compile-time dependencies (`import`, `using`, `require`)
-and it must be acyclic.
+Design so **low-level components depend on high-level ones**, never the reverse. The component
+dependency graph — compile-time dependencies (`import`, `using`, `require`) — must be acyclic.
 
 ### The two kinds of business rule
 
-- **Critical Business Rules** and **Critical Business Data** would exist even if the business ran
-  on paper with no software at all. Bind them together into an **Entity**: a module holding a
-  small set of critical rules operating on critical data. An Entity is pure business and nothing
-  else. It needs no object-oriented language — only that the data and its rules live in one
-  separate module.
-- A **use case** describes how an automated system is used: input, output, processing steps. It
-  holds *application-specific* rules and orchestrates the Entities.
+- **Critical Business Rules** and **Critical Business Data** would exist even on paper, with no
+  software. Bind them into an **Entity**: a module holding critical rules operating on critical
+  data — pure business, needing no object-oriented language, only that data and rules share one
+  module.
+- A **use case** describes how an automated system is used (input, output, processing steps),
+  holding *application-specific* rules and orchestrating Entities.
 
-The dependency follows: **use cases depend on Entities, never the reverse.** Use
-cases are closer to I/O, so they are lower level.
+The dependency follows: **use cases depend on Entities, never the reverse** — use cases sit closer
+to I/O, so they are lower level.
 
-Practical test: if the rule is still true with pen and paper, it belongs in an Entity. If it exists
-only because the work was automated, it belongs in a use case. From inside a use case it must be
-impossible to tell whether the delivery mechanism is a web app, a console, a desktop client, or a
-service.
+Practical test: still true on paper → an Entity; true only because the work was automated → a use
+case. A use case must never reveal whether the delivery mechanism is a web app, console, desktop
+client, or service.
 
 ## The circles
 
 Outermost to innermost. The count is schematic — add circles freely — but the Dependency Rule
 always applies.
 
-1. **Frameworks and drivers** — the database, the web framework, the device, the tools. All the
-   details go here, plus glue code. The web is a detail. The database is a detail.
-2. **Interface adapters** — code that converts between the form convenient to the use cases and
-   the form convenient to some external agency. Controllers, presenters, views, gateways, and
-   mappers live here. **All SQL is confined to this layer**; nothing further in knows a database
-   exists.
+1. **Frameworks and drivers** — the database, the web framework, the device, the tools, plus glue
+   code. The web is a detail. The database is a detail.
+2. **Interface adapters** — convert between what use cases need and what an external agency needs:
+   controllers, presenters, views, gateways, mappers. **All SQL is confined to this layer**;
+   nothing further in knows a database exists.
 3. **Use cases** — application-specific rules, orchestrating the flow to and from Entities.
-4. **Entities** — enterprise-wide critical business rules. No change to any single application
-   should force a change here.
+4. **Entities** — enterprise-wide critical business rules. No single application's change should
+   force a change here.
 
-Outer circles are mechanisms; inner circles are policies. This shape is the common core of
-Hexagonal / Ports and Adapters, DCI, and BCE — the names differ, the rule does not.
+Outer circles are mechanisms, inner circles policies — the common core of Hexagonal / Ports and
+Adapters, DCI, and BCE alike; the names differ, the rule does not.
 
 ### Crossing a boundary
 
-At run time a boundary crossing is just a function on one side calling a function on the other and
-passing data. The design work is entirely in the *source* dependencies.
+A boundary crossing at run time is just a function on one side calling a function on the other and
+passing data — the design work is entirely in the *source* dependencies.
 
-Control flow and source dependency point the same way on an inbound call, and *opposite* ways on
-an outbound one. A controller calls into a use case, and the use case must deliver a result
-outward to a presenter — but the use case may not name the presenter. Resolve this with dynamic
-polymorphism: the use case calls an interface it owns (an **output port**) and the presenter in the
-outer circle implements it. The dependency now opposes the flow of control, which is exactly what
-Dependency Inversion means.
+Control flow and source dependency point the same way inbound, opposite ways outbound. A
+controller calls into a use case, which must deliver a result outward to a presenter it may not
+name. Resolve with dynamic polymorphism: the use case calls an interface it owns (an **output
+port**), and the presenter in the outer circle implements it — the dependency now opposes the flow
+of control, Dependency Inversion.
 
-**Which data may cross:** simple, isolated structures — a struct, a plain DTO, function arguments,
-a basic map. Always in the shape most convenient for the *inner* circle.
+**What may cross:** simple, isolated structures — a struct, a plain DTO, function arguments, a
+basic map — shaped for the *inner* circle's convenience.
 
 **What may never cross inward:** an Entity object, a database row, an ORM row type, a result set, a
-framework request or response object. When fields happen to overlap, define a separate structure
-per crossing and copy the fields anyway; sharing the type is a Single Responsibility violation that
-returns later as tramp data and special-case conditionals.
+framework request or response object. When fields overlap, define a separate structure per crossing
+and copy the fields anyway; sharing the type is a Single Responsibility violation returning later
+as tramp data and special-case conditionals.
 
 ### The cost of each boundary
 
-Chattiness must match the boundary's cost, because a conversation shaped for one boundary becomes a
-performance failure when the same boundary becomes another kind.
+Chattiness must match the boundary's cost — a conversation shaped for one boundary becomes a
+performance failure when that boundary becomes another kind.
 
 | Boundary | Mechanism | Crossing cost | Chattiness |
 | --- | --- | --- | --- |
@@ -156,94 +142,70 @@ performance failure when the same boundary becomes another kind.
 | Local process | OS calls, marshaling, context switches | moderately expensive | limit it carefully |
 | Service | network | very slow: tens of milliseconds to seconds | avoid chatting |
 
-Threads are not boundaries and not units of deployment — they are scheduling.
+Threads are not boundaries, not deployment units — they are scheduling.
 
 ### Full, partial, and no boundary
 
-A full boundary costs reciprocal interfaces, input and output structures, and the dependency
-management to keep them apart. It buys independent compilability and deployability. When the case
-for one is "not yet, but I might", use a partial boundary and know its specific weakness:
+A full boundary costs reciprocal interfaces, input/output structures, and the dependency
+management to keep them apart, buying independent compilability and deployability. When the case
+is "not yet, but I might," use a partial boundary and know its weakness:
 
-- **Skip the last step** — build the separated components but deploy them as one. Cheapest to
-  reverse; the separation quietly erodes as dependencies creep back across.
+- **Skip the last step** — build the separated components but deploy as one. Cheapest to reverse;
+  separation quietly erodes as dependencies creep back across.
 - **One-dimensional boundary** (a Strategy interface, no reciprocal interface) — nothing but
-  discipline stops someone adding a backchannel.
+  discipline stops a backchannel.
 - **Facade** — sacrifices dependency inversion entirely: the client gains a transitive dependency
-  on everything behind the facade and recompiles when any of it changes.
+  on everything behind it and recompiles when any of it changes.
 
-Prefer Strategy over Facade when the client must not recompile. Whichever you pick, add
-compile-time or automated enforcement — a partial boundary does not maintain itself.
+Prefer Strategy over Facade when the client must not recompile, and either way add compile-time or
+automated enforcement — a partial boundary does not maintain itself.
 
-Implement a boundary once building it has become cheaper than going on without it. Declare each boundary interface in the component that *uses* it: the API is owned
-by the user, not the implementer.
+Build a boundary once it is cheaper than living without it. Declare each boundary interface in the
+component that *uses* it: the API belongs to its user, not its implementer.
 
 ## SOLID, as dependency rules
 
-These are not style advice. Each one prevents a specific structural failure.
+Not style advice — each prevents a specific structural failure.
 
 **SRP — Single Responsibility Principle.** *A module should be responsible to one, and only one,
-actor.* An actor is the group of people who can demand a change. This is the most misread
-principle in the set: "a module should do one thing" is a real and useful rule for functions, but
-it is **not** the SRP. The SRP says to separate code that different actors depend on.
-
-- Before placing a function, ask which actor can demand that it change. Never co-locate code
-  answering to different actors.
-- Do not deduplicate across an actor boundary. Two identical-looking calculations owned by
-  different actors must stay separate; merging them is how one department's change silently
-  corrupts another's numbers.
-- Read repeated merge conflicts in one file as an SRP violation, not a process problem.
+actor* — the people who can demand a change. Not "one thing per module" (a real function-level
+rule, but not the SRP). Ask which actor can demand a change before placing a function; never
+co-locate code for different actors or deduplicate across an actor boundary. Repeated merge
+conflicts in one file signal an SRP violation, not a process problem.
 
 **OCP — Open-Closed Principle.** *A software artifact should be open for extension but closed for
-modification.* Behavior should be extendable by adding code, not by editing existing code.
-
-- The directional rule: **if A must be protected from changes in B, then B depends on A.** Arrows
-  point toward what you are protecting.
-- Never let business rules reference a presenter, view, database, or UI type. Invert with an
-  interface owned by the policy side.
-- Keep each boundary crossed in one direction only, and keep the interface narrow: a wide
-  interface leaks internals as transitive dependencies on things the caller never uses.
+modification* — extend by adding code, not editing it. **If A must be protected from changes in B,
+then B depends on A.** Never let business rules reference a presenter, view, database, or UI type;
+invert with an interface the policy side owns. Cross each boundary in one direction, with a narrow
+interface — a wide one leaks internals as transitive dependencies.
 
 **LSP — Liskov Substitution Principle.** A subtype must be usable anywhere the base type is,
-without the caller's behavior changing.
+without changing caller behavior. Proof of violation: a call site that must know which
+implementation it holds (a type check or vendor-name special case), in any substitutable
+boundary — REST contracts, plugin interfaces, duck-typed objects, services behind one interface.
+The workaround conditional multiplies into extra mechanisms, often a security hole.
 
-- The proof of a violation is a call site that must know which implementation it has. A type check
-  or a vendor-name special case at a call site *is* the violation.
-- Applies to every substitutable boundary, not just class inheritance: REST contracts, plugin
-  interfaces, duck-typed objects, sets of services behind one interface.
-- One substitutability failure spreads: the workaround conditional multiplies into extra
-  mechanisms, and those conditionals are a frequent source of security holes.
+**ISP — Interface Segregation Principle.** Avoid depending on things you do not use — "keep
+interfaces small" is a symptom; depending on a module containing more than you need is harmful by
+itself. Define the narrow interface the caller needs, and check what a new dependency itself
+depends on: transitive baggage sets both the recompile and failure blast radius. Static typing
+shows it at compile time; dynamic typing only hides the coupling — ISP applies in Python and
+JavaScript as much as in Java.
 
-**ISP — Interface Segregation Principle.** Avoid depending on things you do not use. The common
-reading, "keep interfaces small", is a symptom of the real rule, which is about dependency on
-*unused* things: it is harmful to depend on a module containing more than you need.
-
-- Define the narrow interface the caller actually needs rather than consuming a wide existing type.
-- Before adding a dependency, look at what *it* depends on. Transitive baggage sets both the
-  recompile blast radius and the failure blast radius: a fault in an unused feature of a
-  dependency can still take you down.
-- Static typing makes the dependency visible at compile time; dynamic typing only removes the
-  recompilation symptom, not the coupling. ISP applies in Python and JavaScript exactly as much as
-  in Java — the baggage just fails later.
-
-**DIP — Dependency Inversion Principle.** The most flexible systems are those whose source
-dependencies refer only to abstractions, never to concretions.
-
-- The test is **volatility, not abstractness**. Depending on the standard library's string type is
-  fine; it is stable. Depending on a volatile concrete class of your own is not.
-- The four practices: do not refer to a volatile concrete class; do not derive from one
-  (inheritance is the strongest and most rigid source relationship); do not override a concrete
-  function (you inherit its dependencies rather than escaping them); never name a concrete, volatile
-  class.
-- Creating an object is itself a concrete dependency, so policy code must not `new` a volatile
-  class. Use an abstract factory.
-- Violations cannot be removed entirely — gather them into a small number of concrete components,
-  usually `main`.
+**DIP — Dependency Inversion Principle.** The most flexible systems have source dependencies
+referring only to abstractions, never concretions. The test is **volatility, not abstractness**:
+the standard library's string type is fine, being stable; a volatile concrete class of your own is
+not. Do not refer to, derive from, or override one — inheritance is the strongest, most rigid
+source relationship, and overriding still inherits its dependencies. Creating an object is itself a
+concrete dependency, so policy code must not `new` a volatile class; use an abstract factory.
+Violations cannot be removed entirely; gather them into a small number of concrete components,
+usually `main`.
 
 ## Component principles
 
-A component is a unit of deployment: the smallest thing you can deploy independently. Keep that
-independence even inside a single executable — losing it turns a partitioned system into a monolith
-that cannot be split.
+A component is a unit of deployment — the smallest thing you can deploy independently. Keep that
+independence even inside a single executable, or a partitioned system turns into a monolith that
+cannot be split.
 
 ### Cohesion: which classes belong together
 
@@ -251,30 +213,29 @@ that cannot be split.
   Anything you expect others to reuse must be tracked and released as a unit.
 - **CCP — Common Closure Principle.** *Gather into components those classes that change for the
   same reasons and at the same times; separate those that change at different times and for
-  different reasons.* This is the SRP restated for components.
+  different reasons.* The SRP restated for components.
 - **CRP — Common Reuse Principle.** *Don't force users of a component to depend on things they
-  don't need.* This is ISP restated for components.
+  don't need.* ISP restated for components.
 
-These three pull against each other. REP and CCP are inclusive — they make components larger. CRP
-is exclusive — it makes them smaller. Each corner of the triangle has its cost: over-weighting REP
-and CRP means one simple change touches too many components; over-weighting CCP and REP means too
-many needless releases; over-weighting CCP and CRP abandons REP, and the components become
-impractical to reuse. Early in a project, favour CCP: develop-ability matters more than reuse.
-Shift weight toward REP only once real external consumers exist.
+These three pull against each other: REP and CCP enlarge components, CRP shrinks them. Over-weight
+REP and CRP, and one simple change touches too many components; over-weight CCP and REP, and
+releases multiply needlessly; over-weight CCP and CRP, and REP is abandoned — components become
+impractical to reuse. Favor CCP early (develop-ability over reuse), and shift toward REP once real
+external consumers exist.
 
 ### Coupling: which components may depend on which
 
 - **ADP — Acyclic Dependencies Principle.** *Allow no cycles in the component dependency graph.* A
-  cycle fuses the components into a single release unit, makes build problems grow geometrically,
-  and can leave no valid build order at all. Break a cycle by applying DIP, or by extracting a new
-  component that both existing ones depend on.
+  cycle fuses components into one release unit, makes build problems grow geometrically, and can
+  leave no valid build order at all. Break it with DIP, or by extracting a component both existing
+  ones depend on.
 - **SDP — Stable Dependencies Principle.** *Depend in the direction of stability.* Stability here
-  is not frequency of change; it is the work required to change something. A component many others
+  is not frequency of change but the work required to change something — a component many others
   depend on is hard to move.
 - **SAP — Stable Abstractions Principle.** *A component should be as abstract as it is stable.* A
-  stable component must be abstract enough to be extended without modification, which is OCP again.
+  stable component must be abstract enough to extend without modifying it — OCP again.
 
-SDP and SAP together are the DIP for components: depend toward stability, and stability implies
+SDP and SAP together are the DIP for components: depend toward stability, stability implies
 abstraction, so dependencies run toward abstraction. DIP is binary per class; these two allow
 degrees.
 
@@ -285,209 +246,185 @@ Useful when you need evidence rather than opinion about a component graph.
 - **Fan-in** = classes outside the component that depend on classes inside it.
 - **Fan-out** = classes inside the component that depend on classes outside it.
 - **Instability `I = Fan-out / (Fan-in + Fan-out)`**, ranging 0 to 1. `I = 0` is maximally stable
-  (depended upon, depending on nothing): responsible and independent. `I = 1` is maximally unstable:
-  irresponsible and dependent.
-- **SDP in metric form:** `I` should *decrease* in the direction of dependency. Before adding a
-  dependency from A to B, check that `I(A) > I(B)`. A stable component depending on a deliberately
+  (depended upon, depending on nothing): responsible and independent. `I = 1` is maximally
+  unstable: irresponsible and dependent.
+- **SDP in metric form:** `I` should *decrease* in the direction of dependency — before adding a
+  dependency from A to B, check `I(A) > I(B)`. A stable component depending on a deliberately
   flexible one destroys the flexible one's changeability without editing a line of it.
-- **Abstractness `A = Na / Nc`**, where `Nc` is the number of classes in the component and `Na` counts
-  its abstract classes and interfaces. `A = 0` means nothing abstract; `A = 1` means nothing
-  but abstractions.
-- **The Main Sequence** is the line from `(I=1, A=0)` to `(I=0, A=1)`. The two endpoints are the
-  most desirable positions: stable and abstract, or unstable and concrete.
-- **Distance `D = |A + I - 1|`**, ranging 0 to 1. `D = 0` sits exactly on the Main Sequence. The
-  criterion is statistical: compute the mean and variance of `D` across your own components — a
-  conforming design keeps both near zero — and investigate anything more than one standard deviation
-  from that mean. The book's example plot draws its control limit at `D = 0.1`, which is an
-  illustration, not a universal threshold. A metric is a measurement against an arbitrary standard,
-  not a verdict.
+- **Abstractness `A = Na / Nc`**, where `Nc` is the component's class count and `Na` its abstract
+  classes and interfaces. `A = 0` is nothing abstract; `A = 1` is nothing but abstractions.
+- **The Main Sequence** runs from `(I=1, A=0)` to `(I=0, A=1)` — stable and abstract, or unstable
+  and concrete: the two most desirable positions.
+- **Distance `D = |A + I - 1|`**, ranging 0 to 1. `D = 0` sits exactly on the Main Sequence.
+  Compute the mean and variance of `D` across your own components — a conforming design keeps both
+  near zero — and investigate anything beyond one standard deviation from that mean. The book's
+  example plot sets its control limit at `D = 0.1` as illustration, not a universal threshold: a
+  metric measures against an arbitrary standard, not a verdict.
 
-**Zone of Pain** is near `(I=0, A=0)`: stable and concrete, therefore rigid. A database schema is
-the archetype — highly depended upon, extremely concrete, and volatile. Volatility is effectively a
-third axis, which is why a stable concrete thing like a standard string type is harmless there.
-**Zone of Uselessness** is near `(I=1, A=1)`: abstractions nobody implements or depends on.
+**Zone of Pain** is near `(I=0, A=0)`: stable, concrete, and rigid — a database schema is the
+archetype: highly depended upon, extremely concrete, and volatile (volatility is a third axis, why
+a stable concrete thing like a standard string type is harmless there). **Zone of Uselessness** is
+near `(I=1, A=1)`: abstractions nobody implements or depends on.
 
-Component structure cannot be designed top-down before code exists. It maps buildability and
-maintainability, not function, so it evolves with the system. A useful convention: draw unstable
-components at the top of a diagram, so every upward arrow is a visible violation.
+Component structure cannot be designed top-down before code exists — it maps buildability and
+maintainability, not function, and evolves with the system. Draw unstable components at a
+diagram's top so every upward arrow is a visible violation.
 
 ## Keeping details out
 
-**Screaming architecture.** The top-level structure should announce the domain, not the framework.
-If the directory listing says "Rails" or "ASP.NET" rather than "billing" or "patient records", the
-framework has become the architecture. Name top-level packages after the domain and its use cases.
+**Screaming architecture.** The top-level structure should announce the domain, not the
+framework — "Rails" or "ASP.NET" instead of "billing" or "patient records" means the framework
+became the architecture. Name top-level packages after the domain and its use cases.
 
-**Frameworks are details.** Using a framework is an asymmetric commitment: you commit enormously,
-the author commits nothing to you. So use it, but do not couple to it. Never derive an Entity or
-use case from a framework base class — derive a proxy in an outer circle instead. Keep framework
-annotations off business objects. Confine dependency-injection framework usage to `main`; inject
-there, then pass dependencies onward normally. Before adopting any framework answer both questions:
-how do I use it, and how do I protect myself from it? Some marriages are unavoidable — the standard
-library, the base platform — but even those should be a decision made once, on record, not a
-default.
+**Frameworks are details.** Using one is asymmetric: you commit enormously, the author commits
+nothing. Use it without coupling to it — never derive an Entity or use case from a framework base
+class (derive a proxy in an outer circle instead), and keep framework annotations off business
+objects. Confine dependency-injection usage to `main`; inject there, pass dependencies onward
+normally. Ask both how to use a framework and how to protect yourself from it before adopting one.
+Some marriages — the standard library, the base platform — are unavoidable, but even those are a
+decision made once, on record, not a default.
 
-**Hardware and the operating system are details too.** Where code must touch a device or an OS
-facility, put a hardware-abstraction layer between them whose interface is named for what the
-*application* needs (`indicate_low_battery`), never for what the device offers (`led_on(5)`). The
-same inversion as every other boundary; it is what makes the business rules testable off-target.
+**Hardware and the operating system are details too.** Put a hardware-abstraction layer between
+code and a device or OS facility, named for what the *application* needs
+(`indicate_low_battery`), never what the device offers (`led_on(5)`) — the same inversion as every
+boundary, making business rules testable off-target.
 
 **The database is a detail.** The *data model* is architecturally significant; the database system
-is not. Never let rows, tables, result sets, or ORM row types travel beyond the data-access layer —
-allowing them to circulate as objects is an architectural error. Confine SQL and knowledge of
-tabular structure to the outermost utilities. Handle storage performance inside the access
-mechanism, not by reshaping business rules.
+is not. Never let rows, tables, result sets, or ORM row types travel beyond the data-access layer,
+or circulate as objects — confine SQL and tabular structure to the outermost utilities, and handle
+storage performance inside the access mechanism, not by reshaping business rules.
 
-**The web is a detail.** The web is one more GUI, and a GUI is an I/O device. The
-moment-to-moment interaction with a UI is genuinely hard to abstract, but the *use case* boundary is
-not: gather complete input, process it, return output data, all in plain structures. Keep HTTP,
-session, and widget concepts out of business rules.
+**The web is a detail.** The web is one more GUI, and a GUI is an I/O device. Moment-to-moment UI
+interaction is genuinely hard to abstract, but the *use case* boundary is not: gather complete
+input, process it, return output data, all in plain structures. Keep HTTP, session, and widget
+concepts out of business rules.
 
-**`main` is the ultimate detail** — the policy at the lowest level, the dirtiest component, and the only
-one nothing else depends on. All wiring, configuration loading, and framework binding belong there.
-Treat `main` as a plugin: prefer a separate `main` per environment, jurisdiction, or customer over
-configuration branches inside policy code.
+**`main` is the ultimate detail** — the policy at the lowest level, the dirtiest component, the
+only one nothing else depends on. All wiring, configuration loading, and framework binding belong
+there. Treat `main` as a plugin: prefer a separate `main` per environment, jurisdiction, or
+customer over configuration branches inside policy code.
 
 ## Systems: construction, growth, and cross-cutting policy
 
-**Separate constructing the system from using it.** Startup is its own concern: building the object
-graph, reading configuration, choosing implementations. Code that does real work should receive what
-it needs, never go and build it. The moment a business rule constructs its own dependency, it has
-taken on a second job and become untestable in isolation.
+**Separate constructing the system from using it.** Startup builds the object graph, reads
+configuration, chooses implementations; code doing real work receives what it needs and never
+builds it, or it takes on a second job and becomes untestable alone.
 
-- Use factories when an object must be created *during* execution rather than at startup — the
-  calling policy names the factory interface, and the concrete factory lives outward.
-- Use dependency injection to move construction to `main`. Inject there, then pass dependencies
-  onward as ordinary arguments; do not scatter the framework's annotations through the system.
-- **Lazy initialization is a construction decision leaking into use.** It hardcodes a concrete type
-  at the point of use and makes the null-check path part of the business logic.
+- A factory, when an object is created *during* execution: the calling policy names the factory
+  interface, the concrete factory lives outward.
+- Dependency injection moves construction to `main`; inject there, then pass dependencies on as
+  ordinary arguments, not scattered framework annotations.
+- **Lazy initialization is a construction decision leaking into use** — it hardcodes a concrete
+  type at the point of use, making the null-check path part of the business logic.
 
-**Systems grow; they are not built whole.** Software architecture is not physical architecture — you
-cannot pour the foundation once and be done, and pretending otherwise is why big up-front design
-fails. A clean system starts simple and grows because its concerns stayed separated: new use cases
-arrive as new components rather than as edits spread across old ones. Decide at the **last
-responsible moment**, with the most information and the least commitment.
+**Systems grow; they are not built whole.** You cannot pour a software foundation once. A clean
+system starts simple and grows because its concerns stayed separated: new use cases arrive as new
+components, not edits across old ones. Decide at the **last responsible moment**.
 
 **Isolate cross-cutting concerns.** Persistence, transactions, security, logging, caching, and
-metrics apply across many modules and cut against clean separation — implemented naively they end up
-duplicated in every handler. Concentrate each one in a single place and apply it at a boundary:
-middleware, a decorator, a proxy, an interceptor, an aspect, whatever the ecosystem provides. The
-principle is what matters, not the mechanism: **one home per policy, applied at the edge, invisible
-to the business rules it protects.**
+metrics cut across clean separation and duplicate into every handler if naive. Concentrate each in
+one place, at a boundary — middleware, decorator, proxy, interceptor, aspect, whatever the
+ecosystem provides: **one home per policy, applied at the edge, invisible to the business rules it
+protects.**
 
-**Test-drive the architecture.** If you can write a use case's tests with no database, no web server,
-and no framework running, the architecture is decoupled — the test suite is the proof, not the
-diagram. If you cannot, the coupling is real regardless of what the diagram claims.
+**Test-drive the architecture.** A use case's tests need no database, web server, or framework
+running when the architecture is truly decoupled — the suite is the proof, not the diagram.
 
-**Use standards wisely, and build a language when it pays.** Adopt a standard when it demonstrably
-buys interoperability or reuse, not because it is a standard — an over-engineered standard adopted for
-its own sake costs more than it returns. And where a domain concept recurs constantly, a small
-domain-specific language or a well-named vocabulary of helpers lets the code state intent directly
-instead of restating mechanism. That is the same instinct as the testing language in `tests.md`.
+**Adopt a standard only when it demonstrably buys interoperability or reuse**, never for its own
+sake. A recurring domain concept earns a small domain-specific language or named vocabulary of
+helpers, stating intent directly instead of restating mechanism — the same instinct as the testing
+language in `tests.md`.
 
 ## Testability is an architectural property
 
 **The Humble Object pattern.** When behavior is hard to test, split it into two modules rather than
-building a harness around it. One module is *humble*: it holds the hard-to-test behavior stripped to
-its barest essence, with no decisions in it. The other holds everything testable that was stripped
-out.
+build a harness around it: one *humble* module holds the hard-to-test behavior stripped to its
+barest essence, no decisions in it; the other holds everything testable that was stripped out.
 
-At every architectural boundary this pattern is somewhere nearby, because boundaries tend to fall
-exactly where hard-to-test meets easy-to-test. Separating the two often *is* how you find the
-boundary.
+This pattern sits near every architectural boundary: boundaries tend to fall where hard-to-test
+meets easy-to-test, and separating the two often *is* how you find the boundary.
 
-- A **view** is the humble object: it moves data onto the screen and makes no decisions. The
-  **presenter** is the testable half, and it does all the work — formatting dates and currency into
-  strings, deciding what is greyed out or highlighted, choosing button and field labels. Anything on
-  screen that the application controls should appear in the view model as a string, a boolean, or an
+- A **view** is the humble object: it moves data onto the screen, no decisions. The **presenter**
+  does all the work — formatting dates and currency, greyed-out or highlighted state, labels.
+  Anything on screen the application controls appears in the view model as a string, boolean, or
   enum.
-- A **database gateway** is an interface with one intention-named method per operation. The
+- A **database gateway** is an interface with one intention-named method per operation; the
   implementation is the humble object. Never put SQL in a use case.
-- An **ORM belongs in the database layer** and forms another humble-object boundary. Objects and
-  data structures are not the same thing: an object exposes behavior and hides data, a data
-  structure exposes data and implies no behavior.
+- An **ORM belongs in the database layer**, another humble-object boundary: objects expose behavior
+  and hide data, data structures expose data and imply none — not the same thing.
 
-**Tests are a system component** and participate in the architecture like any other. They are the
-outermost circle: maximally detailed, depending inward, depended on by nothing.
+**Tests are a system component**, part of the architecture like any other — the outermost circle:
+maximally detailed, depending inward, depended on by nothing.
 
-- The first rule of design applies to them too: do not depend on volatile things. GUIs are volatile,
-  so a suite that drives business rules through the GUI is fragile by construction.
-- **Structural coupling** is the most insidious form of test coupling: a test class per production
-  class, a test method per production method. It makes tests fragile and production code rigid, and
-  it blocks the divergence that should happen as production code grows more general while tests grow
-  more specific.
-- When a fragile suite makes developers refuse an otherwise correct change, that rigidity is the
-  cost being paid.
-- Provide a **testing API** that hides application structure from the tests and can bypass security
-  and expensive resources to force testable states. Keep it, and its dangerous implementation, in a
+- Do not depend on volatile things: GUIs are volatile, so a suite driving business rules through
+  one is fragile by construction.
+- **Structural coupling** — a test class per production class, a test method per production
+  method — is the most insidious form of test coupling: it makes tests fragile and production code
+  rigid, and blocks tests from growing more specific as production code grows more general.
+- A fragile suite that makes developers refuse a correct change is that rigidity's cost.
+- Provide a **testing API** that hides application structure from tests and can bypass security or
+  expensive resources to force testable states, kept with its dangerous implementation in a
   separately deployable component.
 
 ## Packaging: four strategies and their weaknesses
 
-How you group code decides whether the architecture can be enforced by the compiler or only by
-discipline.
+How you group code decides whether the compiler enforces the architecture, or only discipline
+does.
 
 | Strategy | Structure | Specific weakness |
 | --- | --- | --- |
-| **Package by layer** | horizontal: web / business logic / persistence | Three buckets stop scaling, the structure says nothing about the domain, and a controller can be wired straight to a repository while the dependency graph still looks clean and acyclic |
-| **Package by feature** | vertical slice per feature or aggregate | Better — the structure now announces the domain — but a single public entry point per feature may be more or less restrictive than you want |
-| **Ports and adapters** | domain "inside", infrastructure "outside", outside depends on inside | With one shared infrastructure tree, a controller can reach a repository directly and circumnavigate the domain entirely |
-| **Package by component** | business logic *and* its persistence behind one interface per coarse-grained component; UI separate | Requires real discipline about what is public, and one assembly or module per component in some ecosystems |
+| **Package by layer** | horizontal: web / business logic / persistence | Stops scaling past three buckets, says nothing about the domain; a controller can wire straight to a repository while the graph still looks clean |
+| **Package by feature** | vertical slice per feature or aggregate | Announces the domain, but one entry point per feature may restrict more or less than you want |
+| **Ports and adapters** | domain "inside", infrastructure "outside", outside depends on inside | One shared infrastructure tree lets a controller reach a repository directly, bypassing the domain |
+| **Package by component** | business logic *and* persistence behind one interface per component; UI separate | Needs real discipline about what is public, plus one module per component in some ecosystems |
 
 **Organization versus encapsulation is the decisive point.** If every type is public, packages are
-only a grouping mechanism — like folders — and all four strategies above become *syntactically
-identical*, however different they look on a diagram. Nothing then prevents code anywhere from
-instantiating an implementation class directly and violating the intended design.
+just folders, and all four strategies are *syntactically identical* however different on a
+diagram — nothing stops code from instantiating an implementation class directly.
 
-So: never mark a type public by default. Use package-private, `internal`, or your language's
-equivalent unless another package genuinely needs an inbound dependency. Give each component one
-public entry point, so the compiler — not a code review — is what blocks a controller from calling
-a repository.
+Never mark a type public by default: use package-private, `internal`, or the equivalent, unless
+another package needs an inbound dependency. Give each component one public entry point, so the
+compiler — not a code review — blocks a controller from calling a repository directly.
 
-The enforcement ladder, weakest to strongest: discipline and code review (which fails when
-deadlines loom), post-compile static analysis (crude, and the feedback loop is long), and the
-compiler (immediate and unarguable). Prefer the compiler whenever the language allows it.
+Enforcement, weakest to strongest: discipline and code review (fails under deadlines), post-compile
+static analysis (crude, slow feedback), the compiler (immediate, unarguable). Prefer the compiler.
 
 ## Decoupling modes
 
-Three ways to separate components, in increasing cost:
+Three ways to separate components, increasing in cost:
 
-1. **Source level** — control dependencies between source modules so a change does not force others
-   to recompile. All components share one address space and communicate by function calls. This is
-   what people usually call a monolith.
-2. **Deployment level** — control dependencies between independently deployable units: jars, DLLs,
-   shared libraries. Many still share an address space.
-3. **Service level** — reduce dependencies to data structures exchanged over the network, so each
-   unit is independent of the others' source and binaries.
+1. **Source level** — dependencies controlled between source modules so a change does not force
+   others to recompile; one address space, function calls: a monolith.
+2. **Deployment level** — dependencies controlled between independently deployable units (jars,
+   DLLs, shared libraries); many still share an address space.
+3. **Service level** — dependencies reduced to data structures over the network, so each unit is
+   independent of the others' source and binaries.
 
-The best mode is hard to know early and changes as a system matures, so **decouple far enough that a
-component could become a service if it had to, then keep the components in one address space for
-as long as you can.** Keep the progression reversible in both directions. Never write
-code that depends on the current mode — no hard-coded network hop, no assumption of a shared address
-space.
+The best mode is hard to know early and changes as a system matures: **decouple far enough that a
+component could become a service, then stay in one address space for as long as you can** —
+reversibly. Never write code that assumes the current mode.
 
-Service boundaries are not architectural boundaries by themselves. Services separated only by
-behavior are expensive function calls: they remain strongly coupled through the data they share, and
-adding a field to a shared record forces every service touching it to change and to agree on its
-meaning. A service interface is no more rigorous than a function interface. **Architectural
-boundaries run *through* services, dividing them into components** — not between them. Test a
-decomposition by counting how many units a cross-cutting feature forces you to change; if the answer
-is "all of them", the decomposition is functional, not architectural.
+Service boundaries are not architectural boundaries by themselves — services separated only by
+behavior are expensive function calls, still coupled through shared data: a field added to a
+shared record forces every service touching it to change and agree on its meaning.
+**Architectural boundaries run *through* services, dividing them into components**, not between
+them. Count how many units a cross-cutting feature forces you to change; "all of them" means it is
+functional, not architectural.
 
-Micro-services are also not automatically finer-grained decoupling, and they cost development time —
-which, unlike memory and cycles, is not cheap.
+Micro-services are not automatically finer-grained decoupling either, and cost development time —
+unlike memory and cycles, not cheap.
 
 ## Duplication: resist the reflex
 
-Eliminating duplication is right only when the duplication is real.
+Eliminating duplication is right only when it is real.
 
 - **True duplication**: every change to one instance requires the same change to every copy.
 - **False (accidental) duplication**: the copies change at different rates, for different reasons.
 
-Two shapes that look identical today and diverge tomorrow are not duplicates. A database record
-shaped like a screen view is almost certainly accidental duplication — build the separate view model.
-Similar-looking screens across different use cases usually are too. Unifying accidental duplication
-is much harder to undo than leaving it alone, and it is one of the most common ways an agent damages
-a codebase while believing it is cleaning it.
+Two shapes identical today and diverging tomorrow are not duplicates — a database record shaped
+like a screen view is almost certainly accidental; build the separate view model. Unifying
+accidental duplication is harder to undo than leaving it alone, and is a common way an agent
+damages a codebase while believing it is cleaning it.
 
 ## Architecture serves the developer
 
@@ -497,24 +434,21 @@ good architect maximizes the number of decisions *not* made.
 
 A good architecture must support four things: **the use cases and operation** of the system, its
 **maintenance**, its **development**, and its **deployment**. Operation is the one agents forget —
-throughput and scale legitimately shape the component structure, not just tidiness. Development is
-where **Conway's law** bites: a system's structure comes to mirror the communication structure of
-the organization that builds it, and its corollary is the SRP again — give each team components it
-can own without stepping on another team.
+throughput and scale shape the component structure too. Development is where **Conway's law**
+bites: a system's structure mirrors its organization's, and its corollary is the SRP again — give
+each team components it can own separately.
 
-**The two values.** Software has behavior (urgent, visible) and structure (important, invisible). A
-program that works today but cannot be changed is worth less than one that is broken but easy to
-change, because the second can be made to do anything and the first dies with its first new
-requirement. In the urgent/important grid, architecture occupies the top two cells and features
-never rise above the third — yet features win every undefended argument, which is why asserting the
-importance of structure is part of the job, not a nicety. The tell of a structural defect is a
-mismatch between *scope* and *shape*: the difficulty of a change should be proportional to its
-scope, never to its shape. When a small requirement forces a large diff, that is an architecture
-defect, and it should be named as one rather than absorbed silently.
+**The two values.** Software has behavior (urgent, visible) and structure (important, invisible).
+Working-but-unchangeable is worth less than broken-but-easy-to-change — the one can be shaped into
+anything, the other dies at its first new requirement. Architecture occupies the top two cells of
+the urgent/important grid; features never rise above the third, yet win every undefended argument —
+asserting structure's importance is part of the job. A structural defect shows as a mismatch
+between *scope* and *shape*: difficulty should track scope, never shape. A small requirement
+forcing a large diff is an architecture defect — name it.
 
 - Never justify a shortcut with "we will clean it up later"; the pressure that created it never
   abates.
-- Never propose a rewrite as the remedy for a mess. The team that made the mess rebuilds it.
+- Never propose a rewrite as the remedy for a mess — the team that made the mess rebuilds it.
 - Treat rising cost per comparable change as the primary signal of decay.
 - Never treat "it satisfies the requirements" as done.
 
