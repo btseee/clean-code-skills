@@ -134,15 +134,22 @@ def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
     return _walk_os(root, suffixes, names)
 
 
+def _pruned_os_walk(start: Path):
+    """(directory, sorted file names) from `os.walk`, with SKIP_DIRS, dot-folder, and
+    framework-owned-folder pruning applied and subdirectories visited in name order.
+    """
+    for current_dir, subdirs, filenames in os.walk(start):
+        pruned = _pruned_child_names(os.path.basename(current_dir), subdirs)
+        subdirs[:] = sorted(name for name in subdirs
+                             if not is_skippable(name) and name not in pruned)
+        yield current_dir, sorted(filenames)
+
+
 def _walk_os(root: Path, suffixes, names) -> Walk:
     """`walk()`'s fallback: the filesystem walked directly with `os.walk`."""
     paths: list = []
-    for current_dir, subdirs, filenames in os.walk(root):
-        parent = os.path.basename(current_dir)
-        pruned = _pruned_child_names(parent, subdirs)
-        subdirs[:] = sorted(name for name in subdirs
-                             if not is_skippable(name) and name not in pruned)
-        for filename in sorted(filenames):
+    for current_dir, filenames in _pruned_os_walk(root):
+        for filename in filenames:
             path = Path(current_dir) / filename
             if suffixes is not None and path.suffix.lower() not in suffixes and filename not in names:
                 continue
@@ -195,47 +202,47 @@ def _run_git_ls_files(root: Path):
     itself to files at or under `root` and reports them relative to it, even when
     `root` is a subfolder of a larger work tree.
     """
-    try:
-        result = subprocess.run(
-            ["git", "ls-files", "-s", "--cached", "--others", "--exclude-standard", "-z"],
-            cwd=root, capture_output=True, timeout=_GIT_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
+    listing = _run_git(["ls-files", "-s", "--cached", "--others", "--exclude-standard", "-z"], root)
+    if listing is None:
         return None
     # A path can carry bytes that are not valid utf-8 (a filename from another
     # encoding); surrogateescape keeps them round-trippable instead of collapsing
     # them to the replacement character the way errors="replace" would.
-    return result.stdout.decode("utf-8", errors="surrogateescape")
+    return listing.decode("utf-8", errors="surrogateescape")
 
 
 def _root_ignore_makes_list_unusable(root: Path) -> bool:
     """Whether an empty `git ls-files` result means `root` itself is ignored by an
-    enclosing repository - its own content is invisible to git, not actually absent -
-    rather than `root` being a genuinely empty folder.
+    enclosing repository - its own content is invisible to git, not actually absent.
 
-    Checked directly first (`git check-ignore` on `.`); as a fallback, since that
-    call could itself fail to return a clear answer, by whether `root` plainly has
-    something on disk that an empty git result didn't account for.
+    The root's own path is checked from the repository's top with `git check-ignore`
+    (checking `.` from inside the root is unreliable: a `data/*` pattern reports it as
+    ignored). Exit 1 means the root is not ignored, so the empty list is the truth -
+    every file in it is ignored - and any other answer falls back to `os.walk`.
     """
-    if _is_ignored_by_git(root):
+    location = _run_git(["rev-parse", "--show-toplevel", "--show-prefix"], root)
+    if location is None:
         return True
-    try:
-        return any(root.iterdir())
-    except OSError:
-        return False
+    lines = location.decode("utf-8", errors="surrogateescape").splitlines()
+    prefix = lines[1].rstrip("/") if len(lines) > 1 else ""
+    if not prefix:
+        return False  # the repository's top is never ignored
+    ignored = _run_git(["check-ignore", "--quiet", prefix], Path(lines[0]), exit_code=True)
+    return ignored != 1
 
 
-def _is_ignored_by_git(root: Path) -> bool:
+def _run_git(arguments: list, cwd: Path, exit_code: bool = False):
+    """`git <arguments>` run in cwd: its stdout bytes (None on failure), or with
+    `exit_code` its exit code (None when git could not run). Never raises.
+    """
     try:
-        result = subprocess.run(
-            ["git", "check-ignore", "--quiet", "."],
-            cwd=root, capture_output=True, timeout=_GIT_TIMEOUT_SECONDS,
-        )
+        result = subprocess.run(["git", *arguments], cwd=cwd, capture_output=True,
+                                timeout=_GIT_TIMEOUT_SECONDS)
     except (OSError, subprocess.SubprocessError):
-        return False
-    return result.returncode == 0
+        return None
+    if exit_code:
+        return result.returncode
+    return result.stdout if result.returncode == 0 else None
 
 
 def _parse_ls_files_entry(entry: str) -> tuple:
@@ -283,7 +290,8 @@ def _expand_to_file_paths(root: Path, entries: list) -> list:
             file_paths.append(path)
         else:
             file_paths.extend(_os_walk_raw_paths(root, path))
-    return file_paths
+    # A conflicted file appears once per merge stage in `ls-files -s --cached`.
+    return list(dict.fromkeys(file_paths))
 
 
 def _os_walk_raw_paths(root: Path, start_relative: str) -> list:
@@ -292,12 +300,8 @@ def _os_walk_raw_paths(root: Path, start_relative: str) -> list:
     git-derived path list.
     """
     paths: list = []
-    for current_dir, subdirs, filenames in os.walk(root / start_relative):
-        parent = os.path.basename(current_dir)
-        pruned = _pruned_child_names(parent, subdirs)
-        subdirs[:] = sorted(name for name in subdirs
-                             if not is_skippable(name) and name not in pruned)
-        for filename in sorted(filenames):
+    for current_dir, filenames in _pruned_os_walk(root / start_relative):
+        for filename in filenames:
             path = Path(current_dir) / filename
             try:
                 paths.append(path.relative_to(root).as_posix())
@@ -339,7 +343,8 @@ def _existing_subdirectories(root: Path, directory: str) -> frozenset:
     gitignored too - or the rule would silently stop firing for a git-backed walk.
     """
     try:
-        return frozenset(entry.name for entry in (root / directory).iterdir() if entry.is_dir())
+        with os.scandir(root / directory) as entries:
+            return frozenset(entry.name for entry in entries if entry.is_dir())
     except OSError:
         return frozenset()
 

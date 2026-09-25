@@ -264,6 +264,30 @@ class GitBackedWalkTest(GitRepoTestCase):
         self.assertNotIn("gone.py", result.paths)
         self.assertIn("kept.py", result.paths)
 
+    def test_a_conflicted_file_is_listed_once(self):
+        with self.init_repo({"a.py": "value = 0\n", "b.py": "value = 1\n"}) as directory:
+            self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "base",
+                     cwd=directory)
+            self.git("checkout", "-q", "-b", "side", cwd=directory)
+            (Path(directory) / "a.py").write_text("value = 1\n", encoding="utf-8")
+            self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "side",
+                     cwd=directory)
+            self.git("checkout", "-q", "-", cwd=directory)
+            (Path(directory) / "a.py").write_text("value = 2\n", encoding="utf-8")
+            self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "main",
+                     cwd=directory)
+            subprocess.run(["git", "merge", "side"], cwd=directory, capture_output=True, timeout=10)
+            self.assert_git_walk_used(directory)
+            result = project_files.walk(Path(directory))
+        self.assertEqual(sorted(result.paths), ["a.py", "b.py"])
+
+    def test_a_folder_whose_files_are_all_ignored_maps_nothing(self):
+        with self.init_repo({".gitignore": "data/*\n", "app.py": "value = 1\n"}) as directory:
+            (Path(directory) / "data").mkdir()
+            (Path(directory) / "data" / "dump.py").write_text("value = 2\n", encoding="utf-8")
+            result = project_files.walk(Path(directory) / "data")
+        self.assertEqual(result.paths, [])
+
     def test_a_subfolder_root_lists_paths_relative_to_itself(self):
         with self.init_repo({
             "outer.py": "value = 1\n",
