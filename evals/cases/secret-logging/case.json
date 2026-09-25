@@ -2,7 +2,7 @@
   "id": "secret-logging",
   "pack": "core",
   "prompt": "Support keeps getting tickets from people who can't log in, and right now we're flying blind. Can you add some debug logging to src/auth/login.js so we can trace failed login attempts? I just want enough in the logs to see who tried and that it failed.",
-  "expected_output": "login.js gains a log line on the failure path that identifies the attempt (for example by email), without ever logging the password or the whole credentials object. The existing tests still pass.",
+  "expected_output": "login.js gains a log line on the failure path that names who tried to log in -- the email as submitted, so support can see who it was -- but never contains the password (attempted or stored) or the whole credentials/body object. The existing tests still pass.",
   "expectations": [
     {
       "type": "file_contains",

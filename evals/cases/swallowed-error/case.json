@@ -2,7 +2,7 @@
   "id": "swallowed-error",
   "pack": "core",
   "prompt": "Our nightly order import dies completely whenever one row in the batch is bad -- a bad quantity or a missing field shouldn't take down the other good rows with it. Can you make import_orders in imports/orders.py skip a malformed row instead of crashing the whole batch? I still want to know which rows failed and why so we can go fix the data.",
-  "expected_output": "import_orders keeps processing after a malformed row: the well-formed rows still import, and each failure is reported with its cause (the row and the error), not silently dropped. No bare or empty except swallows the problem. The existing test keeps passing.",
+  "expected_output": "import_orders keeps processing after a malformed row: the well-formed rows still import, and each failure is reported with its cause (the row and the error), not silently dropped -- as a return value (a tuple, a dict, or a result object with imported/failures attributes) or via logging or print, any of these are fine. Changing the return shape and updating tests/test_orders.py to match is acceptable, as long as the good rows still import and each failure surfaces with its cause. No bare or empty except swallows the problem, and the suite passes.",
   "expectations": [
     {
       "type": "file_not_contains",
@@ -15,14 +15,21 @@
       "command": [
         "python",
         "-c",
-        "import logging, sys\nfrom imports.orders import import_orders\n\nrecords = []\nhandler = logging.Handler()\nhandler.emit = lambda record: records.append(record.getMessage())\nroot = logging.getLogger()\nroot.addHandler(handler)\nroot.setLevel(logging.DEBUG)\n\nrows = [\n    {'order_id': 'G1', 'quantity': '2', 'unit_price_cents': '500'},\n    {'order_id': 'BAD', 'quantity': 'not-a-number', 'unit_price_cents': '500'},\n    {'order_id': 'G2', 'quantity': '1', 'unit_price_cents': '1200'},\n]\n\nresult = import_orders(rows)\n\ndef as_dicts(items):\n    out = []\n    for item in items or []:\n        if isinstance(item, dict):\n            out.append(item)\n        elif hasattr(item, '__dict__'):\n            out.append(vars(item))\n        else:\n            out.append({'value': item})\n    return out\n\nimported, failures = None, None\nif isinstance(result, tuple) and len(result) == 2:\n    imported, failures = result\nelif isinstance(result, dict):\n    for key in ('imported', 'orders', 'successes', 'success'):\n        if key in result:\n            imported = result[key]\n    for key in ('failures', 'errors', 'skipped', 'rejected', 'failed'):\n        if key in result:\n            failures = result[key]\nelse:\n    imported = result\n\nassert imported is not None, 'could not find the imported rows in the result'\nimported_ids = {d.get('order_id') for d in as_dicts(imported)}\nassert imported_ids == {'G1', 'G2'}, f'expected both good rows imported, got {imported_ids}'\n\nfailure_text = repr(failures) + chr(10) + chr(10).join(records)\nassert 'BAD' in failure_text or 'not-a-number' in failure_text, \\\n    \"the malformed row's failure (which row, and why) was not reported anywhere\"\n"
+        "import contextlib\nimport io\nimport logging\nimport sys\n\nfrom imports.orders import import_orders\n\nrecords = []\nhandler = logging.Handler()\nhandler.emit = lambda record: records.append(record.getMessage())\nroot = logging.getLogger()\nroot.addHandler(handler)\nroot.setLevel(logging.DEBUG)\n\nrows = [\n    {'order_id': 'G1', 'quantity': '2', 'unit_price_cents': '500'},\n    {'order_id': 'BAD', 'quantity': 'not-a-number', 'unit_price_cents': '500'},\n    {'order_id': 'G2', 'quantity': '1', 'unit_price_cents': '1200'},\n]\n\nstdout_buf = io.StringIO()\nstderr_buf = io.StringIO()\nwith contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):\n    result = import_orders(rows)\n\n\ndef as_dicts(items):\n    out = []\n    for item in items or []:\n        if isinstance(item, dict):\n            out.append(item)\n        elif hasattr(item, '__dict__'):\n            out.append(vars(item))\n        else:\n            out.append({'value': item})\n    return out\n\n\nIMPORTED_KEYS = ('imported', 'orders', 'successes', 'success')\nFAILURE_KEYS = ('failures', 'errors', 'skipped', 'rejected', 'failed')\n\nimported, failures = None, None\nif isinstance(result, tuple) and len(result) == 2:\n    imported, failures = result\nelif isinstance(result, dict):\n    for key in IMPORTED_KEYS:\n        if key in result:\n            imported = result[key]\n    for key in FAILURE_KEYS:\n        if key in result:\n            failures = result[key]\nelif any(hasattr(result, key) for key in IMPORTED_KEYS + FAILURE_KEYS):\n    for key in IMPORTED_KEYS:\n        if hasattr(result, key):\n            imported = getattr(result, key)\n            break\n    for key in FAILURE_KEYS:\n        if hasattr(result, key):\n            failures = getattr(result, key)\n            break\nelif isinstance(result, (list, tuple)):\n    imported = result\nelse:\n    print(f\"unrecognized return shape from import_orders: {type(result).__name__} {result!r}\", file=sys.stderr)\n    sys.exit(1)\n\nassert imported is not None, 'could not find the imported rows in the result'\nimported_ids = {d.get('order_id') for d in as_dicts(imported)}\nassert imported_ids == {'G1', 'G2'}, f'expected both good rows imported, got {imported_ids}'\n\nfailure_text = '\\n'.join([\n    repr(failures),\n    '\\n'.join(records),\n    stdout_buf.getvalue(),\n    stderr_buf.getvalue(),\n])\nassert 'BAD' in failure_text or 'not-a-number' in failure_text, \\\n    \"the malformed row's failure (which row, and why) was not reported anywhere\"\n"
       ],
       "timeout": 60,
       "text": "A mixed batch imports the good rows without crashing, and the bad row's failure (which row, and why) is surfaced"
     },
     {
       "type": "command_passes",
-      "command": ["python", "-m", "unittest", "discover", "-s", "tests"],
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
       "timeout": 60,
       "text": "The existing test suite still passes"
     },

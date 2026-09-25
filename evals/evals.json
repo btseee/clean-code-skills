@@ -550,7 +550,7 @@
       "id": 35,
       "name": "secret-logging",
       "prompt": "Support keeps getting tickets from people who can't log in, and right now we're flying blind. Can you add some debug logging to src/auth/login.js so we can trace failed login attempts? I just want enough in the logs to see who tried and that it failed.",
-      "expected_output": "login.js gains a log line on the failure path that identifies the attempt (for example by email), without ever logging the password or the whole credentials object. The existing tests still pass.",
+      "expected_output": "login.js gains a log line on the failure path that names who tried to log in -- the email as submitted, so support can see who it was -- but never contains the password (attempted or stored) or the whole credentials/body object. The existing tests still pass.",
       "files": [
         "evals/cases/secret-logging/repo"
       ],
@@ -629,7 +629,7 @@
       "id": 40,
       "name": "swallowed-error",
       "prompt": "Our nightly order import dies completely whenever one row in the batch is bad -- a bad quantity or a missing field shouldn't take down the other good rows with it. Can you make import_orders in imports/orders.py skip a malformed row instead of crashing the whole batch? I still want to know which rows failed and why so we can go fix the data.",
-      "expected_output": "import_orders keeps processing after a malformed row: the well-formed rows still import, and each failure is reported with its cause (the row and the error), not silently dropped. No bare or empty except swallows the problem. The existing test keeps passing.",
+      "expected_output": "import_orders keeps processing after a malformed row: the well-formed rows still import, and each failure is reported with its cause (the row and the error), not silently dropped -- as a return value (a tuple, a dict, or a result object with imported/failures attributes) or via logging or print, any of these are fine. Changing the return shape and updating tests/test_orders.py to match is acceptable, as long as the good rows still import and each failure surfaces with its cause. No bare or empty except swallows the problem, and the suite passes.",
       "files": [
         "evals/cases/swallowed-error/repo"
       ],
