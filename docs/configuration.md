@@ -69,8 +69,11 @@ context file holds its Provider and hook), `entry` lists files a framework loads
 (a sitemap, Django's `apps.py`, a Laravel seeder) so the unreferenced finding never flags them and
 a folder holding only such files is no junk drawer, and `ignore-name` leaves names out of the
 name-clash, synonym, and naming findings. Files a manifest runs — pyproject `[project.scripts]`,
-`[project.gui-scripts]`, and `[project.entry-points.*]` targets, package.json `bin`, `main`,
-`module`, and `exports` paths — count as entries without an `entry` line. An optional
+`[project.gui-scripts]`, `[project.entry-points.*]`, and Poetry `[tool.poetry.scripts]` and
+`[tool.poetry.plugins.*]` targets, setup.cfg `[options.entry_points]`, package.json `bin`,
+`main`, `module`, and `exports` paths — count as entries without an `entry` line. The scripts
+list files through `git ls-files` inside a git work tree, so paths your `.gitignore` excludes
+are never mapped; outside git they walk the folder. An optional
 `[ext, ext]` list limits a `name` or `signal` rule to those file types.
 Signals beat names, and the most specific home glob wins, so a rule of your own does not silence a
 pack's finding; record a deliberate exception with `accept`: a glob alone covers whole files, and
