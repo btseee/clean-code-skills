@@ -127,9 +127,9 @@ def _extract(text: str):
     counts = {category: Counter() for category in CATEGORIES}
     first_seen = {}
 
-    def record(category, item, position):
-        counts[category][item] += 1
-        first_seen.setdefault((category, item), position)
+    def record(category, value, position):
+        counts[category][value] += 1
+        first_seen.setdefault((category, value), position)
 
     in_fence = False
     fence_open_offset = 0
@@ -186,11 +186,11 @@ def _extract(text: str):
     return counts, order
 
 
-def _format_loss(category: str, item: str) -> str:
+def _format_loss(category: str, value: str) -> str:
     if category == "code block":
-        first_line = item.splitlines()[0] if item else ""
+        first_line = value.splitlines()[0] if value else ""
         return f"code block: {first_line}"
-    return f"{category}: {item}"
+    return f"{category}: {value}"
 
 
 def compare(original_text: str, compressed_text: str) -> Report:

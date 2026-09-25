@@ -321,13 +321,13 @@ PACKAGE_JSON_SECTIONS = ("dependencies", "devDependencies", "peerDependencies", 
 def package_json_dependencies(text: str) -> Optional[set]:
     """The dependency names a package.json declares, or None when it is not a JSON object."""
     try:
-        data = json.loads(text.lstrip("\ufeff"))
+        manifest = json.loads(text.lstrip("\ufeff"))
     except ValueError:
         return None
-    if not isinstance(data, dict):
+    if not isinstance(manifest, dict):
         return None
     return {name.lower() for section in PACKAGE_JSON_SECTIONS
-            if isinstance(data.get(section), dict) for name in data[section]}
+            if isinstance(manifest.get(section), dict) for name in manifest[section]}
 
 
 def manifest_frameworks(filename: str, text: str) -> list:
@@ -546,12 +546,12 @@ PEP508_PATTERN = re.compile(
 
 def parse_json_dependencies(text: str, keys) -> list:
     try:
-        data = json.loads(text)
+        parsed = json.loads(text)
     except (json.JSONDecodeError, ValueError):
         return []
     found = []
     for key in keys:
-        section = data.get(key)
+        section = parsed.get(key)
         if isinstance(section, dict):
             found.extend(
                 {"name": name, "version": str(version)}

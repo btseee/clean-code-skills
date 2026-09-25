@@ -231,9 +231,9 @@ def _command_passes(workspace: Path, expectation: dict):
 def _map_finding_absent(workspace: Path, expectation: dict):
     import map_structure
     packs, scopes = map_structure.stack_for(workspace, None)
-    data = map_structure.build_map(workspace, packs, 2, scopes)
+    structure_map = map_structure.build_map(workspace, packs, 2, scopes)
     # An organization finding kind the scanner does not populate yet reports zero findings.
-    items = data["findings"].get(expectation["kind"], [])
+    items = structure_map["findings"].get(expectation["kind"], [])
     pattern = expectation.get("path")
     if pattern:
         items = [item for item in items

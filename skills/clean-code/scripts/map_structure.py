@@ -329,7 +329,7 @@ def main(argv=None) -> int:
               "mapping every file", file=sys.stderr)
     try:
         packs, scopes = stack_for(root, arguments.packs)
-        data = build_map(root, packs, max(1, arguments.depth), scopes, changed)
+        structure_map = build_map(root, packs, max(1, arguments.depth), scopes, changed)
     except structure_roles.RolesError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -340,17 +340,17 @@ def main(argv=None) -> int:
         try:
             destination.mkdir(parents=True, exist_ok=True)
             (destination / "structure.md").write_text(
-                structure_report.render_markdown(data, arguments.top), encoding="utf-8")
+                structure_report.render_markdown(structure_map, arguments.top), encoding="utf-8")
             (destination / "structure.json").write_text(
-                json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                json.dumps(structure_map, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         except OSError as error:
             print(f"error: could not write {destination}: {error}", file=sys.stderr)
             return 1
 
     if arguments.json:
-        print(json.dumps(data, indent=2, ensure_ascii=False))
+        print(json.dumps(structure_map, indent=2, ensure_ascii=False))
     else:
-        print(structure_report.render_summary(data, arguments.path))
+        print(structure_report.render_summary(structure_map, arguments.path))
     if arguments.write and not arguments.json:
         print(f"\nSaved: {destination / 'structure.md'} and structure.json")
     return 0

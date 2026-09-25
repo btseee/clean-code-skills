@@ -54,8 +54,8 @@ def _code(text) -> str:
     return "`" + str(text).replace("`", "'") + "`"
 
 
-def _where(item) -> str:
-    return f"{item['path']}:{item['line']}"
+def _where(finding) -> str:
+    return f"{finding['path']}:{finding['line']}"
 
 
 def _destination(suggestion) -> str:
@@ -68,47 +68,47 @@ def _destination(suggestion) -> str:
     return _code(suggestion)
 
 
-def _misplaced_line(item) -> str:
-    target = _destination(item["suggestion"])
-    if item["symbol"] is None:
-        return f"{_code(item['path'])} holds only {item['role']} code; move the file to {target}."
-    home = f"a {item['home_role']} file" if item["home_role"] else "this file"
-    return (f"{_code(_where(item))} {_code(item['symbol'])} is {item['role']} in {home}; "
+def _misplaced_line(finding) -> str:
+    target = _destination(finding["suggestion"])
+    if finding["symbol"] is None:
+        return f"{_code(finding['path'])} holds only {finding['role']} code; move the file to {target}."
+    home = f"a {finding['home_role']} file" if finding["home_role"] else "this file"
+    return (f"{_code(_where(finding))} {_code(finding['symbol'])} is {finding['role']} in {home}; "
             f"move it to {target}.")
 
 
-def _mixed_line(item) -> str:
+def _mixed_line(finding) -> str:
     parts = [f"{role} ({', '.join(_code(name) for name in names[:3])})"
-             for role, names in item["roles"].items()]
-    return f"{_code(item['path'])} mixes {', '.join(parts)}."
+             for role, names in finding["roles"].items()]
+    return f"{_code(finding['path'])} mixes {', '.join(parts)}."
 
 
-def _duplicate_line(item) -> str:
+def _duplicate_line(finding) -> str:
     members = ", ".join(f"{_code(_where(member))} {_code(member['symbol'])}"
-                        for member in item["members"][:6])
-    more = f", and {len(item['members']) - 6} more" if len(item["members"]) > 6 else ""
-    return f"{item['kind']}, {item['lines']} lines: {members}{more}"
+                        for member in finding["members"][:6])
+    more = f", and {len(finding['members']) - 6} more" if len(finding["members"]) > 6 else ""
+    return f"{finding['kind']}, {finding['lines']} lines: {members}{more}"
 
 
-def _clash_line(item) -> str:
-    members = ", ".join(_code(_where(member)) for member in item["members"][:6])
-    return f"{_code(item['name'])} ({item['language']}): {members}"
+def _clash_line(finding) -> str:
+    members = ", ".join(_code(_where(member)) for member in finding["members"][:6])
+    return f"{_code(finding['name'])} ({finding['language']}): {members}"
 
 
-def _synonym_line(item) -> str:
+def _synonym_line(finding) -> str:
     verbs = ", ".join(f"{verb} x{len(entries)} ({_code(_where(entries[0]))})"
-                      for verb, entries in item["verbs"].items())
-    return f"{item['noun']} ({item['group']}): {verbs}"
+                      for verb, entries in finding["verbs"].items())
+    return f"{finding['noun']} ({finding['group']}): {verbs}"
 
 
-def _cycle_line(item) -> str:
-    names = item["components"]
+def _cycle_line(finding) -> str:
+    names = finding["components"]
     shown = " <-> ".join(_code(name) for name in names[:8])
     if len(names) > 8:
         shown += f" and {len(names) - 8} more"
-    heaviest = sorted(item["edges"], key=lambda edge: -edge["count"])[:6]
+    heaviest = sorted(finding["edges"], key=lambda edge: -edge["count"])[:6]
     counts = ", ".join(f"{edge['from']} -> {edge['to']} x{edge['count']}" for edge in heaviest)
-    more = f", {len(item['edges']) - 6} more edges" if len(item["edges"]) > 6 else ""
+    more = f", {len(finding['edges']) - 6} more edges" if len(finding["edges"]) > 6 else ""
     return f"{shown} ({counts}{more})"
 
 
@@ -183,11 +183,11 @@ def _name_rule_lines(items, examples: int) -> tuple:
     return lines, unlisted
 
 
-def _flagged(data) -> dict:
+def _flagged(structure_map) -> dict:
     """path -> finding kinds that name the file, and the misplaced symbol names."""
     kinds = defaultdict(set)
     symbols = defaultdict(set)
-    findings = data["findings"]
+    findings = structure_map["findings"]
     for item in findings["misplaced"]:
         kinds[item["path"]].add("misplaced")
         if item["symbol"]:
@@ -203,26 +203,26 @@ def _flagged(data) -> dict:
     return {"kinds": kinds, "symbols": symbols}
 
 
-def _header(data) -> list:
-    commit = f" at commit {_code(data['commit'])}" if data.get("commit") else ""
-    languages = ", ".join(f"{name} {count}" for name, count in data["languages"].items()) or "none"
-    packs = ", ".join(_code(pack) for pack in data["packs"]) or "none (generic conventions only)"
+def _header(structure_map) -> list:
+    commit = f" at commit {_code(structure_map['commit'])}" if structure_map.get("commit") else ""
+    languages = ", ".join(f"{name} {count}" for name, count in structure_map["languages"].items()) or "none"
+    packs = ", ".join(_code(pack) for pack in structure_map["packs"]) or "none (generic conventions only)"
     lines = [
         "# Structure Map",
         "",
-        f"Generated by `map_structure.py` on {data['generated']}{commit}. Evidence for judgement, "
+        f"Generated by `map_structure.py` on {structure_map['generated']}{commit}. Evidence for judgement, "
         "not a verdict: read each finding, then decide. Regenerate when the commit differs from "
         "`git rev-parse --short HEAD`.",
         "",
-        f"- Files: {data['file_count']} source, {data['test_file_count']} test; "
-        f"{data['symbol_count']} top-level symbols; {languages}",
+        f"- Files: {structure_map['file_count']} source, {structure_map['test_file_count']} test; "
+        f"{structure_map['symbol_count']} top-level symbols; {languages}",
         f"- Packs: {packs}",
-        f"- Components: {len(data['components'])} at depth {data['depth']}; "
-        f"{len(data['findings']['cycles'])} cycle(s)",
+        f"- Components: {len(structure_map['components'])} at depth {structure_map['depth']}; "
+        f"{len(structure_map['findings']['cycles'])} cycle(s)",
     ]
-    if data.get("truncated"):
+    if structure_map.get("truncated"):
         lines.append("- The walk stopped at the file cap; the map is partial.")
-    unparsed = data.get("unparsed", [])
+    unparsed = structure_map.get("unparsed", [])
     if unparsed:
         shown = ", ".join(f"{_code(item['path'])} ({_cell(item['reason'])})"
                           for item in unparsed[:MAX_UNPARSED_SHOWN])
@@ -232,8 +232,8 @@ def _header(data) -> list:
     return lines
 
 
-def _findings_section(data, top: int) -> list:
-    findings = data["findings"]
+def _findings_section(structure_map, top: int) -> list:
+    findings = structure_map["findings"]
     lines = ["", "## Findings", "", "| Finding | Count |", "| --- | --- |"]
     lines += [f"| {title} | {len(findings[key])} |" for key, title in FINDING_TITLES]
     for key, title in FINDING_TITLES:
@@ -265,9 +265,9 @@ def _moves_section(moves: list, top: int) -> list:
     return lines
 
 
-def _tree_section(data, flagged) -> list:
+def _tree_section(structure_map, flagged) -> list:
     folders = defaultdict(lambda: {"files": 0, "symbols": 0, "flagged": 0, "roles": Counter()})
-    for entry in data["files"]:
+    for entry in structure_map["files"]:
         if entry["test"]:
             continue
         folder = entry["path"].rsplit("/", 1)[0] if "/" in entry["path"] else "."
@@ -292,8 +292,8 @@ def _metric(value) -> str:
     return "-" if value is None else f"{value:.2f}"
 
 
-def _components_section(data) -> list:
-    components = data["components"]
+def _components_section(structure_map) -> list:
+    components = structure_map["components"]
     lines = ["", "## Components", ""]
     if not components:
         return lines + ["No components found."]
@@ -304,7 +304,7 @@ def _components_section(data) -> list:
         lines.append(f"| {_code(item['name'])} | {item['files']} | {item['ca']} | {item['ce']} | "
                      f"{_metric(item['instability'])} | {_metric(item['abstractness'])} | "
                      f"{_metric(item['distance'])} |")
-    edges = data["edges"]
+    edges = structure_map["edges"]
     if not edges:
         return lines
     degree = Counter()
@@ -313,7 +313,7 @@ def _components_section(data) -> list:
         degree[edge["to"]] += edge["count"]
     shown = [name for name, _ in degree.most_common(MAX_GRAPH_NODES)]
     ids = {name: f"c{index}" for index, name in enumerate(shown)}
-    in_cycle = {name for cycle in data["findings"]["cycles"] for name in cycle["components"]}
+    in_cycle = {name for cycle in structure_map["findings"]["cycles"] for name in cycle["components"]}
     lines += ["", "```mermaid", "graph LR"]
     lines += [f'  {ids[name]}["{name}"]' for name in shown]
     for edge in edges:
@@ -337,9 +337,9 @@ def _symbols_cell(entry, flagged) -> str:
     return ", ".join(names) or "-"
 
 
-def _files_section(data, flagged) -> list:
+def _files_section(structure_map, flagged) -> list:
     lines = ["", "## Files", "", "| File | Role | Symbols | Purpose |", "| --- | --- | --- | --- |"]
-    for entry in sorted(data["files"], key=lambda item: item["path"]):
+    for entry in sorted(structure_map["files"], key=lambda item: item["path"]):
         if entry["test"]:
             continue
         lines.append(f"| {_code(entry['path'])} | {entry['role']} | {_symbols_cell(entry, flagged)} | "
@@ -347,11 +347,13 @@ def _files_section(data, flagged) -> list:
     return lines
 
 
-def render_markdown(data: dict, top: int = 25) -> str:
+def render_markdown(structure_map: dict, top: int = 25) -> str:
     """The full structure map, most important section first."""
-    flagged = _flagged(data)
-    lines = (_header(data) + _findings_section(data, top) + _moves_section(data.get("moves", []), top)
-             + _tree_section(data, flagged) + _components_section(data) + _files_section(data, flagged))
+    flagged = _flagged(structure_map)
+    lines = (_header(structure_map) + _findings_section(structure_map, top)
+             + _moves_section(structure_map.get("moves", []), top)
+             + _tree_section(structure_map, flagged) + _components_section(structure_map)
+             + _files_section(structure_map, flagged))
     return "\n".join(lines) + "\n"
 
 
@@ -372,7 +374,7 @@ def finding_paths(key: str, finding) -> list:
     return [finding["path"]]
 
 
-def render_summary(data: dict, path_filter=None) -> str:
+def render_summary(structure_map: dict, path_filter=None) -> str:
     """A terminal summary; with path_filter, only that folder's files and findings."""
     prefix = None
     if path_filter:
@@ -380,22 +382,22 @@ def render_summary(data: dict, path_filter=None) -> str:
         while prefix.startswith("./"):
             prefix = prefix[2:]
     findings = {
-        key: [item for item in data["findings"][key]
+        key: [item for item in structure_map["findings"][key]
               if any(_under(path.rstrip("/"), prefix) for path in finding_paths(key, item))]
         for key, _ in FINDING_TITLES
     }
     counts = ", ".join(f"{title.lower()} {len(findings[key])}" for key, title in SUMMARY_TITLES)
     scope = (f" (under {prefix})" if prefix else "") + \
-        (" (changed files only)" if data.get("changed") is not None else "")
+        (" (changed files only)" if structure_map.get("changed") is not None else "")
     lines = [
         "Structure map (evidence for judgement, not a verdict)",
         "",
-        f"  Files     : {data['file_count']} source, {data['test_file_count']} test, "
-        f"{data['symbol_count']} top-level symbols",
-        f"  Packs     : {', '.join(data['packs']) or 'none (generic conventions only)'}",
+        f"  Files     : {structure_map['file_count']} source, {structure_map['test_file_count']} test, "
+        f"{structure_map['symbol_count']} top-level symbols",
+        f"  Packs     : {', '.join(structure_map['packs']) or 'none (generic conventions only)'}",
         f"  Findings  : {counts}{scope}",
     ]
-    unparsed = [item["path"] for item in data.get("unparsed", []) if _under(item["path"], prefix)]
+    unparsed = [item["path"] for item in structure_map.get("unparsed", []) if _under(item["path"], prefix)]
     if unparsed:
         more = f" and {len(unparsed) - SUMMARY_PER_KIND} more" if len(unparsed) > SUMMARY_PER_KIND else ""
         lines.append(f"  Unparsed  : {', '.join(unparsed[:SUMMARY_PER_KIND])}{more} "
@@ -415,8 +417,8 @@ def render_summary(data: dict, path_filter=None) -> str:
         if len(items) > SUMMARY_PER_KIND:
             lines.append(f"    ... and {len(items) - SUMMARY_PER_KIND} more")
     if prefix:
-        flagged = _flagged(data)
-        rows = [entry for entry in sorted(data["files"], key=lambda item: item["path"])
+        flagged = _flagged(structure_map)
+        rows = [entry for entry in sorted(structure_map["files"], key=lambda item: item["path"])
                 if not entry["test"] and _under(entry["path"], prefix)]
         lines += ["", f"  Files under {prefix}"]
         for entry in rows:
