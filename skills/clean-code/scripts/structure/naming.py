@@ -78,6 +78,10 @@ MAX_COPY_NUMBER_DIGITS = 2
 # An API version is no copy beside a word that says so: `api_v1`, `v2_router`.
 _API_WORDS = frozenset({"api", "route", "routes", "router", "endpoint", "endpoints", "blueprint"})
 COPY_SUFFIXES = frozenset({"new", "old", "copy", "final"})
+# Words that join a verb to its object without naming anything: `mark_as_new`, `clear_all_old`.
+_FILLER_WORDS = frozenset({"as", "all", "the", "a", "to"})
+# A term that ends in a copy suffix: `show_whats_new`, `WhatsNew`.
+_TERMS_ENDING_IN_A_SUFFIX = frozenset({"whats new"})
 _PREDICATE_WORDS = frozenset({"is", "has", "was", "can", "should", "will", "did", "does"})
 # `deep_copy` performs a copy; it is not one.
 _COPY_OPERATIONS = frozenset({"deep", "shallow"})
@@ -95,6 +99,9 @@ ACTION_VERBS = frozenset({"process", "handle", "manage", "do", "perform", "execu
                           "delete", "remove", "add", "get", "fetch", "retrieve", "send", "save",
                           "update", "calculate", "validate", "generate", "convert", "transform",
                           "apply", "notify", "dispatch", "submit", "make", "insert"})
+# Verbs a copy suffix can be the object of: `create_new`, `StartNew`, `remove_old`, `mark_final`.
+_VERBS_TAKING_A_SUFFIX = ACTION_VERBS | {"start", "stop", "open", "close", "show", "hide", "run", "load",
+                                         "clear", "clean", "purge", "mark", "reset", "begin", "keep", "use"}
 # A last word that says what the type is, so a verb before it names what the type carries or
 # does, or is a noun itself: `CreateOrderCommand`, `GetUserQuery`, `SendEmailJob`,
 # `ProcessPoolExecutor`, `SaveButton`.
@@ -111,6 +118,10 @@ ROLE_NOUNS = NOISE_WORDS | frozenset({
 # jobs, and listeners, a use case, a command or message handler, an event subscriber.
 ACTION_ROLES = frozenset({"action", "server-action", "job", "listener", "command", "handler",
                           "message-handler", "use-case", "interactor", "subscriber", "event-subscriber"})
+# Python bases that shape a class without making it a framework's: its methods are its author's.
+STRUCTURAL_BASES = frozenset({"object", "ABC", "Generic", "Protocol", "Enum", "IntEnum", "StrEnum", "Flag",
+                              "IntFlag", "NamedTuple", "TypedDict", "Exception", "BaseException"})
+_STRUCTURAL_BASE_SUFFIXES = ("Error", "Exception", "Warning")
 
 # Short names every reader knows: the spec's math idioms (x, y, i, j, k, e, id) and their kin,
 # bisect's lo and hi, a learning rate lr, two-letter words, and the handles an ecosystem fixes:
@@ -178,6 +189,8 @@ class ProjectConventions(NamedTuple):
 
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*[?!=]?")
 _NAME_TOKEN = re.compile(r"[A-Za-z_$][\w$]*")
+_DOTTED_NAME = re.compile(r"[A-Za-z_][\w.]*")
+_SUBSCRIPT = re.compile(r"\[[^\[\]]*\]")
 
 
 def _kind_of(symbol) -> Optional[str]:
@@ -272,21 +285,23 @@ def _is_numbered(name: Declared, function_names: frozenset) -> bool:
         term = "".join(words[-3:]) if is_version else words[-2] + last      # `mobilenet_v2`
         is_api_version = is_version and bool(_API_WORDS.intersection(words))
         return not (len(last) > MAX_COPY_NUMBER_DIGITS or _TERM_DIGITS.fullmatch(term) or is_api_version)
-    if last not in COPY_SUFFIXES or words[0] in _PREDICATE_WORDS:
+    if last not in COPY_SUFFIXES or words[0] in _PREDICATE_WORDS \
+            or " ".join(words[-2:]) in _TERMS_ENDING_IN_A_SUFFIX:
         return False
     if last == "copy" and words[-2] in _COPY_OPERATIONS:
         return False
+    # A noun before the suffix makes a copy (`process_order_new`, `getUserNew`, `UserNew`); right
+    # after a verb the suffix is its object (`create_new`, `mark_as_new`, `StartNew`).
+    content = [word for word in words if word not in _FILLER_WORDS]
     if name.kind == "class":
-        return True
+        return len(content) >= 3 or (len(content) == 2 and content[0] not in _VERBS_TAKING_A_SUFFIX)
     if name.kind not in ("function", "method"):
         return False        # a variable's old, new, or final value describes it
     beside_original = _without_suffix(name.name, last) in function_names
     if last == "copy":
         return beside_original      # else the copy is what it makes: `createLocalCopy`
-    # A noun between the verb and the suffix makes a copy (`process_order_new`, `getUserNew`);
-    # right after the verb, the suffix is its object (`create_new`, `remove_old`), unless the
-    # unsuffixed original is declared too (`handler` beside `handler_new`).
-    return len(words) >= 3 or beside_original
+    # A function opens with its verb; beside its unsuffixed original, it is a copy all the same.
+    return len(content) >= 3 or beside_original
 
 
 def _base_names(symbol, language: str) -> list:
@@ -296,17 +311,28 @@ def _base_names(symbol, language: str) -> list:
         return []
     header = symbol.context[declared.end():]
     if language == "python":
-        # `class Name(Base): pass` puts a body on the same line, so only the parentheses name
-        # bases, and a long list of them may run past the lines the context holds.
-        header = header.lstrip()
-        if not header.startswith("("):
-            return []
-        closing = header.find(")")
-        header = header[:closing] if closing >= 0 else header
-        header = re.sub(r"\b\w+\s*=[^,]*", "", header)      # `metaclass=ABCMeta` is no base
-    else:
-        header = re.split(r"[{;]", header, maxsplit=1)[0]
-    return _NAME_TOKEN.findall(header)
+        return _python_bases(header.lstrip())
+    return _NAME_TOKEN.findall(re.split(r"[{;]", header, maxsplit=1)[0])
+
+
+def _python_bases(header: str) -> list:
+    """Each base a Python class header names, as its last dotted segment: `admin.ModelAdmin` is
+    `ModelAdmin`, `Repository[Order]` is `Repository`, and `metaclass=ABCMeta` is no base.
+
+    `class Name(Base): pass` puts a body on the same line, so only the parentheses name bases,
+    and a long list of them may run past the lines the context holds."""
+    if not header.startswith("("):
+        return []
+    closing = header.find(")")
+    listed = header[1:closing] if closing >= 0 else header[1:]
+    while _SUBSCRIPT.search(listed):        # innermost first: `Mapping[str, List[int]]`
+        listed = _SUBSCRIPT.sub("", listed)
+    bases = []
+    for expression in listed.split(","):
+        dotted = _DOTTED_NAME.match(expression.strip())
+        if dotted and "=" not in expression:
+            bases.append(dotted.group().split(".")[-1])
+    return bases
 
 
 def _last_word(identifier: str) -> str:
@@ -427,19 +453,28 @@ def _i_prefix_families(files) -> frozenset:
     return frozenset(family for family, total in interfaces.items() if _is_majority(prefixed[family], total))
 
 
-def _extends_outside(class_symbol, type_names: frozenset) -> bool:
-    bases = [base for base in _base_names(class_symbol, "python") if base != "object"]
-    return bool(bases) and not any(base.lower() in type_names for base in bases)
+def _is_structural(base: str) -> bool:
+    return base in STRUCTURAL_BASES or base.endswith(_STRUCTURAL_BASE_SUFFIXES)
 
 
-def _framework_classes(roled_file, type_names: frozenset) -> frozenset:
-    """Python classes whose every base lies outside the project: a framework's, whose hook
-    methods and their parameters the framework names (`ModelAdmin.save_model(self, request,
+def _framework_classes(files) -> frozenset:
+    """The project's Python classes derived from a framework's: a base, directly or through the
+    project's own classes, that lies outside the project and is no structural base. The framework
+    names their hook methods and those methods' parameters (`ModelAdmin.save_model(self, request,
     obj, ...)`, `JSONEncoder.default(self, o)`, Qt's `closeEvent`, unittest's `setUp`)."""
-    if roled_file.language != "python":
-        return frozenset()
-    return frozenset(item.symbol.name for item in roled_file.symbols
-                     if item.symbol.kind == "class" and _extends_outside(item.symbol, type_names))
+    bases_of = defaultdict(set)
+    for roled_file in files:
+        if roled_file.language == "python":
+            for item in roled_file.symbols:
+                if item.symbol.kind in ("class", "protocol"):
+                    bases_of[item.symbol.name].update(_base_names(item.symbol, "python"))
+    derived = {name for name, bases in bases_of.items()
+               if any(base not in bases_of and not _is_structural(base) for base in bases)}
+    inheriting = {name for name, bases in bases_of.items() if name not in derived and bases & derived}
+    while inheriting:
+        derived |= inheriting
+        inheriting = {name for name, bases in bases_of.items() if name not in derived and bases & derived}
+    return frozenset(derived)
 
 
 def _overrides_a_framework(name: Declared, framework_classes: frozenset) -> bool:
@@ -503,10 +538,11 @@ def _project_findings(sources, roles) -> list:
                                if name.kind in ("function", "method"))
     conventions = ProjectConventions(_project_casing(sources, declared), _project_type_names(sources),
                                      _i_prefix_families(sources), function_names)
+    framework_classes = _framework_classes(sources)
     found = []
     for roled_file in sources:
-        framework_classes = _framework_classes(roled_file, conventions.type_names)
-        judged = [(name, _rules_broken(name, roled_file, conventions, framework_classes))
+        overridable = framework_classes if roled_file.language == "python" else frozenset()
+        judged = [(name, _rules_broken(name, roled_file, conventions, overridable))
                   for name in declared[roled_file.path]]
         mismatch = _file_mismatch(roled_file)
         if mismatch is not None:

@@ -150,6 +150,42 @@ class VagueTest(unittest.TestCase):
             """), {("vague", "tmp", "parameter"), ("vague", "obj", "parameter"),
                    ("convention", "closeEvent", "method"), ("vague", "val", "parameter")})
 
+    def test_a_structural_base_is_no_framework(self):
+        self.assertEqual(names_in("shop/ports.py", """
+            class OrderRepository(ABC):
+                def save(self, obj): pass
+                def getOrder(self, x): pass
+            class OrderError(Exception):
+                def describe(self, tmp): pass
+            class RefundError(PaymentFailedError):
+                def reason_for(self, ret): pass
+            class Status(Enum):
+                def label_for(self, val): pass
+            class Color(enum.Enum):
+                def css_for(self, foo): pass
+            class Pair(Generic[K, V]):
+                def put(self, data): pass
+            """), {("convention", "getOrder", "method")}
+            | {("vague", name, "parameter") for name in ("obj", "tmp", "ret", "val", "foo", "data")})
+
+    def test_a_framework_base_beside_a_mixin_or_behind_a_project_base_counts(self):
+        save_model = "    def save_model(self, request, obj, form, change): pass\n"
+        self.assertEqual(findings_for({
+            "shop/mixins.py": "class ExportMixin:\n    def export_rows(self, tmp): pass\n",
+            "shop/admin.py": "class OrderAdmin(ExportMixin, admin.ModelAdmin):\n" + save_model,
+            "shop/base.py": "class BaseAdmin(admin.ModelAdmin):\n    pass\n",
+            "shop/invoices.py": "class InvoiceAdmin(BaseAdmin):\n" + save_model,
+            "shop/people.py": "class Admin:\n    pass\n",
+        }), {("vague", "tmp", "parameter")})     # the mixin itself is the project's own
+
+    def test_a_subscripted_project_base_is_the_project_class(self):
+        self.assertEqual(names_in("shop/orders.py", """
+            class Repository(Generic[T]):
+                pass
+            class OrderRepository(Repository[Order]):
+                def add(self, obj): pass
+            """), {("vague", "obj", "parameter")})
+
     def test_a_name_bound_again_in_its_scope_is_reported_once_where_first_bound(self):
         found = naming_findings({"src/totals.py": """
             def total(tmp):
@@ -222,6 +258,19 @@ class NumberedTest(unittest.TestCase):
             def add_new(order): ...
             def clean_old(order): ...
             """), set())
+
+    def test_filler_words_and_whats_new_make_no_copy(self):
+        self.assertEqual(findings_for({
+            "src/marks.py": "def mark_as_new(order): ...\ndef save_as_new(order): ...\n"
+                            "def clear_all_old(order): ...\ndef show_whats_new(user): ...\n"
+                            "class WhatsNew: pass\n",
+            "src/marks.js": "function markAsFinal() {}\nfunction removeAllOld() {}\n",
+        }), set())
+
+    def test_a_class_copy_needs_a_noun_before_its_suffix(self):
+        found = naming_findings({"src/screens.py": "class StartNew: pass\nclass AddNew: pass\n"
+                                                   "class UserServiceNew: pass\n"})
+        self.assertEqual([item["name"] for item in found if item["rule"] == "numbered"], ["UserServiceNew"])
 
     def test_a_function_named_for_the_copy_it_makes_is_a_copy_only_beside_its_original(self):
         self.assertEqual(findings_for({
