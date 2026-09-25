@@ -168,6 +168,14 @@ class VagueTest(unittest.TestCase):
             """), {("convention", "getOrder", "method")}
             | {("vague", name, "parameter") for name in ("obj", "tmp", "ret", "val", "foo", "data")})
 
+    def test_a_builtin_container_base_is_no_framework(self):
+        self.assertEqual(names_in("shop/kinds.py", """
+            class Color(str, Enum):
+                def label_for(self, val): pass
+            class Registry(dict):
+                def register(self, obj): pass
+            """), {("vague", "val", "parameter"), ("vague", "obj", "parameter")})
+
     def test_a_framework_base_beside_a_mixin_or_behind_a_project_base_counts(self):
         save_model = "    def save_model(self, request, obj, form, change): pass\n"
         self.assertEqual(findings_for({

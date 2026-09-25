@@ -119,8 +119,10 @@ ROLE_NOUNS = NOISE_WORDS | frozenset({
 ACTION_ROLES = frozenset({"action", "server-action", "job", "listener", "command", "handler",
                           "message-handler", "use-case", "interactor", "subscriber", "event-subscriber"})
 # Python bases that shape a class without making it a framework's: its methods are its author's.
+# Builtin containers count too (`class Color(str, Enum)`); `type` does not: metaclass hooks are dictated.
 STRUCTURAL_BASES = frozenset({"object", "ABC", "Generic", "Protocol", "Enum", "IntEnum", "StrEnum", "Flag",
-                              "IntFlag", "NamedTuple", "TypedDict", "Exception", "BaseException"})
+                              "IntFlag", "NamedTuple", "TypedDict", "Exception", "BaseException",
+                              "str", "int", "float", "bytes", "dict", "list", "set", "frozenset", "tuple"})
 _STRUCTURAL_BASE_SUFFIXES = ("Error", "Exception", "Warning")
 
 # Short names every reader knows: the spec's math idioms (x, y, i, j, k, e, id) and their kin,
