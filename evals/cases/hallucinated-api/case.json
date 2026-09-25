@@ -18,12 +18,23 @@
     },
     {
       "type": "new_file",
-      "glob": "**/*.test.js",
+      "glob": [
+        "**/*.test.js",
+        "**/*.test.mjs",
+        "**/*-test.js",
+        "**/*_test.js",
+        "**/test-*.js",
+        "**/test.js",
+        "**/test/**"
+      ],
       "text": "A new test file covers the added function"
     },
     {
       "type": "command_passes",
-      "command": ["node", "--test"],
+      "command": [
+        "node",
+        "--test"
+      ],
       "timeout": 60,
       "text": "node --test passes"
     },

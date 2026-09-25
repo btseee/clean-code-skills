@@ -26,8 +26,8 @@ the skill's own matcher: `**` spans folders, matching ignores case.
 | `file_contains` | `glob`, `pattern` | a matching file contains the regex |
 | `file_not_contains` | `glob`, `pattern` | no matching file contains it |
 | `unchanged` | `path` | the file equals the fixture's, line endings aside |
-| `no_new_files` | `glob` | no file matching the glob was added; lockfiles and `.gitignore`, which installing a dependency writes, do not count |
-| `new_file` | `glob` | at least one file matching the glob was added; the inverse of `no_new_files`, with the same lockfile exemption |
+| `no_new_files` | `glob` (one glob or a list) | no file matching the glob was added; lockfiles and `.gitignore`, which installing a dependency writes, do not count |
+| `new_file` | `glob` (one glob or a list) | at least one file matching any glob was added; the inverse of `no_new_files`, with the same lockfile exemption |
 | `map_finding_absent` | `kind`, optional `path` | `map_structure.py` reports no finding of that kind; `path` is a glob matched against each finding's own `path` or `folder`, so a case can require a clean file while others in the fixture still have theirs. A kind the scanner does not populate yet (an organization finding not built yet) counts as zero findings |
 | `boundaries_pass` | — | `check_boundaries.py` exits 0 |
 | `transcript_reads` | `pattern` | one of the run's tool calls matches (a plain-text transcript is matched whole), with backslashes read as `/`; skipped when there is none |

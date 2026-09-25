@@ -97,11 +97,14 @@ def _search(workspace: Path, paths, pattern: str):
     return None
 
 
-def _new_files(fixture: Path, workspace: Path, glob: str) -> list:
-    """Matching files in workspace the fixture did not already have; installing a
-    dependency's lockfile does not count as one."""
+def _new_files(fixture: Path, workspace: Path, globs) -> list:
+    """Files in workspace matching any of the globs (one string or a list) that the
+    fixture did not already have; installing a dependency's lockfile does not count."""
     before = set(files_in(fixture))
-    return [path for path in _matching(workspace, glob)
+    matches = []
+    for glob in [globs] if isinstance(globs, str) else globs:
+        matches.extend(path for path in _matching(workspace, glob) if path not in matches)
+    return [path for path in matches
             if path not in before and Path(path).name not in DEPENDENCY_ARTIFACTS]
 
 

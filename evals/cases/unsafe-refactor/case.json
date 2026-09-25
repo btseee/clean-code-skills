@@ -11,20 +11,23 @@
     },
     {
       "type": "command_passes",
-      "command": ["node", "--test"],
+      "command": [
+        "node",
+        "--test"
+      ],
       "timeout": 60,
       "text": "node --test still passes every pinned case"
     },
     {
       "type": "file_contains",
       "glob": "src/pricing/shipping.js",
-      "pattern": "function\\s+\\w*[Dd]omestic\\w*\\s*\\(",
+      "pattern": "(?m)function\\s+\\w*[Dd]omestic\\w*\\s*\\(|(?:const|let|var)\\s+\\w*[Dd]omestic\\w*\\s*=|^\\s*\\w*[Dd]omestic\\w*\\s*\\([^)]*\\)\\s*\\{",
       "text": "The domestic case is its own named function"
     },
     {
       "type": "file_contains",
       "glob": "src/pricing/shipping.js",
-      "pattern": "function\\s+\\w*[Ii]nternational\\w*\\s*\\(",
+      "pattern": "(?m)function\\s+\\w*[Ii]nternational\\w*\\s*\\(|(?:const|let|var)\\s+\\w*[Ii]nternational\\w*\\s*=|^\\s*\\w*[Ii]nternational\\w*\\s*\\([^)]*\\)\\s*\\{",
       "text": "The international case is its own named function"
     },
     {

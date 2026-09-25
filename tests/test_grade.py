@@ -84,6 +84,12 @@ class GradeTest(unittest.TestCase):
         write(self.workspace, {"src/services/pay.test.js": "test('pays', () => {});\n"})
         self.assertTrue(self.grade_one({"type": "new_file", "glob": "**/*.test.*"}))
 
+    def test_new_file_accepts_any_of_several_globs(self):
+        expectation = {"type": "new_file", "glob": ["**/*.test.js", "test/**"]}
+        self.assertFalse(self.grade_one(expectation))
+        write(self.workspace, {"test/checkout.js": "test('totals', () => {});\n"})
+        self.assertTrue(self.grade_one(expectation))
+
     def test_new_file_ignores_what_installing_a_dependency_writes(self):
         write(self.workspace, {"package-lock.json": "{}\n", ".gitignore": "node_modules/\n"})
         self.assertFalse(self.grade_one({"type": "new_file", "glob": "*"}))
