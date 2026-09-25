@@ -1,108 +1,92 @@
 # New Project Protocol
 
-Starting a project, or a new major module inside one. The goal is not to build the grandest possible
-structure — it is to make the first correct decisions cheap and the later ones possible.
+Starting a project, or a major new module. Not the grandest structure — the cheapest correct first
+decisions, keeping later ones open.
 
-The governing idea: **a good architect maximizes the number of decisions not made.** Everything below
-is about deferring what can be deferred while keeping the domain independent of what you defer.
+Governing idea: **a good architect maximizes the number of decisions not made.** Defer what can be
+deferred; keep the domain independent of what is deferred.
 
-**When invoked as `new-project <description>`**, the description is the draft answer set for
-Phase 0. Extract what it already answers — purpose, actors, scope, domain vocabulary — read that
-understanding back to the user, and ask only the questions it leaves open. A rich description can
-answer most of Phase 0; a thin one just means more to ask. Never re-ask what the description
-plainly states.
+**Invoked as `new-project <description>`**: the description is the draft answer set for Phase 0.
+Extract what it already answers — purpose, actors, scope, vocabulary — read it back, ask only what
+it leaves open. Never re-ask what it plainly states.
 
 ## Phase 0 — Understand before designing
 
-**1. Clarify the requirements.** What must the system do, for whom, and what makes it valuable? Ask
-about the two or three requirements most likely to change, because those decide where the boundaries
-go.
+**1. Clarify the requirements and scope.** What must the system do, for whom, what makes it
+valuable — the two or three requirements most likely to change decide where the boundaries go. What
+is explicitly *not* in version one, written down: the main defence against speculative structure.
 
-**2. Define the scope.** What is explicitly *not* in version one. Write it down; it is the main
-defence against speculative structure.
+**2. Identify the actors.** Which groups can demand a change — finance, operations, compliance, the
+end user, another team? Different actors, different modules: this one question prevents the most
+expensive later rework.
 
-**3. Identify the actors.** Which groups of people can demand a change — finance, operations,
-compliance, the end user, another team? Code answering to different actors belongs in different
-modules. This single question prevents the most expensive class of later rework.
+**3. Name the domain vocabulary.** Terms for core concepts, agreed now, used everywhere — types,
+files, directories, tests. One word per concept, one concept per word.
 
-**4. Name the domain vocabulary.** Agree the terms for the core concepts now and use them everywhere:
-in types, files, directories, and tests. One word per concept, one concept per word.
-
-Ask the user for anything above that you cannot infer. Guessing the domain is far more damaging than
-asking.
+Ask the user for anything above you cannot infer. Guessing the domain costs more than asking.
 
 ## Phase 1 — Design the shape
 
-**5. Design the architecture before the code.** Decide the levels: what is policy, what is detail.
-Business rules are highest level; the database, web, UI, framework, and delivery mechanism are
-details.
+**4. Design the architecture before the code.** Policy vs. detail: business rules highest;
+database, web, UI, framework, delivery mechanism are details.
 
-**6. Define the domain model.** The Critical Business Rules and Critical Business Data — the things
-that would exist even if the work were done on paper. These become the innermost layer and depend on
-nothing.
+**5. Define the domain model and module boundaries.** Critical Business Rules and Data — what
+would exist on paper — form the innermost layer, depending on nothing; draw one boundary per axis
+of change, one public entry point per component.
 
-**7. Define module boundaries.** Draw them where the axes of change are, one boundary per axis. Give
-each component one public entry point.
+**6. Decide whether to enforce layers, then write the rules down.** No declaration: framework
+pack's idiomatic structure applies; declared: layer rules become strict. Real business rules: write
+`.clean/architecture.md` from `assets/templates/architecture.md`, innermost first (pack's
+**Layers** section) — the project's constitution, read by later sessions, enforced by
+`scripts/check_boundaries.py`.
 
-**8. Decide whether to enforce layers, then write the rules down.** Without a declaration the skill
-follows the framework pack's idiomatic structure; with one, the layer rules become strict. For a
-domain with real business rules, recommend declaring them: write `.clean/architecture.md` from
-`assets/templates/architecture.md`, innermost layer first (the pack's **Layers** section suggests a
-block). That file is the project's constitution: what later sessions read, and what
-`scripts/check_boundaries.py` enforces.
+**7. Choose the decoupling mode deliberately.** Source level first — one address space, function
+calls — shaped so a service *could* be extracted later, not extracted until forced. Reversible both
+ways.
 
-**9. Choose the decoupling mode deliberately.** Start at source level — components in one address
-space, communicating by function calls. Structure it so a service *could* be extracted later, then
-do not extract one until something forces it. Keep the move reversible in both directions.
-
-**10. Create the project structure.** Start from the framework pack's **Structure** section, so each
-role has its conventional home, and name top-level directories for the domain and its use cases, not
-for the framework or for technical layers. A newcomer reading the directory listing should learn what
-the system is *for*.
+**8. Create the project structure.** The framework pack's **Structure** section gives each role its
+home; name top-level directories for the domain and its use cases, not the framework or technical
+layers — the listing should teach a newcomer what the system is *for*.
 
 ## Phase 2 — Set the standards
 
-**11. Establish coding standards by choosing tools, not writing prose.** A formatter, a linter, an
-`.editorconfig`. Let the tools own formatting so no human or agent argues about it.
+**9. Establish coding standards by choosing tools, not writing prose.** A formatter, a linter, an
+`.editorconfig`; tools own formatting so nobody argues about it.
 
-**12. Design for testability from the first commit.** Business rules must be testable with no
-database, no web server, no UI, no external service. If that is not true on day one, it never becomes
-true. Split hard-to-test behavior from easy-to-test behavior: keep the untestable half humble, with
+**10. Design for testability from the first commit.** Business rules testable with no database, web
+server, UI, or external service — not true day one, never true. The untestable half stays humble,
 no decisions in it.
 
-**13. Automate the quality checks.** A test command, the linter, and — once layers are declared — a
-dependency-direction check, all runnable with one command and wired into CI. Add the pre-commit hook
-from `assets/hooks/` if the team wants enforcement locally.
+**11. Automate the quality checks.** Test command, linter, and — once layers are declared — a
+dependency-direction check, one command, wired into CI. Team wants local enforcement: add the
+pre-commit hook from `assets/hooks/`.
 
-**14. Set up the memory files.** Create `.clean/` from `assets/templates/`: `decisions.md`, the
-optional `architecture.md`, a `context.json` from `scripts/detect_stack.py --write`, and the first
-`structure.md` from `scripts/map_structure.py --write` — or hand-write the same facts, since you are
-the one who just chose them. Record the Phase 0 and Phase 1 decisions in `decisions.md` while the
-reasoning is still fresh.
+**12. Set up the memory files.** `.clean/` from `assets/templates/`: `decisions.md`, optional
+`architecture.md`, `context.json` (`scripts/detect_stack.py --write`), `structure.md`
+(`scripts/map_structure.py --write`) — or hand-write the same facts, since you just chose them.
+Record the Phase 0 and Phase 1 decisions in `decisions.md` while fresh.
 
 ## Phase 3 — Build
 
-**15. Implement vertical slices.** One complete use case end to end, through every layer, before
-starting the next. A slice proves the architecture; a finished layer proves nothing.
+**13. Implement vertical slices.** One complete use case end to end, through every layer, before
+the next — a slice proves the architecture, a finished layer proves nothing.
 
-**16. Keep abstractions minimal.** Add an interface when there is a second implementation or a real
-boundary to protect, not in anticipation of one. An abstraction with a single implementation and no
-boundary is a cost with no benefit.
+**14. Keep abstractions minimal.** An interface for a second implementation or a real boundary,
+never in anticipation. One implementation, no boundary: cost, no benefit.
 
-**17. Prefer simplicity, and resist the three temptations.** No premature optimization: measure
-first. No premature generalization: build for the requirement in front of you. No premature
-distribution: a network boundary is not a design.
+**15. Prefer simplicity; resist the three temptations.** No premature optimization: measure first.
+No premature generalization: build for the requirement in front of you. No premature distribution:
+a network boundary is not a design.
 
-**18. Keep the domain pure.** No framework annotations, no ORM base classes, no HTTP types in the
-domain. When a framework wants inside, wrap it in a proxy at the edge instead.
+**16. Keep the domain pure; confine wiring to `main`.** No framework annotations, ORM base classes,
+or HTTP types in the domain — wrap a framework at the edge in a proxy instead. Configuration
+reading, dependency injection, framework binding: one dirty low-level component nothing else
+depends on; prefer a separate `main` per environment over configuration branches inside policy
+code.
 
-**19. Confine wiring to `main`.** Configuration reading, dependency injection, and framework binding
-happen in one dirty low-level component that nothing else depends on. Prefer a separate `main` per
-environment over configuration branches inside policy code.
-
-**20. Review architectural consistency, then scale only when needed.** At each milestone, check that
-dependencies still point inward, that no cycle has appeared, and that the structure still screams the
-domain. Add a boundary, a service, or a cache when a measured need arrives — not before.
+**17. Review architectural consistency, then scale only when needed.** Each milestone: dependencies
+still point inward, no new cycle, structure still screams the domain. Add a boundary, service, or
+cache on measured need — not before.
 
 ## What "done" means for version one
 

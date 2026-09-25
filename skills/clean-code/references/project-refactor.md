@@ -1,8 +1,11 @@
 # Project Refactor Protocol (Campaign Mode)
 
-Use this protocol when the task itself is cleanup: "clean up this project", "refactor this module to clean code", "apply clean code everywhere". Surgical-mode scope rules are suspended — the cleanup is the scope — but discipline is not. A campaign without structure degrades into an unreviewable rewrite that changes behavior nobody asked to change.
+For cleanup as the task: "clean up this project", "refactor this module to clean code", "apply
+clean code everywhere". Surgical-mode scope is suspended, not discipline: a structure-less campaign
+becomes an unreviewable rewrite of behavior nobody asked for.
 
-The protocol is designed for how agents actually fail at large refactors: context windows overflow mid-task, sessions end before the work does, early batches get forgotten by late batches, and enthusiasm at file 3 becomes inconsistency by file 30. Every step below exists to make progress durable and verifiable.
+Agents fail large refactors predictably: context overflow, early session end, batches forgetting
+each other, quality drift file 3 to 30. Every step below counters one.
 
 ## Contents
 
@@ -20,144 +23,125 @@ Agree with the user before touching code:
 
 - **Depth**: naming-and-dead-code pass? structural extraction? architectural re-layering? Each level multiplies risk.
 - **Breadth**: whole project, selected modules, or one vertical slice as a pilot.
-- **Behavior policy**: campaign batches are behavior-preserving. Bugs found along the way are logged, not silently fixed — a silent fix inside a rename batch is invisible to review. Confirm the user agrees, or carve out an explicit bug-fix lane.
-- **Checkpoint style**: one commit per batch (preferred), or staged diffs for user review.
-- **No-go zones**: generated code, vendored code, files with pending changes by others, anything the user marks off-limits.
+- **Behavior policy**: batches stay behavior-preserving; bugs found are logged, not fixed (invisible to review inside a rename batch) — confirm the user agrees, or carve a bug-fix lane.
+- **Checkpoint style**: one commit per batch (preferred), or staged diffs for review.
+- **No-go zones**: generated/vendored code, files with others' pending changes, anything the user marks off-limits.
 
-If the user just said "clean it up", propose a contract with your recommended depth and breadth and let them confirm or adjust. Do not start editing while the contract is open.
-
-The contract is negotiated once. When an audit already drafted it at the top of `.clean/ledger.md`,
-this phase is a confirmation — read the draft back, take amendments — not a renegotiation from a
-blank page.
+"Clean it up" alone: propose a contract at your recommended depth/breadth; let the user confirm or
+adjust — no editing while open. Negotiated once: an audit already drafted it atop
+`.clean/ledger.md`, so this phase only confirms, taking amendments.
 
 ## Phase 1: Inventory And Baseline
 
-**When an audit already ran** (`.clean/ledger.md` holds a coverage checklist and a batch plan),
-consume it: verify the baseline still holds, confirm the contract at the top of the ledger with the
-user, and go straight to Phase 3. Re-inventorying what the audit inventoried is wasted motion — the
-whole point of the audit filling `.clean/` is that the campaign starts here.
+**Audit already ran** (`.clean/ledger.md` holds a coverage checklist and batch plan): verify the
+baseline, confirm the contract, go straight to Phase 3.
 
-**When there is no ledger**, propose running the audit first and say what it costs — name the
-project's file count. Two typed words must not launch hours of unasked work, so wait for consent.
-The inventory below is the leaner fallback for when the user prefers to skip the full audit:
+**No ledger**: propose the audit first, naming the file count as its cost — two typed words must
+not launch unasked hours of work; wait for consent. Leaner fallback: the same measurements as
+`audit-report.md` Phases A-B (`scripts/detect_stack.py --write`, full verification recorded
+verbatim as the **baseline** — not a blocker if red, but must be written down — and a smell sweep
+via `smell-triage.md`, `chapter-map.md`, `scripts/scan_repo.py`, `scripts/map_structure.py --write`),
+minus the coverage checklist and convergence sweeps. Record findings as a file-path list — this
+becomes the ledger.
 
-1. Map the project: layout, entry points, module boundaries, test locations, build and verification commands, formatter and linter configuration. `scripts/detect_stack.py --write` does this and caches the answers in `.clean/context.json`; otherwise establish the same facts by inspection.
-2. Run the full available verification: tests, build, typecheck, lint. Record the results verbatim.
-3. The recorded result is the **baseline**. A red baseline is not a blocker, but it must be written down — otherwise pre-existing failures get attributed to your refactor, or worse, your breakage hides among them.
-4. Where risky code has no tests, add characterization tests first: capture what the code currently does (including its oddities), so refactoring has a safety net. If characterization is impractical, mark the area high-risk in the plan and reduce depth there.
-5. Sweep for smells using `smell-triage.md` and the `chapter-map.md` heuristics. `scripts/scan_repo.py` gathers the measurable part — oversized files, sibling variants, junk drawers, debug output, skipped tests, untested areas — and `scripts/map_structure.py --write` adds misplaced, mixed, duplicated, and synonymous code and component cycles; the rest needs reading. Record findings as a list with file paths; this becomes the ledger.
-6. Take the architectural inventory, because it determines what the later batches can safely do:
-   - Is the intended layering written down? If `.clean/architecture.md` exists, that is the contract. If not, the framework pack's idiomatic structure is the default; when the campaign's depth includes re-layering, infer the layering, show the user what you inferred, and get it confirmed — an undeclared architecture cannot be violated, which also means it cannot be defended.
-   - Which dependencies point the wrong way? `scripts/check_boundaries.py` answers this once layers are declared; otherwise check the imports of the modules you believe are innermost.
-   - Are there cycles between components, and which edge would you invert?
-   - Do details reach inward — ORM types, framework annotations, HTTP objects, raw rows inside business rules?
-   - Can the business rules be tested with no infrastructure running? If not, that is the finding that gates everything else, because it decides whether a re-layering batch can be verified at all.
+1. Risky code with no tests: add characterization tests first, capturing current behavior (oddities included). Impractical: mark the area high-risk, reduce depth there.
+2. Architectural inventory decides what later batches can safely do:
+   - Layering declared? `.clean/architecture.md` is the contract if present, else the framework pack's idiomatic structure; re-layering in scope: infer it, show the user, confirm.
+   - Dependencies pointing the wrong way? `scripts/check_boundaries.py` once layers are declared; otherwise check imports of modules you believe innermost.
+   - Cycles between components (which edge to invert), and details reaching inward — ORM types, framework annotations, HTTP objects, raw rows in business rules?
+   - Business rules testable with no infrastructure running? If not, that finding gates everything else.
 
 ## Phase 2: Plan In Batches
 
-Split the campaign into batches sized so that one batch fits comfortably in one session and one review. Two batching strategies work; pick per campaign:
+Batches sized to fit one session and review. Two strategies; pick per campaign:
 
-- **By module**: all smells within one module or directory. Best when modules are independent and you want visible module-by-module completion.
-- **By smell family**: one mechanical change across many files (rename a concept everywhere, normalize error wrapping, delete dead code, fix import order). Best when consistency across the codebase matters more than local completeness. Keep mechanical sweeps separate from structural batches — a rename sweep plus extractions in the same diff is unreviewable.
+- **By module**: all smells within one module/directory — best for independent modules, visible completion.
+- **By smell family**: one mechanical change across many files (rename a concept everywhere, normalize error wrapping, delete dead code, fix import order) — best when codebase-wide consistency matters more than local completeness. Keep mechanical sweeps separate from structural batches: a rename sweep plus extractions is unreviewable.
 
 Order batches by risk and value:
 
-1. Safety first: dead code removal, obvious duplication with a single caller, formatting via the project's formatter. Low risk, shrinks the problem.
-2. Naming and readability: renames, explanatory variables, and comment cleanup per `comments.md`, starting with the files the map reports as `comment_heavy`. Low risk with tooling support.
-3. **Placement**: start from the `## Proposed moves` section of `.clean/structure.md`, one `from -> to (why)` line per move, drawn from misplaced symbols, file families, and junk-drawer splits. Confirm each move against the code (the map's findings are its evidence, not its verdict) and drop or amend any the audit rejected. Then move every file and symbol the audit confirmed as misplaced or mixed to its intended home, and rewire completely — imports, exports, registrations, build config. One behavior-preserving batch (or one per module), verified before and after; after each move, `scripts/map_structure.py --path <folder>` should no longer report it. A half-moved file is worse than an unmoved one. This batch exists because "the files never end up in the right folders" is what happens when placement is left to ride along with other edits.
-4. **Package idioms**: align usage with what each installed dependency intends, per the versions in `.clean/context.json` and `framework-map.md` — replace hand-rolled code with the facility the library already provides, fix APIs used against their documented shape. Version *upgrades* are not part of this batch; each one is a `decisions.md` entry for the user.
+1. Safety first: dead code removal, single-caller duplication, formatter-only formatting. Low risk, shrinks the problem.
+2. Naming/readability: renames, explanatory variables, comment cleanup per `comments.md`, starting with files the map reports `comment_heavy`. Low risk, tooling-supported.
+3. **Placement**: start from `.clean/structure.md`'s `## Proposed moves` (`from -> to (why)`: misplaced symbols, file families, junk-drawer splits) — confirm each against the code (evidence, not verdict), drop or amend any the audit rejected. Move every confirmed file and symbol to its intended home; rewire completely: imports, exports, registrations, build config. One behavior-preserving batch (or per module), verified before and after — `scripts/map_structure.py --path <folder>` should no longer report it. A half-moved file is worse than unmoved.
+4. **Package idioms**: align usage with each installed dependency's intent, per `.clean/context.json` and `framework-map.md` — replace hand-rolled code with what the library provides, fix misused APIs. Version *upgrades* are a `decisions.md` entry, not this batch.
 5. Structure: extractions, responsibility splits. Medium risk; needs tests.
-6. Boundaries and error handling: wrapping third-party APIs, normalizing failure paths. Higher risk; needs contract awareness.
+6. Boundaries/error handling: wrapping third-party APIs, normalizing failure paths. Higher risk; needs contract awareness.
 7. Architecture: re-layering, dependency direction fixes. Highest risk; only within the agreed depth.
 
-Write the plan into the ledger before starting batch 1.
+Write the plan into the ledger before batch 1.
 
 ## Phase 3: Execute Batch By Batch
 
 For each batch:
 
-1. Re-read the target files fresh. Do not edit from memory of an earlier read — earlier batches may have changed them, and stale context is how agents reintroduce deleted code.
+1. Re-read target files fresh — earlier batches may have changed them; stale context reintroduces deleted code.
 2. Make the changes, applying the full skill: placement, one job per unit, naming, error handling.
-3. Run the verification relevant to the batch, then the broader suite at least every few batches. Compare against the baseline: no new failures.
-4. Update the ledger: what was done, what was found and deferred, anything discovered that changes the plan.
+3. Run verification relevant to the batch, the broader suite every few batches. Compare against baseline: no new failures.
+4. Update the ledger: done, found, deferred, anything that changes the plan.
 5. Checkpoint: commit with a message describing the batch, or present the diff, per the contract.
-6. Report honestly if the batch went sideways; revert to the checkpoint rather than patching forward on top of a mess.
+6. Report honestly if a batch went sideways; revert to the checkpoint rather than patch forward on a mess.
 
-Batch hygiene:
-
-- One batch, one intent. The commit message should pass the one-sentence test.
-- If a batch balloons past its intent, stop, checkpoint what is coherent, and re-plan the remainder.
-- Never carry uncommitted work from one batch into the next.
+Batch hygiene: one batch, one intent — commit message passes the one-sentence test. Balloons past
+intent: stop, checkpoint what is coherent, re-plan the remainder. Never carry uncommitted work
+forward.
 
 ## Phase 4: Consistency Sweep And Close
 
 After the planned batches:
 
-1. Sweep for consistency debts the batches created: old and new naming coexisting, half-migrated patterns, imports of moved code. Half-done renames are worse than none — one concept, one name, everywhere in scope.
+1. Sweep for consistency debts the batches created: old/new naming coexisting, half-migrated patterns, imports of moved code. Half-done renames are worse than none.
 2. Run the full verification suite; compare to baseline; record the final state.
-3. Close the ledger: done, deferred (with reasons), bugs found (for the user to prioritize), and recommended next campaigns.
-4. Summarize for the user: batches completed, verification evidence, behavior risks taken (ideally none), and the deferred list.
+3. Close the ledger: done, deferred (with reasons), bugs found (for the user to prioritize), recommended next campaigns.
+4. Summarize for the user: batches completed, verification evidence, behavior risks taken (ideally none), deferred list.
 
 ## The Ledger
 
-The ledger is a plain markdown file that survives context loss and session ends. The default home is `.clean/ledger.md`, started from `assets/templates/ledger.md`; keep it wherever the user prefers, and do not commit it unless asked. See `memory-protocol.md` for how it fits with the project's other durable state. Structure:
+A plain markdown file surviving context loss and session ends. Default home `.clean/ledger.md`,
+started from `assets/templates/ledger.md` (full structure there); keep it wherever preferred,
+uncommitted unless asked. See `memory-protocol.md` for its fit with other durable state. Skeleton:
 
 ```markdown
 # Cleanup Ledger: <project> — <date>
 
 ## Audit Coverage
-(present when the audit created the ledger: the per-file checklist and the convergence line)
-
 ## Contract
-depth / breadth / behavior policy / checkpoint style / no-go zones
-
 ## Baseline
-command outputs, pass/fail counts, pre-existing failures
-
 ## Batches
-- [x] 1. Delete dead exports in src/billing (commit abc123)
-- [ ] 2. Rename `mgr` -> `subscriptionScheduler` across src/
-...
-
 ## Found But Not Fixed
-- src/billing/invoice.ts:88 rounding bug when currency=JPY (behavior change — needs user decision)
-
 ## Deferred
-- src/legacy/: no tests, characterization impractical; recommend pilot slice first
 ```
 
-Re-read the ledger at the start of every session and before every batch. If you lose context mid-campaign, the ledger is the recovery point.
+Re-read the ledger at the start of every session and before every batch — the recovery point if
+context is lost mid-campaign.
 
 ## Stop Conditions
 
 Pause and report instead of pushing through when:
 
-- the baseline cannot be established (build broken, tests cannot run) — fixing the build is its own task and needs the user's go-ahead
+- baseline cannot be established (build broken, tests cannot run) — fixing it needs the user's go-ahead
 - a batch requires a behavior change to proceed
 - a risky area has no tests and characterization is impractical
-- the same conflict keeps recurring between local style and clean-code rules — surface it once, get a ruling, apply it consistently
-- remaining context is too small to finish the current batch safely — checkpoint first, then continue in a fresh session from the ledger
+- the same conflict recurs between local style and clean-code rules — surface it once, get a ruling, apply consistently
+- remaining context is too small to finish the batch safely — checkpoint, continue in a fresh session from the ledger
 
 ## What This Protocol Is Not
 
-- Not a license to rewrite: preserve public behavior and contracts unless explicitly contracted otherwise. A rewrite is not the remedy for a mess; the team that produced the mess generally reproduces it.
-- Not a style crusade: the project's formatter, linter, and idioms define style; the campaign enforces them, it does not replace them.
-- Not all-at-once: an agent that edits thirty files in one pass produces thirty unreviewable diffs. Small batches are the only way a large cleanup stays safe.
-- Not an architecture redesign in disguise: re-layering is the highest-risk depth and only happens inside the agreed contract. If the inventory shows the architecture is the real problem, say so and let the user decide — do not smuggle it in as batch 7.
+- Not a license to rewrite: preserve public behavior and contracts unless contracted otherwise — the team that made a mess usually reproduces it in one.
+- Not a style crusade: the project's formatter, linter, and idioms define style; the campaign enforces, not replaces, them.
+- Not all-at-once: thirty files in one pass makes thirty unreviewable diffs — small batches are the only safe way through a large cleanup.
+- Not an architecture redesign in disguise: re-layering is the highest-risk depth, only inside the agreed contract — architecture as the real problem: say so, let the user decide.
 
 ## Leaving it better than a checklist would
 
-A campaign that only removes smells produces a tidier version of the same design. These are the
-changes that actually lower the future cost of change, in the order they are usually worth doing:
+A campaign that only removes smells produces a tidier version of the same design. Changes that
+actually lower the future cost of change, usually in this order:
 
-1. **Declare the architecture** in `.clean/architecture.md`. Cheapest possible batch, and it converts
-   every later architectural argument into an automated check.
-2. **Add the tests that make the risky areas verifiable.** Everything else is safer afterwards.
-3. **Fix dependency direction** on the worst offenders — the inner modules that name outer ones.
-4. **Remove the cycles**, so components can be built and released independently again.
-5. **Pull details out of policy**: get ORM types, framework annotations, and HTTP objects out of the
-   business rules, behind interfaces the business rules own.
-6. **Then** the code-level work: naming, function size, duplication, dead code.
+1. **Declare the architecture** in `.clean/architecture.md` — cheapest batch, turns every later argument into an automated check.
+2. **Add tests that make risky areas verifiable.** Everything else is safer afterwards.
+3. **Fix dependency direction** on the worst offenders — inner modules naming outer ones.
+4. **Remove the cycles** — components build and release independently again.
+5. **Pull details out of policy**: ORM types, framework annotations, HTTP objects — out of business rules, behind interfaces the rules own.
+6. **Then** code-level work: naming, function size, duplication, dead code.
 
-Record what you decided and why in `.clean/decisions.md` as you go. The next agent inherits the
-reasoning, not just the result.
+Record decisions and why in `.clean/decisions.md` as you go — the next agent inherits the reasoning,
+not just the result.
