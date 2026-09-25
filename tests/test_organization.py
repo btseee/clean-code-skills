@@ -209,7 +209,26 @@ class JunkDrawerTest(unittest.TestCase):
                          ("unsorted", None, None))
 
     def test_a_package_marker_is_no_file_of_the_drawer(self):
-        files = roled_files({"src/tools/__init__.py": "", "src/tools/vault.py": "def read():\n    pass\n"})
+        files = roled_files({"src/utils/__init__.py": "", "src/utils/vault.py": "def read():\n    pass\n"})
+        self.assertEqual(structure_organization.find_junk_drawers(files, []), [])
+
+    def test_files_named_for_their_role_still_move_to_its_home_folder(self):
+        # `**/*Service.*` makes a file a home by its name only: its folder is still the junk drawer.
+        roles = roles_with("role service = **/services/**, **/*Service.*", "name service = Service$",
+                           "role repository = **/repositories/**, **/*Repository.*",
+                           "name repository = Repository$")
+        files = roled_files({"src/utils/OrderService.ts": "export class OrderService {}\n",
+                             "src/utils/OrderRepository.ts": "export class OrderRepository {}\n",
+                             "src/services/UserService.ts": "export class UserService {}\n",
+                             "src/repositories/UserRepository.ts": "export class UserRepository {}\n"}, roles)
+        drawers = structure_organization.find_junk_drawers(files, [])
+        self.assertEqual([(split["by"], split["name"], split["to"]) for split in drawers[0]["splits"]],
+                         [("role", "repository", "src/repositories/"), ("role", "service", "src/services/")])
+        self.assertEqual(len(structure_organization.plan_moves({"junk_drawer": drawers})), 2)
+
+    def test_a_folder_the_framework_chose_by_name_is_no_junk_drawer(self):
+        files = roled_files({"utils/format.ts": "export const format = 1;\n",
+                             "utils/slug.ts": "export const slug = 1;\n"}, roles_with("entry utils/*"))
         self.assertEqual(structure_organization.find_junk_drawers(files, []), [])
 
     def test_one_file_is_no_junk_drawer(self):
@@ -656,9 +675,30 @@ class OrganizationMapTest(unittest.TestCase):
             "shop/apps.py": "from django.apps import AppConfig\n\n\nclass ShopConfig(AppConfig):\n    name = 'shop'\n",
             "shop/templatetags/__init__.py": "", "shop/templatetags/money.py": "def cents(value):\n    return value\n",
             "shop/signals.py": "def on_save():\n    pass\n", "shop/tasks.py": "def nightly():\n    pass\n",
+            "shop/context_processors.py": "def cart(request):\n    return {}\n",
             "shop/unused.py": "UNUSED = 1\n",
         }, ["references/frameworks/django.md"])
         self.assertEqual([item["path"] for item in data["findings"]["unreferenced"]], ["shop/unused.py"])
+        data = map_of({
+            "Gemfile": 'gem "rails", "~> 7.1"\n',
+            "app/serializers/order_serializer.rb": "class OrderSerializer < ActiveModel::Serializer\nend\n",
+            "lib/unused.rb": "class Unused\nend\n",
+        }, ["references/frameworks/rails.md"])
+        self.assertEqual([item["path"] for item in data["findings"]["unreferenced"]], ["lib/unused.rb"])
+
+    def test_only_nuxt_auto_import_folders_are_entries(self):
+        nuxt = map_of({
+            "package.json": '{"dependencies": {"nuxt": "4.1.0"}}\n',
+            "utils/format.ts": "export const format = 1;\n", "utils/slug.ts": "export const slug = 1;\n",
+            "server/utils/db.ts": "export const db = 1;\n", "lib/unused.ts": "export const unused = 1;\n",
+        }, ["references/frameworks/vue-nuxt.md"])["findings"]
+        self.assertEqual([item["path"] for item in nuxt["unreferenced"]], ["lib/unused.ts"])
+        self.assertEqual(nuxt["junk_drawer"], [])
+        vue = map_of({
+            "package.json": '{"dependencies": {"vue": "3.5.0"}}\n', "src/main.ts": "export const app = 1;\n",
+            "src/utils/format.ts": "export const format = 1;\n",
+        }, ["references/frameworks/vue-nuxt.md"])["findings"]
+        self.assertEqual([item["path"] for item in vue["unreferenced"]], ["src/utils/format.ts"])
 
 
 class ChangedTest(unittest.TestCase):

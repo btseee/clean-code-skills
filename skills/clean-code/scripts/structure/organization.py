@@ -184,8 +184,10 @@ def _drawer_groups(drawer_files, family_of: dict) -> tuple:
     by_name = defaultdict(list)
     for roled_file in drawer_files:
         token = family_of.get(roled_file.path)
-        # Inside its role's home, a file is where its role belongs: the drawer's name is what is wrong.
-        role = None if token or roled_file.home_role else _single_role(roled_file)
+        # Inside its role's home folder, a file is where its role belongs: the drawer's name is what
+        # is wrong. A home its file name grants (`**/*Service.*`) says nothing about the folder.
+        in_home_folder = roled_file.home_role and not roled_file.home_by_name
+        role = None if token or in_home_folder else _single_role(roled_file)
         if token or role:
             groups[("family", token) if token else ("role", role)].append(roled_file.path)
         else:
@@ -231,7 +233,8 @@ def find_junk_drawers(roled_files, families, project_roots=()) -> list:
     homes = structure_findings.home_folders(roled_files)
     found = []
     for folder, drawer_files in sorted(by_folder.items()):
-        if len(drawer_files) < 2:
+        # A folder whose every file an `entry` names is one the framework chose by name: Nuxt's utils/.
+        if len(drawer_files) < 2 or all(roled_file.entry for roled_file in drawer_files):
             continue
         groups, unsorted = _drawer_groups(drawer_files, family_of)
         splits = [{"by": by, "name": name, "files": sorted(paths),

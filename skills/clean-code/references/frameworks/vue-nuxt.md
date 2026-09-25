@@ -25,7 +25,7 @@ role middleware = **/middleware/**
 role endpoint = server/api/**, server/routes/**
 role server-middleware = server/middleware/**
 role plugin = **/plugins/**
-entry error.vue, **/utils/**, **/composables/**
+entry error.vue, utils/*, app/utils/*, server/utils/**, composables/*, app/composables/*
 ```
 
 ## Rules

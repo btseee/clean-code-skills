@@ -91,7 +91,8 @@ New `structure/organization.py`; `map_structure.py` reports:
   `general`, `stuff`, `core_utils`, `lib_utils`, `extras`) holding two or more production
   files -> split by family (to `<parent>/<token>/`) and by role (to its nearest home), the only
   groups that propose moves; files sharing a leading name form a group, the rest are listed to be
-  named; a folder of one concept is renamed for it (G17).
+  named; a folder of one concept is renamed for it (G17). A one-concept drawer proposes a folder
+  rename, the only move a name group can produce, while family and role splits propose file moves.
 - **flat-folder**: a folder holding more than 15 production source files -> propose grouping by
   its families (CCP, CRP).
 - **unreferenced**: a production file nothing imports, that is not a test, entry point, or holder
