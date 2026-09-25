@@ -32,8 +32,10 @@ own inventory/convergence. Scope is always agreed out loud, never silently sampl
   commented-out code, comment blocks, skipped tests; the JSON is always complete, `--top` caps only
   the summary.
 - `scripts/map_structure.py --write` — every file's symbols, role, purpose, with misplaced, mixed,
-  duplicated, clashing, synonymous code flagged, plus component metrics and cycles, into
-  `.clean/structure.md` and `.clean/structure.json` — a ready-made start for the Phase C read pass.
+  duplicated, clashing, synonymous, and badly named code flagged, file families, junk drawers,
+  flat folders, unreferenced and comment-heavy files, `## Proposed moves`, plus component metrics
+  and cycles, into `.clean/structure.md` and `.clean/structure.json` — a ready-made start for the
+  Phase C read pass.
 - Run the project's own verification; record the result **verbatim** — the baseline. A red baseline
   must be written down, not worked around.
 - `scripts/check_boundaries.py` — a Phase D step (needs declared layering), listed here for

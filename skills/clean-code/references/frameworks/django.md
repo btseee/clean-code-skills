@@ -30,6 +30,7 @@ role service = **/services.py, **/services/**
 role selector = **/selectors.py
 role middleware = **/middleware.py
 role command = **/management/commands/**
+entry **/templatetags/**, **/apps.py, **/signals.py, **/tasks.py
 ignore-name = ^(Meta|get_queryset|get|post|put|patch|delete|dispatch|get_context_data|save|clean|handle|ready)$
 ```
 

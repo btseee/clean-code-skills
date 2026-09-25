@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 from . import files as project_files
+from . import lexer as source_lexer
 
 _INCLUDE = r"""^\s*#\s*(?:import|include)\s*[<"]([^>"]+)[>"]"""
 _JS_FROM = r"""from\s+['"]([^'"]+)['"]"""
@@ -111,13 +112,49 @@ def imports_in_text(suffix: str, text: str) -> list:
 
 _ANGLE_INCLUDE = re.compile(r"^\s*#\s*(?:import|include)\s*<")
 
+# Python's `from X import a` imports module X.a when there is one, else the name a from X. A
+# resolvable import keeps both parts, `X import a`, so the resolver tries X.a before X.
+FROM_IMPORT = " import "
+_PYTHON_SUFFIXES = frozenset({".py", ".pyi"})
+_PYTHON_FROM = re.compile(r"^[ \t]*from[ \t]+([\w.]+)[ \t]+import[ \t]*(\([^)]*\)|(?:[^\n\\]|\\\n)*)", re.M)
+_PYTHON_IMPORT = re.compile(r"^[ \t]*import[ \t]+((?:[^\n\\]|\\\n)*)", re.M)
+_PYTHON_NAME = re.compile(r"[A-Za-z_][\w.]*")
+
+
+def _python_names(clause: str) -> list:
+    """The names an import clause lists, aliases dropped: `(a, b as c)` -> a, b."""
+    names = []
+    for part in clause.split(";", 1)[0].replace("\\\n", " ").strip().strip("()").split(","):
+        name = re.split(r"\s+as\s+", part.strip(), maxsplit=1)[0]
+        if _PYTHON_NAME.fullmatch(name):
+            names.append(name)
+    return names
+
+
+def _python_imports(text: str) -> list:
+    """Every module a Python file imports, in order, from its code: never a docstring or comment.
+    A `from` import lists one `X import a` per name, and a star import only X."""
+    code = source_lexer.strip(text, "python").code
+    found = [(match.start(), [match.group(1) + FROM_IMPORT + name for name in _python_names(match.group(2))]
+              or [match.group(1)]) for match in _PYTHON_FROM.finditer(code)]
+    found += [(match.start(), _python_names(match.group(1))) for match in _PYTHON_IMPORT.finditer(code)]
+    return [module for _, modules in sorted(found) for module in modules]
+
+
+def imported_module(specifier: str) -> str:
+    """The module a resolvable import imports from: `X` of `X import a`, else the whole import."""
+    return specifier.split(FROM_IMPORT, 1)[0]
+
 
 def resolvable_imports(suffix: str, text: str) -> list:
     """The modules text imports, marked for resolving them to project files.
 
     A C-family `#include <x.h>` keeps a leading `<`: unlike a quoted include, it
-    never names a file beside the includer or by its basename alone.
+    never names a file beside the includer or by its basename alone. A Python import
+    lists each name it imports (FROM_IMPORT).
     """
+    if suffix.lower() in _PYTHON_SUFFIXES:
+        return _python_imports(text)
     return ["<" + module if _ANGLE_INCLUDE.match(line) else module
             for _, module, line in _scan(suffix, text)]
 

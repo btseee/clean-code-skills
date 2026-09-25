@@ -87,6 +87,27 @@ class GlobMatchTest(unittest.TestCase):
         self.assertEqual(project_files.literal_weight("**/*.middleware.*"), 12)
 
 
+class TestPathTest(unittest.TestCase):
+    def test_a_dotnet_test_project_holds_tests(self):
+        for folder in ("Shop.Tests", "Shop.UnitTests", "Shop.IntegrationTests", "Shop.IntegrationTest", "Shop.Test"):
+            self.assertTrue(project_files.is_test_path(f"{folder}/Helpers/Fixture.cs"), folder)
+        self.assertFalse(project_files.is_test_path("Shop.Latest/Order.cs"))
+        self.assertFalse(project_files.is_test_path("Shop.Api/Order.cs"))
+
+
+class JunkDrawerNamesTest(unittest.TestCase):
+    def test_one_set_names_the_junk_drawers_for_every_scanner(self):
+        import scan_repo
+        from structure import organization as structure_organization
+        self.assertEqual(project_files.JUNK_DRAWER_NAMES, {
+            "utils", "util", "helpers", "helper", "common", "shared", "misc", "miscellaneous", "general",
+            "stuff", "core_utils", "lib_utils", "tools", "extras"})
+        self.assertFalse(hasattr(scan_repo, "JUNK_DRAWER_NAMES"))
+        self.assertFalse(hasattr(structure_organization, "JUNK_DRAWER_NAMES"))
+        self.assertEqual(scan_repo.find_junk_drawers(["general/a.py", "general/b.py"]),
+                         [{"directory": "general", "file_count": 2}])
+
+
 class FrameworkOwnedDirsTest(unittest.TestCase):
     """walk() prunes a framework's own rebuildable or third-party folders."""
 
@@ -117,6 +138,15 @@ class FrameworkOwnedDirsTest(unittest.TestCase):
         self.assertNotIn("web/core/core.php", result.paths)
         self.assertNotIn("web/modules/contrib/foo/foo.info.yml", result.paths)
         self.assertIn("web/modules/custom/greeting/greeting.info.yml", result.paths)
+
+    def test_flutters_generated_ephemeral_folders_are_skipped(self):
+        with make_tree({
+            "windows/flutter/ephemeral/cpp_client_wrapper/include/flutter/event_channel.h": "class E {};\n",
+            "ios/Flutter/ephemeral/flutter_lldbinit": "\n",
+            "windows/runner/main.cpp": "int main() { return 0; }\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertEqual(result.paths, ["windows/runner/main.cpp"])
 
     def test_wordpress_core_directories_are_skipped(self):
         with make_tree({

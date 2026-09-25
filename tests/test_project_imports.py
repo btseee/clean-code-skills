@@ -88,6 +88,31 @@ class ModuleIndexTest(unittest.TestCase):
         self.assertEqual(index.resolve("app/api/routes.py", "..services.auth"),
                          ["app/services/auth.py"])
 
+    def test_python_from_import_resolves_the_module_it_names_else_the_package(self):
+        index = build_index({"shop/__init__.py": "", "shop/tax.py": "", "shop/billing/__init__.py": "",
+                             "shop/billing/invoice.py": "", "shop/billing/export.py": "", "app.py": ""})
+        text = ("from shop import tax, rate as shop_rate\nfrom shop.billing import invoice\n"
+                "from shop import *\nimport shop.tax, json\n")
+        self.assertEqual([index.resolve("app.py", module)
+                          for module in project_imports.resolvable_imports(".py", text)],
+                         [["shop/tax.py"], ["shop/__init__.py"], ["shop/billing/invoice.py"],
+                          ["shop/__init__.py"], ["shop/tax.py"], []])
+        relative = project_imports.resolvable_imports(".py", "from . import export\nfrom .. import tax, total\n")
+        self.assertEqual([index.resolve("shop/billing/invoice.py", module) for module in relative],
+                         [["shop/billing/export.py"], ["shop/tax.py"], ["shop/__init__.py"]])
+
+    def test_a_parenthesized_python_import_names_each_module(self):
+        index = build_index({"tools/__init__.py": "", "tools/boards.py": "", "tools/wiki.py": ""})
+        text = 'from . import (\n    boards,  # the boards tools\n    wiki,\n)\n"""from . import nothing"""\n'
+        self.assertEqual([index.resolve("tools/__init__.py", module)
+                          for module in project_imports.resolvable_imports(".py", text)],
+                         [["tools/boards.py"], ["tools/wiki.py"]])
+
+    def test_an_unresolved_from_import_is_recorded_by_its_module_never_the_name(self):
+        modules = project_imports.resolvable_imports(".py", "from django.db import models\n")
+        self.assertEqual([project_imports.imported_module(module) for module in modules], ["django.db"])
+        self.assertEqual(project_imports.imported_module("lodash/debounce"), "lodash/debounce")
+
     def test_a_jvm_package_import_names_no_file_but_its_types_do(self):
         order = "src/main/java/com/acme/order/OrderService.java"
         index = build_index({

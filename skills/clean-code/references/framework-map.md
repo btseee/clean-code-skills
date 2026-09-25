@@ -101,14 +101,16 @@ role <name> = <glob>[, <glob>...]      matches are homes for <name>
 name <name> [<exts>] = <regex>         matching symbol names have role <name>
 signal <name> [<exts>] = <regex>       matching declarations (decorators, base types) have role <name>
 allow <home> = <role>[, <role>...]     a <home> file may hold these roles too
-accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced, mixed, or naming finding
+accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced, mixed, naming, or organization finding
+entry <glob>[, <glob>...]              files a framework loads without an import: never reported unreferenced
 ignore-name = <regex>                  names left out of name-clash, synonym, and naming findings
 ```
 
 Read order: `.clean/roles.md`, framework packs as `detect_stack.py` lists them, then the conventions
 below. Signals beat names; the most specific glob wins — record exceptions with `accept`, not a
 competing rule. Interfaces, protocols, traits, enums, type aliases never have a role: abstractions
-live beside the code using them.
+live beside the code using them. `entry` lists files the framework finds by name or place (Next.js
+`sitemap.ts`, Django `apps.py`, Laravel seeders); only the unreferenced finding reads it.
 
 ```clean-roles
 # Conventional homes shared by most stacks.

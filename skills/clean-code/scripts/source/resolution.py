@@ -339,14 +339,13 @@ class ModuleIndex:
         return self._scripts.resolve(source, module, self._files.__contains__)
 
     def _resolve_python(self, source: str, module: str) -> list:
+        """The module an import names, else the nearest module or package above it: `shop import
+        tax` (`from shop import tax`) is `shop/tax.py` when that exists, else `shop/__init__.py`."""
+        package, separator, name = module.partition(project_imports.FROM_IMPORT)
+        if separator:
+            module = package + name if package.endswith(".") else f"{package}.{name}"
         if module.startswith("."):
-            dots = len(module) - len(module.lstrip("."))
-            base = posixpath.dirname(source)
-            for _ in range(dots - 1):
-                base = posixpath.dirname(base)
-            rest = module[dots:].replace(".", "/")
-            target = posixpath.join(base, rest) if rest else base
-            return self._existing([target + ".py", target + ".pyi", target + "/__init__.py"])
+            return self._resolve_relative_python(source, module)
         parts = module.split(".")
         for end in range(len(parts), 0, -1):
             key = ".".join(parts[:end])
@@ -357,6 +356,20 @@ class ModuleIndex:
                 return list(owners)
             if owners:
                 return []
+        return []
+
+    def _resolve_relative_python(self, source: str, module: str) -> list:
+        dots = len(module) - len(module.lstrip("."))
+        base = posixpath.dirname(source)
+        for _ in range(dots - 1):
+            base = posixpath.dirname(base)
+        parts = [part for part in module[dots:].split(".") if part]
+        for end in range(len(parts), -1, -1):
+            target = posixpath.join(base, *parts[:end])
+            found = self._existing([target + ".py", target + ".pyi", target + "/__init__.py"] if end
+                                   else [posixpath.join(base, "__init__.py")])
+            if found:
+                return found
         return []
 
     def _resolve_jvm(self, source: str, module: str) -> list:

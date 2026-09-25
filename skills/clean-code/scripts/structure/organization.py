@@ -30,8 +30,6 @@ from . import findings as structure_findings
 FAMILY_MINIMUM = 3
 FLAT_FOLDER_LIMIT = 15
 ONE_KIND_SHARE = 0.75
-JUNK_DRAWER_NAMES = frozenset({"utils", "util", "helpers", "helper", "common", "misc", "shared",
-                               "general", "stuff"})
 COMMENT_RATIO = 0.4
 COMMENT_MINIMUM = 20
 
@@ -39,7 +37,7 @@ COMMENT_MINIMUM = 20
 
 # Leading words that say what kind of thing a file holds, never which concept: React's `use`
 # hooks, `with` wrappers, accessors, WordPress's `class-` files, test doubles, junk-drawer words.
-NO_CONCEPT_TOKENS = JUNK_DRAWER_NAMES | frozenset({
+NO_CONCEPT_TOKENS = project_files.JUNK_DRAWER_NAMES | frozenset({
     "use", "with", "get", "set", "is", "has", "on", "to", "from", "base", "abstract", "default",
     "generic", "class", "interface", "trait", "enum", "test", "tests", "mock", "fake", "stub", "my",
     "new", "old", "the", "init",
@@ -47,6 +45,8 @@ NO_CONCEPT_TOKENS = JUNK_DRAWER_NAMES | frozenset({
 # Route files frameworks name by convention: `+page.svelte`, `[id].tsx`, `(group)`, `$types`.
 _ROUTE_MARKS = "+[($@~"
 _INTERFACE_PREFIX = re.compile(r"I(?=[A-Z][a-z])")
+# Java, Kotlin, and Scala name package folders in lowercase; C# and PHP namespaces keep their case.
+LOWERCASE_PACKAGE_SUFFIXES = frozenset({".java", ".kt", ".kts", ".scala"})
 
 
 def _inside(folder: str, name: str) -> str:
@@ -120,7 +120,8 @@ def find_families(file_imports, paths) -> list:
     A family is the largest group of such files that one import graph connects, direct or
     through each other, of at least FAMILY_MINIMUM files: a shared name alone is no evidence
     they change together. A header and its source (`Feed.h`, `Feed.m`) count as one file. A
-    concept a folder above them is already named for proposes nothing.
+    concept a folder above them is already named for proposes nothing. The folder takes the
+    token's casing, lowercased where packages are (LOWERCASE_PACKAGE_SUFFIXES).
     """
     groups = defaultdict(list)
     for path in paths:
@@ -128,8 +129,10 @@ def find_families(file_imports, paths) -> list:
         if token:
             groups[(posixpath.dirname(path), token.lower())].append((path, token))
     found = []
-    for (folder, _), members in groups.items():
-        written = sorted(members)[0][1]
+    for (folder, lowered), members in groups.items():
+        first_path, written = sorted(members)[0]
+        if posixpath.splitext(first_path)[1].lower() in LOWERCASE_PACKAGE_SUFFIXES:
+            written = lowered
         if len(members) < FAMILY_MINIMUM or _names_a_folder(written, folder):
             continue
         connected = _largest_connected([path for path, _ in members], file_imports)
@@ -167,36 +170,77 @@ def _nearest_home(role: str, folder: str, homes: dict, project_roots) -> Optiona
     return nearest + "/" if nearest else "./"
 
 
-def find_junk_drawers(roled_files, families, project_roots=()) -> list:
-    """Folders named for no concept (JUNK_DRAWER_NAMES) whose files play several roles or form
-    several families, each concept with where to split it to.
+def _pluralized(word: str) -> str:
+    """A role's conventional folder name: `repository` -> `repositories`, `service` -> `services`."""
+    if word.endswith("y") and word[-2:-1] not in ("a", "e", "i", "o", "u"):
+        return word[:-1] + "ies"
+    return word + ("es" if word.endswith(("s", "x", "ch", "sh")) else "s")
 
-    A family moves to a folder named for it beside the junk drawer; a role to its nearest home in
-    the same project, or None when the project has none. `project_roots` are the folders holding
-    a manifest.
+
+def _drawer_groups(drawer_files, family_of: dict) -> tuple:
+    """((by, name) -> paths, unsorted paths): each file by its family, else its one role, else
+    the leading name it shares with another file; the rest unsorted."""
+    groups = defaultdict(list)
+    by_name = defaultdict(list)
+    for roled_file in drawer_files:
+        token = family_of.get(roled_file.path)
+        # Inside its role's home, a file is where its role belongs: the drawer's name is what is wrong.
+        role = None if token or roled_file.home_role else _single_role(roled_file)
+        if token or role:
+            groups[("family", token) if token else ("role", role)].append(roled_file.path)
+        else:
+            by_name[(_leading_token(roled_file.path) or "").lower()].append(roled_file.path)
+    unsorted = []
+    for name, paths in by_name.items():
+        if name and len(paths) >= 2:
+            groups[("name", name)] = paths
+        else:
+            unsorted += paths
+    return groups, unsorted
+
+
+def _rename(folder: str, splits: list) -> Optional[str]:
+    """For a drawer of one concept, the folder named for it; None when it holds several, or one
+    role that already has a home to move to."""
+    if len(splits) != 1 or splits[0]["by"] == "unsorted" or (splits[0]["by"] == "role" and splits[0]["to"]):
+        return None
+    name = splits[0]["name"]
+    return _inside(posixpath.dirname(folder), _pluralized(name) if splits[0]["by"] == "role" else name)
+
+
+def find_junk_drawers(roled_files, families, project_roots=()) -> list:
+    """Folders named for no concept (project_files.JUNK_DRAWER_NAMES) holding two or more
+    production files besides a package marker (`__init__.py`, `index.ts`), their files grouped by
+    concept, and the folder named for its one concept.
+
+    A family moves to a folder named for it beside the drawer and a role to its nearest home in
+    the same project (None when it has none): only these propose moves. A file already inside its
+    role's home (`components/helper/`) groups by name, since the drawer's name is what is wrong.
+    Files sharing a leading name form a group with no destination; the rest are unsorted, waiting
+    for a name. `project_roots` are the folders holding a manifest.
     """
     family_of = {path: family["token"] for family in families for path in family["files"]}
-    concepts = defaultdict(lambda: defaultdict(list))
+    by_folder = defaultdict(list)
     for roled_file in roled_files:
         folder = posixpath.dirname(roled_file.path)
-        if roled_file.is_test or posixpath.basename(folder).lower() not in JUNK_DRAWER_NAMES:
-            continue
-        token = family_of.get(roled_file.path)
-        concept = ("family", token) if token else ("role", _single_role(roled_file))
-        if concept[1]:
-            concepts[folder][concept].append(roled_file.path)
+        is_marker = posixpath.basename(roled_file.path).split(".")[0] in _INDEX_STEMS     # `__init__.py`
+        if not roled_file.is_test and not is_marker \
+                and posixpath.basename(folder).lower() in project_files.JUNK_DRAWER_NAMES:
+            by_folder[folder].append(roled_file)
     # The homes misplaced symbols move to: one definition, so both findings agree on them.
-    homes = structure_findings._home_folders(roled_files)
+    homes = structure_findings.home_folders(roled_files)
     found = []
-    for folder, groups in sorted(concepts.items()):
-        if len(groups) < 2:
+    for folder, drawer_files in sorted(by_folder.items()):
+        if len(drawer_files) < 2:
             continue
-        found.append({"folder": folder, "splits": [
-            {"by": by, "name": name, "files": sorted(paths),
-             "to": _inside(posixpath.dirname(folder), name) if by == "family"
-             else _nearest_home(name, folder, homes, project_roots)}
-            for (by, name), paths in sorted(groups.items())
-        ]})
+        groups, unsorted = _drawer_groups(drawer_files, family_of)
+        splits = [{"by": by, "name": name, "files": sorted(paths),
+                   "to": _inside(posixpath.dirname(folder), name) if by == "family"
+                   else _nearest_home(name, folder, homes, project_roots) if by == "role" else None}
+                  for (by, name), paths in sorted(groups.items())]
+        if unsorted:
+            splits.append({"by": "unsorted", "name": None, "files": sorted(unsorted), "to": None})
+        found.append({"folder": folder, "splits": splits, "rename": _rename(folder, splits)})
     return found
 
 
@@ -213,11 +257,17 @@ def _of_one_kind(paths: list) -> bool:
     return bool(kind) and count >= ONE_KIND_SHARE * len(paths)
 
 
-def find_flat_folders(paths, families, limit=FLAT_FOLDER_LIMIT) -> list:
+def _of_one_role(paths: list, roles: dict) -> bool:
+    """Whether at least ONE_KIND_SHARE of the files play one role: a role's home by content."""
+    counted = Counter(roles[path] for path in paths if roles.get(path))
+    return bool(counted) and counted.most_common(1)[0][1] >= ONE_KIND_SHARE * len(paths)
+
+
+def find_flat_folders(paths, families, limit=FLAT_FOLDER_LIMIT, roled_files=()) -> list:
     """Folders holding more than limit production files, with the families to group them by.
 
-    A folder whose files are mostly one kind is left out: they form one concept, and nothing
-    groups them further.
+    A folder whose files are mostly one kind is left out, and so is one without families whose
+    files mostly play one role (from roled_files): they form one concept, and nothing groups them.
     """
     by_folder = defaultdict(list)
     for path in paths:
@@ -226,8 +276,11 @@ def find_flat_folders(paths, families, limit=FLAT_FOLDER_LIMIT) -> list:
     tokens = defaultdict(list)
     for family in families:
         tokens[family["folder"]].append(family["token"])
+    roles = {roled_file.path: _single_role(roled_file) for roled_file in roled_files}
     found = [{"folder": folder, "file_count": len(files), "families": sorted(tokens.get(folder, ()))}
-             for folder, files in by_folder.items() if len(files) > limit and not _of_one_kind(files)]
+             for folder, files in by_folder.items()
+             if len(files) > limit and not _of_one_kind(files)
+             and (tokens.get(folder) or not _of_one_role(files, roles))]
     return sorted(found, key=lambda item: (-item["file_count"], item["folder"]))
 
 
@@ -251,10 +304,11 @@ _TOOL_LOADED = re.compile(
     r"(?:^|[._-])(?:config|conf|setup)(?:\.[\w-]+)*\.\w+$|^\.\w+rc\.\w+$|\.d\.ts$|\.stor(?:y|ies)\.|"
     r"^(?:conftest|noxfile|fabfile|gulpfile|gruntfile|setuptests|settings|webpack\.[\w.-]+)\.\w+$",
     re.IGNORECASE)
-# Folders whose files a web server hands out as they are, readers study, or people run.
+# Folders whose files a web server hands out as they are, readers study, or people run. The walk
+# never enters `bin/` (project_files.SKIP_DIRS), so only `scripts/` holds programs to exempt here.
 SERVED_FOLDERS = frozenset({"public", "static", "wwwroot"})
 EXAMPLE_FOLDERS = frozenset({"sample", "samples", "example", "examples", "demo", "demos"})
-PROGRAM_FOLDERS = frozenset({"bin", "scripts"})
+PROGRAM_FOLDERS = frozenset({"scripts"})
 _PROGRAM_GUARD = re.compile(
     r"""__name__\s*==\s*['"]__main__['"]"""                         # Python
     r"""|\bstatic\s+(?:async\s+)?[\w<>\[\]]+\s+[Mm]ain\s*\("""      # Java, C#
@@ -263,6 +317,15 @@ _PROGRAM_GUARD = re.compile(
     r"""|__FILE__\s*==\s*\$(?:0|PROGRAM_NAME)\b|\$(?:0|PROGRAM_NAME)\s*==\s*__FILE__""",  # Ruby
     re.MULTILINE)
 _INDEX_STEMS = frozenset({"index", "__init__", "mod"})
+# Path aliases that stand for a project folder: `@/`, `~/`, `#`, SvelteKit's `$lib`.
+_ALIAS_SEGMENTS = frozenset({"@", "@@", "~", "~~", "#", "$lib"})
+# Where frameworks find classes by an annotation or a base type (Spring, ASP.NET, Laravel,
+# Symfony, Android), a class carrying either is loaded without an import.
+FRAMEWORK_FOUND_LANGUAGES = frozenset({"java", "kotlin", "csharp", "php"})
+_ANNOTATION = re.compile(r"@(?!interface\b)[A-Za-z_]|^\s*#?\[\s*[A-Za-z_]", re.MULTILINE)
+_BASE_CLAUSE = re.compile(r"\b(?:extends|implements)\b|:")
+_BRACKETED = re.compile(r"<[^<>]*>|\([^()]*\)")
+_TYPE_NAME = re.compile(r"[A-Za-z_][\w.\\]*")
 
 
 def runs_as_program(text: str) -> bool:
@@ -270,52 +333,101 @@ def runs_as_program(text: str) -> bool:
     return text.startswith("#!") or bool(_PROGRAM_GUARD.search(text))
 
 
-def _last_segment(module: str) -> str:
-    """The name an import ends with, lowercased: `Button` of `@/widgets/Button.vue`, `tax` of
-    `billing.tax`, `User` of `App\\Models\\User`."""
-    module = module.strip().strip("'\"<>").replace("\\", "/").rstrip("/")
+def _family(language) -> str:
+    return structure_findings.LANGUAGE_FAMILY.get(language, language)
+
+
+def _segments(module: str) -> list:
+    """The names an import walks through, lowercased, with aliases and relative steps dropped:
+    `@/widgets/Button.vue` -> widgets, button; `billing.tax` -> billing, tax."""
+    module = module.strip().strip("'\"<>").replace("\\", "/")
     if "/" in module:
-        name = module.rsplit("/", 1)[-1]
-        stem, dot, suffix = name.rpartition(".")
+        parts = module.split("/")
+        stem, dot, suffix = parts[-1].rpartition(".")
         if dot and stem and "." + suffix.lower() in project_symbols.SUPPORTED_SUFFIXES:
-            name = stem
-        return name.lower()
-    parts = [part for part in re.split(r"[.:]+", module) if part]
-    return parts[-1].lower() if parts else ""
+            parts[-1] = stem
+    else:
+        parts = re.split(r"[.:]+", module)
+    return [part.lower() for part in parts
+            if part and part not in (".", "..") and part not in _ALIAS_SEGMENTS]
 
 
-def _imported_names(unresolved_imports, languages: dict) -> tuple:
-    """(names, packages): the last segment of every import the map could not resolve, and of
-    those in Python, where `from billing import tax` names the module through its package."""
-    names, packages = set(), set()
+def _project_names(roled_files) -> set:
+    """Every folder name and file stem in the project, lowercased."""
+    names = set()
+    for roled_file in roled_files:
+        parts = roled_file.path.lower().split("/")
+        names.update(parts[:-1])
+        names.update({posixpath.splitext(parts[-1])[0], parts[-1].split(".")[0]})
+    return names
+
+
+def _imported_names(unresolved_imports, languages: dict, project_names: set) -> tuple:
+    """(names, packages), each a language family -> lowercased names: the last segment of every
+    unresolved import whose first segment names a project folder or file, and of those in Python,
+    where the name may be a package holding the module (`from billing import tax`)."""
+    names, packages = defaultdict(set), defaultdict(set)
     for path, modules in unresolved_imports.items():
+        family = _family(languages.get(path))
         for module in modules:
-            name = _last_segment(module)
-            names.add(name)
-            if languages.get(path) == "python":
-                packages.add(name)
-    return names - {""}, packages - {""}
+            segments = _segments(module)
+            if segments and segments[0] in project_names:
+                names[family].add(segments[-1])
+                if family == "python":
+                    packages[family].add(segments[-1])
+    return names, packages
 
 
-def _reached_by_name(path: str, names: set, packages: set) -> bool:
-    """Whether an unresolved import names the file, the folder of its index file, or its package."""
-    stem = posixpath.basename(path).rsplit(".", 1)[0].lower()
-    folder = posixpath.basename(posixpath.dirname(path)).lower()
-    return stem in names or (stem in _INDEX_STEMS and folder in names) or folder in packages
+def _reached_by_name(roled_file, names: dict, packages: dict) -> bool:
+    """Whether an unresolved import in the file's language names it, the folder of its index file,
+    or its Python package."""
+    family = _family(roled_file.language)
+    stem = posixpath.basename(roled_file.path).rsplit(".", 1)[0].lower()
+    folder = posixpath.basename(posixpath.dirname(roled_file.path)).lower()
+    named = names.get(family, set())
+    return (stem in named or (stem in _INDEX_STEMS and folder in named)
+            or folder in packages.get(family, set()))
 
 
-def _reached_without_import(roled_file) -> bool:
+def _base_types(symbol) -> list:
+    """The type names a class declaration derives from: `extends A implements B`, `: A(), IB`."""
+    declared = re.search(r"\b" + re.escape(symbol.name) + r"\b", symbol.context)
+    if declared is None:
+        return []
+    header = re.split(r"[{;]|\bwhere\b|=>", symbol.context[declared.end():], maxsplit=1)[0]
+    unbracketed = None
+    while unbracketed != header:
+        unbracketed, header = header, _BRACKETED.sub("", header)
+    clause = _BASE_CLAUSE.search(header)
+    if clause is None:
+        return []
+    return [re.split(r"[.\\]", name)[-1] for name in _TYPE_NAME.findall(header[clause.start():])
+            if name not in ("extends", "implements")]
+
+
+def _found_by_framework(types: list, declared_types: set) -> bool:
+    """Whether a class is annotated (`@Service`, `[ApiController]`, `#[AsCommand]`) or derives
+    from a type the project does not declare (`HttpServlet`, `BackgroundService`, `Mailable`)."""
+    for symbol in types:
+        declared = re.search(r"\b" + re.escape(symbol.name) + r"\b", symbol.context)
+        head = symbol.context[:declared.start()] if declared else ""
+        if _ANNOTATION.search(head) or any(base not in declared_types for base in _base_types(symbol)):
+            return True
+    return False
+
+
+def _reached_without_import(roled_file, declared_types: set) -> bool:
     """Whether something other than an import reaches the file: the toolchain as an entry point
-    (an app shell such as `MainActivity` too), a framework through its role, a tool by its name,
-    a server, a reader, or a person through its folder, or, where the map traces types, code it
-    does not read."""
+    (an app shell such as `MainActivity` too), a framework through its role, an `entry` line, an
+    annotation, or a base type, a tool by its name, a server, a reader, or a person through its
+    folder, or, where the map traces types, code it does not read."""
     name = posixpath.basename(roled_file.path)
     stem = name.split(".")[0]
     folders = [folder.lower() for folder in roled_file.path.split("/")[:-1]]
     if stem.lower() in structure_findings.ENTRY_POINT_STEMS or _TOOL_LOADED.search(name) \
             or structure_findings.split_identifier(stem)[:1] == ["main"]:
         return True
-    if roled_file.home_role or any(item.role for item in roled_file.symbols):
+    if roled_file.entry or roled_file.home_role or any(item.role for item in roled_file.symbols):
         return True
     if (SERVED_FOLDERS | EXAMPLE_FOLDERS).intersection(folders) \
             or (folders and folders[-1] in PROGRAM_FOLDERS):
@@ -324,6 +436,8 @@ def _reached_without_import(roled_file) -> bool:
         return False
     types = [item.symbol for item in roled_file.symbols
              if item.symbol.parent is None and item.symbol.kind in _TRACED_TYPE_KINDS]
+    if roled_file.language in FRAMEWORK_FOUND_LANGUAGES and _found_by_framework(types, declared_types):
+        return True
     # A partial type's other half may live in markup or generated code the map does not read.
     return not types or all(_PARTIAL.search(symbol.context) for symbol in types)
 
@@ -333,29 +447,29 @@ def find_unreferenced(file_imports, roled_files, resolvable_languages, unresolve
     """Production files nothing imports, in resolvable_languages: possibly unused (G9).
 
     file_imports maps every file, tests included, to the project files it imports: a file only
-    tests import is still used. An imported Python package uses its modules, since
-    `from billing import tax` resolves to the package. unresolved_imports maps a file to the
-    imports that named no project file; a file one of them names by its last segment counts as
-    imported. Never judged: tests, entry points, programs (files runs_as_program says start
-    one), files holding a role, which a framework may load, and files a tool or a server loads
-    by name or folder.
+    tests import is still used. unresolved_imports maps a file to the imports that named no
+    project file; a file in the same language family that one names by its last segment counts
+    as imported, when its first segment names a project folder or file. Never judged: tests,
+    entry points, programs (files runs_as_program says start one), files holding a role or
+    matching an `entry` line, which a framework loads, annotated or framework-derived classes
+    (FRAMEWORK_FOUND_LANGUAGES), and files a tool or a server loads by name or folder.
     """
     languages = {roled_file.path: roled_file.language for roled_file in roled_files}
     imported = {target for targets in file_imports.values() for target in targets}
-    packages = {posixpath.dirname(path) for path in imported
-                if posixpath.basename(path).split(".")[0] == "__init__"}
-    names, named_packages = _imported_names(unresolved_imports or {}, languages)
+    names, packages = _imported_names(unresolved_imports or {}, languages, _project_names(roled_files))
+    declared_types = {item.symbol.name for roled_file in roled_files for item in roled_file.symbols
+                      if item.symbol.parent is None and item.symbol.kind in _TRACED_TYPE_KINDS}
     found = []
     for roled_file in roled_files:
         path = roled_file.path
         if roled_file.is_test or roled_file.language not in resolvable_languages \
                 or path in imported or path in programs:
             continue
-        if (roled_file.language == "python" and posixpath.dirname(path) in packages) \
-                or _reached_by_name(path, names, named_packages) or _reached_without_import(roled_file):
+        if _reached_by_name(roled_file, names, packages) \
+                or _reached_without_import(roled_file, declared_types):
             continue
         found.append({"path": path})
-    return sorted(found, key=lambda item: item["path"])
+    return sorted(found, key=lambda finding: finding["path"])
 
 
 # --- Comment-heavy files -----------------------------------------------------------------------
@@ -450,10 +564,12 @@ def find_comment_heavy(texts_by_path, languages_by_path, ratio=COMMENT_RATIO,
 # --- The move plan -----------------------------------------------------------------------------
 
 def plan_moves(findings) -> list:
-    """Moves for the findings that propose one, each {"from", "to", "why"}, why naming the kind.
+    """Moves for the findings that propose one, each {"from": [...], "to", "why"}, why naming the
+    finding kind.
 
-    Misplaced code goes to its role's home: symbols (`path::first, second`) when their file holds
-    more, else the whole file. Junk-drawer splits and families move their files together. A file
+    Misplaced code goes to its role's home: its symbols (`path::symbol`) when their file holds
+    more, else the whole file. A junk drawer of one concept moves as a folder, renamed for it;
+    else its family and role splits move their files. Families move their files together. A file
     moves once, by the first finding in that order. A finding without a destination, or with only
     a description of one (`a file matching **/Data/**`), proposes nothing.
     """
@@ -463,7 +579,7 @@ def plan_moves(findings) -> list:
         remaining = [path for path in paths if path not in moved]
         if remaining and _is_destination(destination):
             moved.update(remaining)
-            moves.append({"from": ", ".join(remaining), "to": destination, "why": why})
+            moves.append({"from": remaining, "to": destination, "why": why})
 
     symbols = defaultdict(list)     # (file, destination) -> the symbols moving there
     for misplaced in findings.get("misplaced", ()):
@@ -471,9 +587,13 @@ def plan_moves(findings) -> list:
             move_files([misplaced["path"]], misplaced["suggestion"], "misplaced")
         elif _is_destination(misplaced["suggestion"]):
             symbols[(misplaced["path"], misplaced["suggestion"])].append(misplaced["symbol"])
-    moves += [{"from": f"{path}::{', '.join(names)}", "to": destination, "why": "misplaced"}
+    moves += [{"from": [f"{path}::{name}" for name in names], "to": destination, "why": "misplaced"}
               for (path, destination), names in symbols.items()]
     for drawer in findings.get("junk_drawer", ()):
+        if drawer["rename"]:
+            moved.update(path for split in drawer["splits"] for path in split["files"])
+            moves.append({"from": [drawer["folder"] + "/"], "to": drawer["rename"], "why": "junk_drawer"})
+            continue
         for split in drawer["splits"]:
             move_files(split["files"], split["to"], "junk_drawer")
     for family in findings.get("family", ()):

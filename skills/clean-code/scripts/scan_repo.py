@@ -50,11 +50,6 @@ SIBLING_VARIANT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-JUNK_DRAWER_NAMES = frozenset({
-    "utils", "util", "helpers", "helper", "common", "shared", "misc",
-    "miscellaneous", "stuff", "core_utils", "lib_utils", "tools", "extras",
-})
-
 TODO_PATTERN = re.compile(r"\b(TODO|FIXME|HACK|XXX|BUG|KLUDGE|REFACTOR)\b")
 
 # Debug output that is almost never meant to ship. Kept deliberately narrow:
@@ -264,7 +259,7 @@ def find_junk_drawers(relative_paths) -> list:
     for relative_path in relative_paths:
         parts = relative_path.split("/")
         for index, part in enumerate(parts[:-1]):
-            if part.lower() in JUNK_DRAWER_NAMES:
+            if part.lower() in project_files.JUNK_DRAWER_NAMES:
                 directory = "/".join(parts[: index + 1])
                 counts[directory] = counts.get(directory, 0) + 1
     return [

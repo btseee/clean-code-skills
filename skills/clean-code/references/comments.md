@@ -10,6 +10,8 @@ necessary, and code that says the rest.
   `.clean/structure.md` (full list in `.clean/structure.json`); refresh a stale map with
   `scripts/map_structure.py --write`. By hand: count comment lines per file and start where comments
   rival code.
+- `comment_heavy` does not count API doc comments (`///`, `/** */`, `<# #>`, docstrings): doc blocks
+  that restate their signature need a manual pass.
 - **Surgical mode:** only comments in lines your change touches; report the rest.
 
 ## Comments tools read are code

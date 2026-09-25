@@ -30,6 +30,8 @@ role policy       = app/Policies/**
 role event        = app/Events/**
 role listener     = app/Listeners/**
 role provider     = app/Providers/**
+entry app/Console/Commands/**, database/seeders/**, database/factories/**, app/Observers/**
+entry app/Mail/**, app/Notifications/**, app/Rules/**, app/View/Components/**
 signal request    = extends\s+FormRequest
 signal model      = extends\s+Model\b
 signal job        = implements\s+ShouldQueue

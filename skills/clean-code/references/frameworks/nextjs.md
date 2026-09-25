@@ -21,6 +21,9 @@ role component = src/app/**/page.*, src/app/**/layout.*, src/app/**/template.*, 
 role endpoint = app/**/route.*, src/app/**/route.*
 role middleware = middleware.*, src/middleware.*, proxy.*, src/proxy.*
 role server-action = **/actions/**, **/*.actions.*
+entry app/**/sitemap.*, app/**/robots.*, app/**/manifest.*, app/**/icon.*, app/**/apple-icon.*, app/**/opengraph-image.*, app/**/twitter-image.*, app/**/global-error.*, app/**/default.*
+entry src/app/**/sitemap.*, src/app/**/robots.*, src/app/**/manifest.*, src/app/**/icon.*, src/app/**/apple-icon.*, src/app/**/opengraph-image.*, src/app/**/twitter-image.*, src/app/**/global-error.*, src/app/**/default.*
+entry instrumentation.*, **/instrumentation.*
 ignore-name = ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|default|generateMetadata|generateStaticParams|metadata|revalidate|dynamic|runtime|config)$
 ```
 

@@ -86,9 +86,12 @@ New `structure/organization.py`; `map_structure.py` reports:
 
 - **family**: three or more files in one folder that share a leading name token and import each
   other -> propose a folder named for the token (CCP; Screaming Architecture).
-- **junk-drawer**: a folder named `utils`, `util`, `helpers`, `helper`, `common`, `misc`,
-  `shared`, `general`, or `stuff` with files of several roles or families -> propose splitting by
-  concept (G17).
+- **junk-drawer**: a folder named for no concept (`source/files.py` `JUNK_DRAWER_NAMES`, shared with
+  `scan_repo.py`: `utils`, `util`, `helpers`, `helper`, `common`, `shared`, `misc`, `miscellaneous`,
+  `general`, `stuff`, `core_utils`, `lib_utils`, `tools`, `extras`) holding two or more production
+  files -> split by family (to `<parent>/<token>/`) and by role (to its nearest home), the only
+  groups that propose moves; files sharing a leading name form a group, the rest are listed to be
+  named; a folder of one concept is renamed for it (G17).
 - **flat-folder**: a folder holding more than 15 production source files -> propose grouping by
   its families (CCP, CRP).
 - **unreferenced**: a production file nothing imports, that is not a test, entry point, or holder

@@ -126,12 +126,21 @@ def _family_line(family) -> str:
             f"{_code(family['token'])} and import each other; group them in {_code(family['suggestion'])}.")
 
 
+def _junk_drawer_split(split) -> str:
+    files = _file_names(split["files"], 3)
+    if split["by"] == "unsorted":
+        return f"{files}: name the concept its files share"
+    if split["by"] == "name":
+        return f"{_code(split['name'])} ({files}) share a name"
+    label = split["name"] if split["by"] == "role" else f"{split['name']} family"
+    return f"{label} ({files}) -> {_destination(split['to'])}"
+
+
 def _junk_drawer_line(drawer) -> str:
-    splits = "; ".join(
-        f"{split['name'] if split['by'] == 'role' else split['name'] + ' family'} "
-        f"({_file_names(split['files'], 3)}) -> {_destination(split['to'])}"
-        for split in drawer["splits"])
-    return f"{_folder(drawer['folder'])} is named for no concept yet holds several; split it: {splits}."
+    if drawer["rename"]:
+        return f"{_folder(drawer['folder'])} holds one concept; rename it {_code(drawer['rename'])}."
+    splits = "; ".join(_junk_drawer_split(split) for split in drawer["splits"])
+    return f"{_folder(drawer['folder'])} is named for no concept; split it: {splits}."
 
 
 def _flat_folder_line(crowded) -> str:
@@ -213,9 +222,6 @@ def _header(data) -> list:
     ]
     if data.get("truncated"):
         lines.append("- The walk stopped at the file cap; the map is partial.")
-    if data.get("changed") is not None:
-        lines.append(f"- Findings and moves cover only the {len(data['changed'])} files git reports as "
-                     "changed (`--changed`).")
     unparsed = data.get("unparsed", [])
     if unparsed:
         shown = ", ".join(f"{_code(item['path'])} ({_cell(item['reason'])})"
@@ -252,7 +258,8 @@ def _moves_section(moves: list, top: int) -> list:
     if not moves:
         return lines + ["No moves proposed."]
     lines += ["From the findings above; confirm each against the code before moving it.", ""]
-    lines += [f"- {_code(move['from'])} -> {_code(move['to'])} ({move['why']})" for move in moves[:top]]
+    lines += [f"- {_code(', '.join(move['from']))} -> {_code(move['to'])} ({move['why']})"
+              for move in moves[:top]]
     if len(moves) > top:
         lines.append(f"- ... and {len(moves) - top} more in structure.json")
     return lines

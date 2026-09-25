@@ -14,7 +14,10 @@ the order detect_stack lists them, then the generic block.
     allow <home> = <role>[, <role>...]     symbols of these roles may live in a <home> file
     accept <glob> [= <symbol>[, ...]]      a recorded exception: matching files, or only the
                                            listed symbols in them, are never misplaced, mixed,
-                                           or reported for their names
+                                           or reported for their names; a whole file or folder
+                                           is left out of the organization findings too
+    entry <glob>[, <glob>...]              files a framework loads without an import: never
+                                           reported unreferenced (no other finding reads it)
     ignore-name = <regex>                  names left out of clash, synonym, and naming findings
 
 The allow statements of every source apply together. An accept glob matches the
@@ -38,6 +41,7 @@ _STATEMENT = re.compile(r"^(?P<kind>role|name|signal)[ \t]+(?P<role>[^\s\[=]+)[ 
 _IGNORE = re.compile(r"^ignore-name[ \t]*=[ \t]*(?P<value>.+)$")
 _ALLOW = re.compile(r"^allow[ \t]+(?P<home>[^\s=]+)[ \t]*=[ \t]*(?P<roles>.*\S)$")
 _ACCEPT = re.compile(r"^accept[ \t]+(?P<glob>[^\s=]+)(?:[ \t]*=[ \t]*(?P<symbols>.*\S))?$")
+_ENTRY = re.compile(r"^entry[ \t]+(?P<globs>[^=]*\S)$")
 _ROLE_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
 
 GENERIC_ROLES = "references/framework-map.md"
@@ -96,6 +100,9 @@ def _parse_statement(line: str, where: str) -> Statement:
     if guests:
         return Statement("allow", _role_name(allowed.group("home"), where), (),
                          tuple(_role_name(role, where) for role in guests), where)
+    entry = _ENTRY.match(line)
+    if entry:
+        return Statement("entry", None, (), _split(entry.group("globs")), where)
     accepted = _ACCEPT.match(line)
     symbols = _split(accepted.group("symbols") or "") if accepted else ()
     if accepted and (accepted.group("symbols") is None or symbols):
@@ -214,6 +221,13 @@ class Roles:
                 return True
         return False
 
+    def is_entry(self, relative_path: str) -> bool:
+        """Whether an `entry` line says a framework loads the file without an import."""
+        return any(statement.kind == "entry" and statement.applies_to(relative_path)
+                   and any(project_files.glob_match(glob, statement.project_path(relative_path))
+                           for glob in statement.value)
+                   for statement in self.statements)
+
     def is_ignored_name(self, name: str) -> bool:
         return any(statement.value.search(name) for statement in self.statements
                    if statement.kind == "ignore-name")
@@ -271,6 +285,7 @@ class RoledFile(NamedTuple):
     abstract_types: int
     home_by_name: bool = False    # the home comes from the file's name, so its folder is none
     declarations: tuple = ()      # the file's variables and parameters, from its extractor
+    entry: bool = False           # an `entry` line says a framework loads it without an import
 
 
 def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
@@ -295,4 +310,5 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
         abstract_types=file_symbols.abstract_types,
         home_by_name=home.by_name,
         declarations=file_symbols.declarations,
+        entry=roles.is_entry(file_symbols.path),
     )

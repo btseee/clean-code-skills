@@ -22,6 +22,7 @@ role service = **/services.py, **/services/**
 role model = **/models.py, **/models/**
 role schema = **/schemas.py, **/schemas/**
 role extension = **/extensions.py
+entry **/*blueprint.py
 ```
 
 ## Rules

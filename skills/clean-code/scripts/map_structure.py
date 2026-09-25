@@ -141,9 +141,8 @@ class _Imports(NamedTuple):
 
 
 def _resolve_imports(index, modules: dict, test_modules: dict) -> _Imports:
-    """Every file's imports, resolved once. References count a file tests import as used, and
-    a package whose `__init__.py` imports `.`, which resolves to itself, as importing its modules
-    (`from . import boards`); neither is a dependency between production files."""
+    """Every file's imports, resolved once. References count a file tests import as used, which
+    is no dependency between production files; an unresolved import is recorded by its module."""
     sources = set(modules)
     references = {}
     unresolved = {}
@@ -153,10 +152,9 @@ def _resolve_imports(index, modules: dict, test_modules: dict) -> _Imports:
             found = index.resolve(path, module)
             targets.update(found)
             if not found:
-                unresolved.setdefault(path, []).append(module)
-        references[path] = sorted(target for target in targets if target in sources)
-    file_imports = {path: [target for target in references[path] if target != path] for path in modules}
-    return _Imports(file_imports, references, unresolved)
+                unresolved.setdefault(path, []).append(project_imports.imported_module(module))
+        references[path] = sorted(target for target in targets if target in sources and target != path)
+    return _Imports({path: references[path] for path in modules}, references, unresolved)
 
 
 def _organization_findings(roled_files, roles, project_roots, imports: _Imports, programs,
@@ -168,7 +166,8 @@ def _organization_findings(roled_files, roles, project_roots, imports: _Imports,
     found = {
         "family": families,
         "junk_drawer": structure_organization.find_junk_drawers(roled_files, families, project_roots),
-        "flat_folder": structure_organization.find_flat_folders(production, families),
+        "flat_folder": structure_organization.find_flat_folders(production, families,
+                                                                roled_files=roled_files),
         "unreferenced": structure_organization.find_unreferenced(
             imports.references, roled_files, structure_organization.REFERENCE_TRACED_LANGUAGES,
             imports.unresolved, programs),
@@ -319,6 +318,10 @@ def main(argv=None) -> int:
     root = Path(arguments.root).expanduser().resolve()
     if not root.is_dir():
         print(f"error: not a directory: {root}", file=sys.stderr)
+        return 2
+    if arguments.changed and arguments.write:
+        print("error: --changed maps only the changed files, so it cannot replace .clean/structure.md; "
+              "save the whole map with --write alone", file=sys.stderr)
         return 2
     changed = _changed_paths(root) if arguments.changed else None
     if arguments.changed and changed is None:

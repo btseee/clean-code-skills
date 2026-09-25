@@ -122,7 +122,7 @@ def _is_entry_point(path: str) -> bool:
     return posixpath.basename(path).split(".")[0].lower() in ENTRY_POINT_STEMS
 
 
-def _home_folders(files) -> dict:
+def home_folders(files) -> dict:
     """role -> the folders a folder glob makes its homes, with their file counts.
 
     A home granted by a file name is not a folder to move code into: `app/orders/` holds
@@ -191,7 +191,7 @@ class _Destinations:
     def __init__(self, files, roles, project_roots):
         self.roles = roles
         self.project_roots = project_roots
-        self.folder_homes = _home_folders(files)
+        self.folder_homes = home_folders(files)
         self.named_homes = _named_homes(files)
         self.folders = _all_folders(files)
         self.sources = [roled_file for roled_file in files if not roled_file.is_test]

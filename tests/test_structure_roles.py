@@ -212,5 +212,28 @@ class LoadAndAssignTest(unittest.TestCase):
                                    "authMiddleware": "middleware"})
 
 
+class EntryTest(unittest.TestCase):
+    """`entry` names files a framework loads without an import; only the unreferenced finding reads it."""
+
+    def test_an_entry_line_marks_the_files_it_matches(self):
+        statements = structure_roles.parse_roles(block("entry app/**/sitemap.*, instrumentation.*"), "nextjs.md")
+        self.assertEqual([(statement.kind, statement.value) for statement in statements],
+                         [("entry", ("app/**/sitemap.*", "instrumentation.*"))])
+        roles = structure_roles.Roles(statements)
+        self.assertTrue(roles.is_entry("app/blog/sitemap.ts"))
+        self.assertTrue(roles.is_entry("instrumentation.ts"))
+        self.assertFalse(roles.is_entry("app/blog/page.tsx"))
+        roled = structure_roles.assign(project_symbols.extract("app/sitemap.ts", "export default 1;\n"),
+                                       roles, is_test=False)
+        self.assertTrue(roled.entry)
+        self.assertIsNone(roled.home_role)
+
+    def test_a_scoped_entry_matches_from_its_own_project_folder(self):
+        statements = structure_roles.parse_roles(block("entry app/**/robots.*"), "nextjs.md")
+        roles = structure_roles.Roles([statement._replace(scope=("web",)) for statement in statements])
+        self.assertTrue(roles.is_entry("web/app/robots.ts"))
+        self.assertFalse(roles.is_entry("app/robots.ts"))
+
+
 if __name__ == "__main__":
     unittest.main()
