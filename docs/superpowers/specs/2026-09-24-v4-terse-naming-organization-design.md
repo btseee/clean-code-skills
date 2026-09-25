@@ -88,7 +88,7 @@ New `structure/organization.py`; `map_structure.py` reports:
   other -> propose a folder named for the token (CCP; Screaming Architecture).
 - **junk-drawer**: a folder named for no concept (`source/files.py` `JUNK_DRAWER_NAMES`, shared with
   `scan_repo.py`: `utils`, `util`, `helpers`, `helper`, `common`, `shared`, `misc`, `miscellaneous`,
-  `general`, `stuff`, `core_utils`, `lib_utils`, `tools`, `extras`) holding two or more production
+  `general`, `stuff`, `core_utils`, `lib_utils`, `extras`) holding two or more production
   files -> split by family (to `<parent>/<token>/`) and by role (to its nearest home), the only
   groups that propose moves; files sharing a leading name form a group, the rest are listed to be
   named; a folder of one concept is renamed for it (G17).
