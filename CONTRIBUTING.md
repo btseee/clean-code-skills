@@ -46,7 +46,7 @@ results there.
 - The `name` must match the folder: `clean-code`.
 - The description should tell agents when to load the skill.
 - Keep heavy references in `skills/clean-code/references/`. `SKILL.md` is a router: the validator
-  fails it above 500 lines or roughly 3,000 tokens, and the managed block above 1,200 tokens,
+  fails it above 500 lines or roughly 1,500 tokens, and the managed block above 750 tokens,
   because hosts load them on activation and on every turn.
 - Bundled Python in `skills/clean-code/scripts/` must use only the standard library, and every
   workflow step that names a script must also name the manual equivalent — the skill has to work
@@ -105,6 +105,11 @@ Rules (the unit tests enforce the ones marked checked):
   composition root lives, and suggests a `clean-architecture` block of at most six lines.
 - **Roles** holds exactly one `clean-roles` block that parses (checked). The grammar is in
   `references/framework-map.md`. Put specific signals before general ones: the first match wins.
+  An `entry <glob>` line names files the framework loads by name or place, not by import (a
+  sitemap, a seeder), so the unreferenced finding never calls them possibly unused.
+- **Names** names the stack's own concrete naming anti-patterns (a Python `Manager` mixin, a PHP
+  Hungarian prefix, a Go interface named for an implementation) rather than restating the generic
+  rule; cite the naming finding's rule ID (N1, N3-N6, G17, G24) where one applies.
 - **Enforce** names real tools with the rule or configuration key that matters.
 - **Smells** lists stack-specific failure patterns, each with its nearest smell ID.
 - At most two code examples, each at most eight lines.
@@ -146,7 +151,7 @@ to `skills/clean-code/scripts/` needs those scripts to keep working end to end.
 - The change has one clear purpose.
 - Agent-facing files stay consistent (block sync passes).
 - Versions were bumped together when the block changed.
-- `SKILL.md` stays under its budget (500 lines / ~3,000 tokens), the managed block under 1,200
+- `SKILL.md` stays under its budget (500 lines / ~1,500 tokens), the managed block under 750
   tokens, and each pack under 2,000; the validator fails above any of them.
 - Examples are original and minimal.
 - Plugin JSON remains valid.

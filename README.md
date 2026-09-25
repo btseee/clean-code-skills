@@ -8,8 +8,8 @@
 [![CI](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/btseee/clean-code-skills/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-Clean code and clean architecture for AI coding agents: one skill, rule packs for 19 languages and
-21 frameworks, and a structure map that shows where every function and class lives and whether it
+Clean code and clean architecture for AI coding agents: one skill, rule packs for 21 languages and
+27 frameworks, and a structure map that shows where every function and class lives and whether it
 belongs there. Works with Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, Windsurf, Cline,
 and any tool that reads Agent Skills or `AGENTS.md`.
 
@@ -47,8 +47,8 @@ and uninstalling: [docs/install.md](docs/install.md).
 
 ## Use
 
-Agents pick the skill up by themselves when you ask for coding work. Four commands cover the rest —
-`/clean-code <command>` in Claude Code, or plain language anywhere:
+Agents pick the skill up by themselves when you ask for coding work. Seven commands cover the
+rest — `/clean-code <command>` in Claude Code, or plain language anywhere:
 
 | Command | What happens |
 | --- | --- |
@@ -56,6 +56,9 @@ Agents pick the skill up by themselves when you ask for coding work. Four comman
 | `audit` | Reviews every file, fills `.clean/`, and reports findings first. Changes no code. |
 | `clean-up` | Works through the audit's findings in small, verified batches. |
 | `new-project <description>` | Designs a new project before any code is written. |
+| `plan <task>` | Writes a plan before touching code: what exists, what's verified, the risk level. Edits nothing. |
+| `review [files]` | Reviews the current change against the checklist and agent smells A1-A10. Edits nothing. |
+| `compress [files]` | Rewrites a project's instruction files tersely, with a backup and a loss check. |
 
 Then just ask:
 
@@ -73,22 +76,24 @@ Review my diff. Findings first, with smell IDs.
   plus the Dependency Rule, SOLID, and the component principles, enforced strictly once you declare
   layers.
 - **Packs for your stack.** Languages: TypeScript, JavaScript, Python, Java, C#, C++, C, PHP, Go,
-  Rust, Swift, Kotlin, Ruby, Dart, Scala, R, Objective-C, Shell, PowerShell. Frameworks: React,
-  Next.js, Vue and Nuxt, Angular, Svelte and SvelteKit, Django, Flask, FastAPI, Express, NestJS,
-  Spring, ASP.NET Core, Laravel, Symfony, Rails, Gin and Beego, Strapi, Flutter, SwiftUI and UIKit,
-  Jetpack Compose, Ktor. An agent loads only the packs its project uses.
+  Rust, Swift, Kotlin, Ruby, Dart, Scala, R, Objective-C, Shell, PowerShell, CSS, Sass. Frameworks:
+  React, Next.js, Vue and Nuxt, Angular, Svelte and SvelteKit, Tailwind CSS, Django, Flask, FastAPI,
+  Express, NestJS, Spring, ASP.NET Core, Laravel, Symfony, Drupal, WordPress, Rails, Gin and Beego,
+  Strapi, Flutter, SwiftUI and UIKit, Jetpack Compose, Ktor, Unity, TensorFlow, PyTorch. An agent
+  loads only the packs its project uses.
 - **A structure map.** Every file's functions and classes, its role and purpose, and what is
-  misplaced, mixed, duplicated, named two ways, or caught in a dependency cycle — in one file.
+  misplaced, mixed, duplicated, named badly, unreferenced, comment-heavy, or caught in a dependency
+  cycle — plus a folder holding no one concept, and the moves that would fix it — in one file.
 - **Memory between sessions.** `.clean/` keeps the stack, the declared layers, past decisions, and
   cleanup progress, so a new session resumes instead of guessing.
-- **A small footprint.** The always-loaded rules are under 1,200 tokens, the skill about 2,000, and
+- **A small footprint.** The always-loaded rules are under 750 tokens, the skill under 1,500, and
   each pack under 2,000.
 
 ## The Structure Map
 
 ```console
 $ python .claude/skills/clean-code/scripts/map_structure.py --path src/services
-  Findings  : misplaced 1, mixed 0, duplicates 0, name clashes 0, synonyms 1, cycles 0 (under src/services)
+  Findings  : misplaced 1, mixed 0, duplicates 0, name clashes 0, synonyms 1, cycles 0, names 0, families 0, junk drawers 0, flat folders 0, unreferenced 0, comment-heavy 0 (under src/services)
 
   Misplaced
     src/services/auth.ts:7 authMiddleware is middleware in a service file; move it to src/middleware/.
@@ -110,6 +115,7 @@ then the folder tree, the component metrics and a dependency graph, and one grep
 python .claude/skills/clean-code/scripts/detect_stack.py --write    # stack and packs into .clean/
 python .claude/skills/clean-code/scripts/map_structure.py --write   # the structure map
 python .claude/skills/clean-code/scripts/check_boundaries.py        # fail on wrong-way dependencies
+python .claude/skills/clean-code/scripts/check_compression.py a.md b.md  # what a terse rewrite lost
 cp .claude/skills/clean-code/assets/hooks/pre-commit .git/hooks/    # check on every commit
 ```
 

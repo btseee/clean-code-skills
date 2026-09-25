@@ -71,7 +71,32 @@ The role a file's location promises, from the most specific matching `role` glob
 _Avoid_: inventory, index (that is the pack index)
 
 **Finding**:
-One piece of evidence the structure map reports — misplaced, mixed, duplicate, name clash, synonyms, or cycle. Evidence for judgement, never a verdict.
+One piece of evidence the structure map reports — misplaced, mixed, duplicate, name clash, synonyms, cycle, naming, or organization finding. Evidence for judgement, never a verdict.
+
+**Naming finding**:
+A name a Clean Code rule flags — vague, encoded, numbered, a noise word, a verb-named class, too short, off the language's casing convention, or a file mismatched with its one public type — each citing the rule it breaks.
+
+**Family**:
+Three or more files in one folder that share a leading name token and import each other; proposed as a folder named for the token.
+_Avoid_: group, cluster
+
+**Junk drawer**:
+A folder named for no concept (`utils`, `helpers`, `common`, and similar) holding production files; split by family and by role, or renamed when it holds one concept.
+
+**Flat folder**:
+A folder holding more production files than the map's limit, with no grouping; proposed to group by its families.
+
+**Move plan**:
+The **Proposed moves** section of the structure map: concrete `source -> destination` moves a family, a junk drawer, or a misplaced symbol implies, for an audit to confirm before the clean-up campaign's placement batch acts on them.
+
+**Entry directive**:
+A `clean-roles` line naming files a framework loads without an import (a sitemap, a seeder); read only by the unreferenced finding, so such a file is never called possibly unused.
+
+**Agent smell**:
+One of ten failure patterns specific to AI-generated code (A1-A10, `review-checklist.md`), each with a signal and a response, cited beside the book's smell IDs.
+
+**Risk level**:
+LOW, MEDIUM, or HIGH, set from a change's scope, blast radius, uncertainty, and reversibility; each level names the checks it owes before completion.
 
 **Component**:
 For the metrics, a folder prefix of a fixed depth: the practical stand-in for a release unit in application code.

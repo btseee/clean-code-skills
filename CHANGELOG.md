@@ -5,10 +5,11 @@ source and the git tag must match it exactly.
 
 ## 4.0.0
 
-Stack-aware release. The skill now carries a short, strict pack for each of 19 languages and 21
+Stack-aware release. The skill now carries a short, strict pack for each of 21 languages and 27
 frameworks, loads only the packs a project needs, and maps every file's functions and classes to
-show misplaced, mixed, and duplicated code in one place. The core shrank so the context an agent
-must read before its first edit stays small on any model.
+show misplaced, mixed, duplicated, badly named, and badly organized code in one place. The core
+shrank, and was then rewritten terser still, so the context an agent must read before its first
+edit stays small on any model.
 
 ### Breaking
 
@@ -26,12 +27,20 @@ must read before its first edit stays small on any model.
 
 - **Language and framework packs** under `references/languages/` and `references/frameworks/`:
   TypeScript, JavaScript, Python, Java, C, C++, C#, PHP, Go, Rust, Swift, Objective-C, Kotlin, Ruby,
-  Shell, PowerShell, R, Dart, Scala; React, Next.js, Vue and Nuxt, Angular, Svelte and SvelteKit,
-  Django, Flask, FastAPI, Express, NestJS, Strapi, Spring, ASP.NET Core with EF Core, Laravel,
-  Symfony, Ruby on Rails, Gin and Beego, Ktor, Jetpack Compose, SwiftUI and UIKit, Flutter. Language
-  packs cover names, functions and types, errors, modules, placement, tests, layers, enforcement,
-  and smells; framework packs cover structure, roles, rules, layers, tests, enforcement, and smells.
-  Each stays under 2,000 tokens.
+  Shell, PowerShell, R, Dart, Scala, CSS, Sass; React, Next.js, Vue and Nuxt, Angular, Svelte and
+  SvelteKit, Tailwind CSS, Django, Flask, FastAPI, Express, NestJS, Strapi, Spring, ASP.NET Core
+  with EF Core, Laravel, Symfony, Drupal, WordPress, Ruby on Rails, Gin and Beego, Ktor, Jetpack
+  Compose, SwiftUI and UIKit, Flutter, Unity, TensorFlow, PyTorch. Language packs cover names,
+  functions and types, errors, modules, placement, tests, layers, enforcement, and smells; framework
+  packs cover structure, roles, rules, layers, tests, enforcement, and smells; every pack's Names
+  section now names its stack's concrete naming anti-patterns. Each stays under 2,000 tokens.
+  Detection covers Tailwind CSS (`tailwindcss` in `package.json`), Drupal (`drupal/core` in
+  `composer.json`), WordPress (`wp-config.php`, `wp-content/`, or WordPress core in
+  `composer.json`), and Unity (`ProjectSettings/ProjectVersion.txt` or `com.unity.` packages); the
+  project walker skips each framework's generated folders (Unity's `Library/`, `Temp/`, `Logs/`,
+  `UserSettings/`; Drupal's `core/`, `contrib/`; WordPress's `wp-admin/`, `wp-includes/`; Flutter's
+  ephemeral build output). Laravel's pack states each major version's support status, re-verified
+  against current documentation.
 - **Pack routing.** `framework-map.md` holds the pack index; `detect_stack.py` records the selected
   packs in `context.json` as `packs` and prints them under **Read next**. It also detects SvelteKit,
   Strapi, Beego, Spring, the ASP.NET Core SDK, Jetpack Compose, Ktor, SwiftUI, and UIKit.
@@ -41,7 +50,33 @@ must read before its first edit stays small on any model.
   verbs, component coupling metrics (Ca, Ce, I, A, D), and folder cycles; C#, JVM, and PHP
   dependencies follow the type names code uses, not namespace imports. `--write` saves
   `.clean/structure.md` and `.clean/structure.json`; the SessionStart hook prints the findings.
-  Symbol extraction covers all 19 languages with the standard library only.
+  Symbol extraction covers all 21 languages with the standard library only.
+- **Naming findings**: a `names` kind reports classes, functions, methods, and (in Python,
+  JavaScript, and TypeScript) variables and parameters that break a Clean Code naming rule — vague,
+  encoded (Hungarian prefixes, a stray `I`), numbered (`_v2`, `data2`), a noise word (`Manager`,
+  `Helper`), a verb-named class, too short, off the language's own casing convention (with the
+  project's own majority casing overriding it where established), or a file whose one public type
+  is named for something else — each citing N1, N3, N4, N5, N6, G17, or G24 and judged per project
+  in a monorepo.
+- **Organization findings**: `family` (three or more files sharing a name that import each other,
+  proposed as a folder named for it — Common Closure Principle, Screaming Architecture),
+  `junk-drawer` (a folder named for no concept holding production files, split by family and by
+  role, or renamed when it holds one concept), `flat-folder` (more than fifteen production files in
+  one folder with no grouping), `unreferenced` (a production file nothing imports and no role,
+  entry point, or `entry` line explains — "possibly unused", G9), and `comment-heavy` (a file whose
+  comments are at least 40% of its non-blank lines and at least twenty in number — routed to the
+  new comment-cleanup workflow). `structure.md` gains a **Proposed moves** section
+  (`source -> destination`) the clean-up campaign's placement batch consumes.
+  `map_structure.py --changed` limits every finding, including these, to files git reports as
+  changed, for the new `review` command. An `entry <glob>` line in a `clean-roles` block names
+  files a framework loads without an import, read only by the unreferenced finding; `accept` and
+  `ignore-name` now also silence naming and organization findings, not only placement ones.
+- **`skills/clean-code/scripts/` reorganized** into `source/` (file walking, the lexer, import
+  parsing and resolution), `symbols/` (symbol extraction per language), and `structure/` (roles,
+  findings, naming, organization, metrics, and the report), with the four CLIs
+  (`detect_stack.py`, `scan_repo.py`, `check_boundaries.py`, `map_structure.py`) staying at the top
+  level so every documented command and manual equivalent keeps working; behavior-preserving,
+  verified by the unit tests before and after.
 - **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
   signal), overridable per project in `.clean/roles.md`. `allow` lets a home hold other roles (a
   React context file keeps its Provider and hook; an Express controller may take `next`), and
@@ -61,14 +96,65 @@ must read before its first edit stays small on any model.
 - `scripts/check_originality.py` for contributors: it compares shipped Markdown with the local,
   gitignored books for runs of eight or more shared words. Its first run led to rewording sixteen
   such runs in references that predate this release.
+- **Agent smells A1-A10** (hallucinated API, unverified dependency, context loss, scope creep,
+  duplicate implementation, wrong-file gravity, phantom success, test weakening, speculative
+  abstraction, silent architecture drift) replace the untagged Agent Failure Modes table in
+  `review-checklist.md`, each with a signal and a response, cited beside the book's G, N, and T
+  IDs in `chapter-map.md` and `smell-triage.md`.
+- **`/clean-code plan <task>`** (`references/plan.md`): reads project context, finds existing
+  implementations before proposing new ones, verifies every API the plan relies on against the
+  installed version, places the change, and writes a plan under fixed headings; edits nothing.
+- **`/clean-code review [files]`**: reviews the working tree, then staged changes, then named
+  files, with `map_structure.py --changed`, `check_boundaries.py`, and the checklist; findings
+  first, ranked P0-P3, each with a smell ID; edits nothing.
+- **Risk-based verification**: every change is rated LOW, MEDIUM, or HIGH from its scope, blast
+  radius, uncertainty, and reversibility, each level naming the checks it owes before completion
+  (`review-checklist.md`, Risk Levels); the operating loop's verify step points to it.
+  ([kyuna0312's PR #6](https://github.com/btseee/clean-code-skills/pull/6) proposed the agent
+  smells, the `plan` and `review` commands, risk-based verification, and planted-flaw evals; all
+  four landed in this release.)
+- **`references/patterns.md`**: architecture styles (DI, IoC, MVC, MVVM, CQRS, Clean, Hexagonal,
+  Microservices, Event-Driven), design patterns (Repository, Unit of Work, Factory, Singleton,
+  Strategy, Adapter, Decorator, Observer, Command), and data-access approaches (ORM, Micro ORM,
+  Query Builder, Data Mapper, Active Record) — each with its intent, when it earns its place, when
+  it is over-engineering, its link to the books, and which packs' frameworks embody it.
+- **`/clean-code compress [files]`** (`references/compress.md`) and
+  **`scripts/check_compression.py`**: rewrite a project's own instruction files (`AGENTS.md`,
+  `CLAUDE.md`, `GEMINI.md`, `DESIGN.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `.cursor`/`.github`
+  rule files) tersely, keeping a `<name>.original.md` backup and never touching the managed block;
+  the checker exits 1 when a rewrite lost a heading, a code block, an inline code span, a URL, a
+  rule ID, or a number, and reports the token reduction.
+- **Comment cleanup** (`references/comments.md`, routed from the Load Plan and `clean-up`):
+  classifies each comment by Clean Code's kept and deleted kinds, turns "what" comments into names,
+  and rewrites surviving "why" comments tersely; the `comment-heavy` finding picks the files.
+- **The minimal-code ladder**, an always-on `SKILL.md` rule: before writing code, ask in order
+  whether it needs to exist, whether the codebase already has it, whether the standard library or
+  an installed dependency does it, whether it is one line; safety is never cut.
+- Six new eval cases graded by planted-flaw and stack-specific expectations (hallucinated-api,
+  unverified-success, unsafe-refactor, frontend-data-fetch, naming-cleanup, comment-cleanup), plus
+  eight new pack cases; `grade.py` gained the `command_passes` expectation (runs a command in the
+  workspace, passes on exit 0) and `new_file` now accepts a list of globs. `evals/README.md` records
+  a second benchmark iteration across the new cases and two of the first iteration's, with and
+  without the skill, on Sonnet and Haiku.
+
+### Terse Content
+
+The always-loaded managed block and `SKILL.md`, and every reference and pack, were rewritten in a
+caveman-derived terse style — full words, imperative verbs, no filler or hedging — cutting the
+top-level references by about 21% (30,263 to about 24,000 words) with no technical loss, verified
+by the new `check_compression.py` against every rewrite. The minimal-code ladder is credited to the
+[ponytail](https://github.com/dietrichgebert/ponytail) plugin and the terse style to
+[caveman](https://github.com/juliusbrussee/caveman); this release adopts both as skill rules and
+workflows rather than depending on either plugin, so the skill keeps working with no tooling in any
+host.
 
 ### Changed
 
-- **`SKILL.md` is a lean router** of about 2,100 tokens that opens with the context gate: read
-  `.clean/`, run the detector, read the named packs, then edit; a trivial edit skips the gate.
-  `validate.sh` enforces the budgets: `SKILL.md` at most 3,000 tokens, the managed block 1,200,
-  each pack 2,000. The security rule stays in the always-on rules, and the Load Plan routes
-  security, trust boundaries, and performance questions to `principles.md`.
+- **`SKILL.md` is a lean router**, terse-rewritten to about 1,500 tokens, that opens with the
+  context gate: read `.clean/`, run the detector, read the named packs, then edit; a trivial edit
+  skips the gate. `validate.sh` enforces the budgets: `SKILL.md` at most 1,500 tokens, the managed
+  block 750, each pack 2,000. The security rule stays in the always-on rules, and the Load Plan
+  routes security, trust boundaries, and performance questions to `principles.md`.
 - **The README is short**; install and configuration details moved to `docs/`.
 - The agent failure-mode and anti-loophole tables moved from `SKILL.md` to `review-checklist.md`.
 - Import parsing moved into `project_imports.py` and now reads Shell, PowerShell, R, and
