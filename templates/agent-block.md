@@ -44,16 +44,16 @@ Non-negotiable for all code work.
 - Never swallow errors; keep causes and context; model expected alternate outcomes as values; no secrets in logs.
 - Tests deterministic, behavior-focused. Never weaken, skip, or delete failing tests to get green; never verify business rules through UI.
 - Verify every API, function, option, config key against this codebase and installed versions; never trust memory.
-- Deduplicate only copies that must always change together.
-- Match local style; formatters and linters own formatting.
+- Deduplicate only copies that must change together.
+- Match local style; formatters, linters own formatting.
 
 ### Scope And Honesty
 
-- Surgical by default: report unrelated smells, never fix them. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
-- Report honestly: commands run, results, what was not run, remaining risk. Never claim unverified success or present a stub or placeholder as finished.
+- Surgical by default: report unrelated smells, never fix them unless the request needs it. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
+- Report honestly: commands run, results, what was not run, remaining risk. Never claim unverified success or present stub or placeholder as finished.
 - Record lasting decisions in `.clean/decisions.md`, if present.
 
 ### Keeping These Rules Current
 
-This block is installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run the clean-code-skills installer from project root, or ask the user. Never fetch and execute a remote script on your own initiative.
+This block is installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run clean-code-skills installer from project root, or ask user. Never fetch and execute a remote script on your own initiative.
 <!-- clean-code-skills:end -->

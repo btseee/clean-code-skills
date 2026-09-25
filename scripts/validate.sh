@@ -60,6 +60,7 @@ required_files=(
   "skills/clean-code/references/compress.md"
   "skills/clean-code/references/comments.md"
   "skills/clean-code/references/patterns.md"
+  "skills/clean-code/references/tools.md"
   "skills/clean-code/scripts/detect_stack.py"
   "skills/clean-code/scripts/scan_repo.py"
   "skills/clean-code/scripts/check_boundaries.py"

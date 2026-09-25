@@ -17,9 +17,10 @@ folder. Read in order; trivial edits (typo, comment) skip this gate and the revi
 
 1. **Stack.** `.clean/context.json`; missing: run `scripts/detect_stack.py`, or read manifests and
    file extensions.
-2. **Packs.** Each pack in `packs` or under "Read next", except framework packs whose
-   `pack_scopes` exclude your area. By hand: `clean-packs` index in `references/framework-map.md`;
-   none: answer its adaptation questions.
+2. **Packs.** Before planning, open each pack in `packs` or under "Read next" with the file-read
+   tool (listing is not reading), except framework packs whose `pack_scopes` exclude your area. By
+   hand: `clean-packs` index in `references/framework-map.md`; none: answer its adaptation
+   questions.
 3. **Layers.** `.clean/architecture.md`; see Layer Rules.
 4. **Decisions.** `.clean/decisions.md`, `.clean/ledger.md`. Recorded decisions are settled; resume,
    never restart, campaigns in progress.
@@ -130,27 +131,18 @@ A named rule, exactly | `canon.md`
 State for the next session | `memory-protocol.md`
 Worked examples, templates | `examples.md`
 Host hooks, commands, install paths | `host-matrix.md`
-
-## Tools
-
-Output is evidence, never a verdict.
-
-Script | Answers
---- | ---
-`detect_stack.py` | languages, frameworks, packs, test command, layout
-`map_structure.py` | declarations, roles; misplaced, mixed, duplicated, cyclic code
-`scan_repo.py` | oversized files, sibling variants, junk drawers, debug output, skipped tests
-`check_boundaries.py` | declared-layer violations
-`check_compression.py` | what a terse rewrite lost
+Scripts `detect_stack.py`, `scan_repo.py`, `map_structure.py`, `check_boundaries.py`, `check_compression.py`: flags, findings, exit codes; output is evidence, never a verdict | `tools.md`
 
 ## Scope Modes
 
-**Surgical** (default): smallest slice; report unrelated smells, never fix them.
+**Surgical** (default): smallest slice; report unrelated smells, never fix them unless a requested
+outcome needs it ("make the suite pass"): smallest fix, reported separately, never a weakened test.
 **Campaign** (explicit request only): `references/project-refactor.md`; never a behavior change
 inside a refactor batch.
 
 ## Completion Checklist
 
+- Packs read before the first edit.
 - Task solved; each changed line traces to it and obeys the rules above.
 - New files placed by role, wired; no sibling variant, duplicate, dead code, scratch file, or
   debug output.
