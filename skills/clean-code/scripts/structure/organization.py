@@ -377,6 +377,9 @@ _PROJECT_SCRIPT_FIELD = re.compile(r"""^\s*(?:scripts|gui-scripts)\s*=\s*\{(?P<b
 # setup.cfg's `[options.entry_points]` lines are unquoted: `console_scripts =\n    cli = pkg:main`.
 _SETUP_CFG_TARGET = re.compile(r"^\s*[\w.-]+\s*=\s*(?P<module>[\w.]+)")
 _PACKAGE_ENTRY_FIELDS = ("bin", "main", "module", "exports")
+# `bin`, `main`, and `module` name a path Node resolves like a require(); `exports` map targets
+# are exact paths only (Node does not add extensions or an index file to those).
+_EXTENSION_RESOLVED_FIELDS = frozenset({"bin", "main", "module"})
 # A package.json path naming no extension: what bundlers and Node itself try, in order.
 _PACKAGE_EXTENSIONS = (".js", ".mjs", ".cjs", ".ts", ".tsx")
 _PACKAGE_INDEX_FILES = ("index.js", "index.ts")
@@ -451,11 +454,12 @@ def _package_paths(value) -> list:
 
 
 def _package_candidates(path: str) -> list:
-    """A package.json path, plus, when it names no extension, the files it may resolve to: each
-    of _PACKAGE_EXTENSIONS appended, or one of _PACKAGE_INDEX_FILES inside it."""
+    """A package.json path: itself first (Node tries the exact path before guessing), then, when
+    it names no extension, each of _PACKAGE_EXTENSIONS appended, or one of _PACKAGE_INDEX_FILES
+    inside it."""
     if posixpath.splitext(path)[1]:
         return [path]
-    return [path + suffix for suffix in _PACKAGE_EXTENSIONS] + \
+    return [path] + [path + suffix for suffix in _PACKAGE_EXTENSIONS] + \
            [posixpath.join(path, name) for name in _PACKAGE_INDEX_FILES]
 
 
@@ -464,7 +468,7 @@ def manifest_entries(manifest_texts: dict, paths) -> set:
     Poetry target's module in the manifest's folder or its `src/` (or the file a Poetry
     `type = "file"` script names directly), a setup.cfg `[options.entry_points]` target the same
     way, or a package.json target path (an extension-less `main`, `module`, or `bin` value
-    resolved the way Node and bundlers resolve one)."""
+    resolved the way Node and bundlers resolve one; `exports` targets are exact paths only)."""
     candidates = []
     for manifest, text in manifest_texts.items():
         folder = posixpath.dirname(manifest)
@@ -482,10 +486,13 @@ def manifest_entries(manifest_texts: dict, paths) -> set:
             package = json.loads(text)
         except ValueError:
             continue
-        fields = [package.get(field) for field in _PACKAGE_ENTRY_FIELDS] if isinstance(package, dict) else []
-        candidates += [posixpath.normpath(posixpath.join(folder, candidate))
-                       for field in fields for path in _package_paths(field)
-                       for candidate in _package_candidates(path)]
+        if not isinstance(package, dict):
+            continue
+        for field in _PACKAGE_ENTRY_FIELDS:
+            for path in _package_paths(package.get(field)):
+                resolved = _package_candidates(path) if field in _EXTENSION_RESOLVED_FIELDS else [path]
+                candidates += [posixpath.normpath(posixpath.join(folder, candidate))
+                               for candidate in resolved]
     return set(candidates) & set(paths)
 
 

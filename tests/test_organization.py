@@ -657,11 +657,22 @@ class ManifestEntriesTest(unittest.TestCase):
         self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths),
                          {"lib/api.js"})
 
+    def test_an_extensionless_package_json_value_that_is_itself_a_file_counts_too(self):
+        text = '{"main": "server"}\n'
+        paths = {"server", "unused.js"}
+        self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths),
+                         {"server"})
+
     def test_an_extensionless_package_json_bin_resolves_to_a_folder_index(self):
         text = '{"bin": {"shipit": "./cli"}}\n'
         paths = {"cli/index.js", "cli/unused.js"}
         self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths),
                          {"cli/index.js"})
+
+    def test_package_json_exports_resolve_only_as_exact_paths(self):
+        text = '{"exports": {".": "./lib/api"}}\n'
+        paths = {"lib/api.js", "unused.js"}
+        self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths), set())
 
     def test_a_malformed_poetry_script_or_a_dangling_target_adds_no_entry(self):
         text = ('[tool.poetry.scripts]\n'
@@ -669,6 +680,24 @@ class ManifestEntriesTest(unittest.TestCase):
                 'broken = "shipit.missing:main"\n')
         paths = {"shipit/unused.py"}
         self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths), set())
+
+    def test_a_malformed_setup_cfg_adds_no_entry(self):
+        text = ("[options.entry_points]\nconsole_scripts =\n    shipit = shipit.cli:main\n\n"
+                "[options.entry_points]\nconsole_scripts =\n    other = shipit.other:main\n")
+        paths = {"shipit/cli.py", "shipit/other.py"}
+        self.assertEqual(structure_organization.manifest_entries({"setup.cfg": text}, paths), set())
+
+    def test_a_package_module_resolves_to_its_init_file(self):
+        text = '[project.scripts]\nshipit = "shipit.cli:main"\n'
+        paths = {"shipit/cli/__init__.py", "shipit/cli/other.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"shipit/cli/__init__.py"})
+
+    def test_an_inline_project_gui_scripts_table_names_a_module(self):
+        text = '[project]\nname = "shipit"\ngui-scripts = { shipit-gui = "shipit.gui:run" }\n'
+        paths = {"shipit/gui.py", "shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"shipit/gui.py"})
 
 
 class OrganizationMapTest(unittest.TestCase):
