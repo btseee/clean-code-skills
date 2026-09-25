@@ -60,23 +60,28 @@ edit stays small on any model.
   in a monorepo.
 - **Organization findings**: `family` (three or more files sharing a name that import each other,
   proposed as a folder named for it — Common Closure Principle, Screaming Architecture),
-  `junk-drawer` (a folder named for no concept holding production files, split by family and by
-  role, or renamed when it holds one concept), `flat-folder` (more than fifteen production files in
+  `junk_drawer` (a folder named for no concept holding production files, split by family and by
+  role, or renamed when it holds one concept), `flat_folder` (more than fifteen production files in
   one folder with no grouping), `unreferenced` (a production file nothing imports and no role,
-  entry point, or `entry` line explains — "possibly unused", G9), and `comment-heavy` (a file whose
+  entry point, or `entry` line explains — "possibly unused", G9), and `comment_heavy` (a file whose
   comments are at least 40% of its non-blank lines and at least twenty in number — routed to the
   new comment-cleanup workflow). `structure.md` gains a **Proposed moves** section
   (`source -> destination`) the clean-up campaign's placement batch consumes.
   `map_structure.py --changed` limits every finding, including these, to files git reports as
   changed, for the new `review` command. An `entry <glob>` line in a `clean-roles` block names
-  files a framework loads without an import, read only by the unreferenced finding; `accept` and
-  `ignore-name` now also silence naming and organization findings, not only placement ones.
+  files a framework loads without an import: never unreferenced, and a folder holding only them is
+  no junk drawer. Files a manifest runs (pyproject `[project.scripts]`, `[project.gui-scripts]`,
+  and `[project.entry-points.*]` targets; package.json `bin`, `main`, `module`, and `exports`)
+  are entries without one. A junk-drawer name a convention chose is not reported: the folder-glob
+  home of the role it is named for (Rails' `app/helpers/`) or a `shared/` folder of components,
+  directives, and pipes (Angular). `accept` and `ignore-name` now also silence naming and
+  organization findings, not only placement ones.
 - **`skills/clean-code/scripts/` reorganized** into `source/` (file walking, the lexer, import
   parsing and resolution), `symbols/` (symbol extraction per language), and `structure/` (roles,
-  findings, naming, organization, metrics, and the report), with the four CLIs
-  (`detect_stack.py`, `scan_repo.py`, `check_boundaries.py`, `map_structure.py`) staying at the top
-  level so every documented command and manual equivalent keeps working; behavior-preserving,
-  verified by the unit tests before and after.
+  findings, naming, organization, metrics, and the report), with the five CLIs
+  (`detect_stack.py`, `scan_repo.py`, `check_boundaries.py`, `map_structure.py`,
+  `check_compression.py`) staying at the top level so every documented command and manual
+  equivalent keeps working; behavior-preserving, verified by the unit tests before and after.
 - **Role conventions** in fenced `clean-roles` blocks (homes by glob, roles by name or declaration
   signal), overridable per project in `.clean/roles.md`. `allow` lets a home hold other roles (a
   React context file keeps its Provider and hook; an Express controller may take `next`), and
@@ -86,10 +91,10 @@ edit stays small on any model.
   never hides the React app beside it, and move suggestions and name clashes stay inside one
   project.
 - **An eval harness**: `evals/grade.py` grades a run against a case's deterministic expectations
-  and exports `evals/evals.json` in skill-creator's layout; 33 cases, one per pack plus four core
-  cases, and `evals/triggers.json` for description tuning. `evals/README.md` records the first
-  benchmark on ten cases: every expectation passed with the skill, 95.5% without it, at about
-  48% more tokens per task.
+  and exports `evals/evals.json` in skill-creator's layout; 47 cases (nine core, 38 covering 37
+  packs, the fourteen listed below included), and `evals/triggers.json` for description tuning.
+  `evals/README.md` records the first benchmark on ten cases: every expectation passed with the
+  skill, 95.5% without it, at about 48% more tokens per task.
 - **A unit test suite** (`tests/`, standard library `unittest`), run by `validate.sh` and CI.
 - `docs/install.md`, `docs/configuration.md`, and `docs/pack-sources.md`, the sources each pack was
   checked against.
@@ -126,7 +131,7 @@ edit stays small on any model.
   rule ID, or a number, and reports the token reduction.
 - **Comment cleanup** (`references/comments.md`, routed from the Load Plan and `clean-up`):
   classifies each comment by Clean Code's kept and deleted kinds, turns "what" comments into names,
-  and rewrites surviving "why" comments tersely; the `comment-heavy` finding picks the files.
+  and rewrites surviving "why" comments tersely; the `comment_heavy` finding picks the files.
 - **The minimal-code ladder**, an always-on `SKILL.md` rule: before writing code, ask in order
   whether it needs to exist, whether the codebase already has it, whether the standard library or
   an installed dependency does it, whether it is one line; safety is never cut.
@@ -157,10 +162,11 @@ host.
   routes security, trust boundaries, and performance questions to `principles.md`.
 - **The README is short**; install and configuration details moved to `docs/`.
 - The agent failure-mode and anti-loophole tables moved from `SKILL.md` to `review-checklist.md`.
-- Import parsing moved into `project_imports.py` and now reads Shell, PowerShell, R, and
+- Import parsing moved into `source/imports.py` and now reads Shell, PowerShell, R, and
   Objective-C imports; `scan_repo.py` shares the generated-file detection of the new map, which
-  also recognizes generated files by name (`*.Designer.cs`, `*.g.cs`, `*_pb2.py`, `*.pb.go`), so
-  they no longer count as large files.
+  also recognizes generated files by name (`*.Designer.cs`, `*.g.cs`, `*_pb2.py`, `*.pb.go`, and
+  minified or bundled `*.min.js`, `*.min.mjs`, `*.min.css`, `*.bundle.js`), so they no longer count
+  as large files or flood the naming findings.
 - Every script prints UTF-8, so non-ASCII text reaches an agent intact through a Windows pipe.
 - A file counts as generated only when the comment that opens it says so, not when its prose
   mentions a generated report.

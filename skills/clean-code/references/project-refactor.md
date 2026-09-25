@@ -4,8 +4,8 @@ For cleanup as the task: "clean up this project", "refactor this module to clean
 clean code everywhere". Surgical-mode scope is suspended, not discipline: a structure-less campaign
 becomes an unreviewable rewrite of behavior nobody asked for.
 
-Agents fail large refactors predictably: context overflow, early session end, batches forgetting
-each other, quality drift file 3 to 30. Every step below counters one.
+Large refactors fail predictably — context overflow, early session end, batches forgetting each
+other, quality drift file 3 to 30 — and each step below counters one.
 
 ## Contents
 
@@ -60,7 +60,7 @@ Batches sized to fit one session and review. Two strategies; pick per campaign:
 
 Order batches by risk and value:
 
-1. Safety first: dead code removal, single-caller duplication, formatter-only formatting. Low risk, shrinks the problem.
+1. Safety first: dead code removal, single-caller duplication, formatter-only formatting. Low risk, shrinks the problem. Before deleting an `unreferenced` file, search its path, module, and stem in manifests (pyproject scripts and entry points, package.json `bin`/`main`/`exports`), Procfile, Dockerfile, CI files, HTML, and string imports; a runtime-loaded file gets an `entry` line in `.clean/roles.md` instead.
 2. Naming/readability: renames, explanatory variables, comment cleanup per `comments.md`, starting with files the map reports `comment_heavy`. Low risk, tooling-supported.
 3. **Placement**: start from `.clean/structure.md`'s `## Proposed moves` (`from -> to (why)`: misplaced symbols, file families, junk-drawer splits) — confirm each against the code (evidence, not verdict), drop or amend any the audit rejected. Move every confirmed file and symbol to its intended home; rewire completely: imports, exports, registrations, build config. One behavior-preserving batch (or per module), verified before and after — `scripts/map_structure.py --path <folder>` should no longer report it. A half-moved file is worse than unmoved.
 4. **Package idioms**: align usage with each installed dependency's intent, per `.clean/context.json` and `framework-map.md` — replace hand-rolled code with what the library provides, fix misused APIs. Version *upgrades* are a `decisions.md` entry, not this batch.
@@ -79,7 +79,7 @@ For each batch:
 3. Run verification relevant to the batch, the broader suite every few batches. Compare against baseline: no new failures.
 4. Update the ledger: done, found, deferred, anything that changes the plan.
 5. Checkpoint: commit with a message describing the batch, or present the diff, per the contract.
-6. Report honestly if a batch went sideways; revert to the checkpoint rather than patch forward on a mess.
+6. A batch went sideways: report it honestly; revert to the checkpoint rather than patch forward.
 
 Batch hygiene: one batch, one intent — commit message passes the one-sentence test. Balloons past
 intent: stop, checkpoint what is coherent, re-plan the remainder. Never carry uncommitted work
@@ -111,8 +111,8 @@ uncommitted unless asked. See `memory-protocol.md` for its fit with other durabl
 ## Deferred
 ```
 
-Re-read the ledger at the start of every session and before every batch — the recovery point if
-context is lost mid-campaign.
+Re-read the ledger at every session start and before every batch — the recovery point after lost
+context.
 
 ## Stop Conditions
 
@@ -126,18 +126,18 @@ Pause and report instead of pushing through when:
 
 ## What This Protocol Is Not
 
-- Not a license to rewrite: preserve public behavior and contracts unless contracted otherwise — the team that made a mess usually reproduces it in one.
+- Not a license to rewrite: preserve public behavior and contracts unless contracted otherwise.
 - Not a style crusade: the project's formatter, linter, and idioms define style; the campaign enforces, not replaces, them.
-- Not all-at-once: thirty files in one pass makes thirty unreviewable diffs — small batches are the only safe way through a large cleanup.
+- Not all-at-once: thirty files in one pass make thirty unreviewable diffs.
 - Not an architecture redesign in disguise: re-layering is the highest-risk depth, only inside the agreed contract — architecture as the real problem: say so, let the user decide.
 
 ## Leaving it better than a checklist would
 
-A campaign that only removes smells produces a tidier version of the same design. Changes that
-actually lower the future cost of change, usually in this order:
+Removing smells alone yields a tidier version of the same design. What lowers the cost of change,
+usually in this order:
 
 1. **Declare the architecture** in `.clean/architecture.md` — cheapest batch, turns every later argument into an automated check.
-2. **Add tests that make risky areas verifiable.** Everything else is safer afterwards.
+2. **Add tests that make risky areas verifiable.**
 3. **Fix dependency direction** on the worst offenders — inner modules naming outer ones.
 4. **Remove the cycles** — components build and release independently again.
 5. **Pull details out of policy**: ORM types, framework annotations, HTTP objects — out of business rules, behind interfaces the rules own.

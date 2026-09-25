@@ -66,9 +66,11 @@ ignore-name = ^(handler|config)$
 `role` names a home by glob, `name` recognizes a role from a symbol's name, `signal` from its
 decorators, base types, or signature, `allow` lets a home hold symbols of other roles (a React
 context file holds its Provider and hook), `entry` lists files a framework loads by name or place
-(a sitemap, Django's `apps.py`, a Laravel seeder) so the unreferenced finding never flags them — no
-other finding reads it — and `ignore-name` leaves names out of the name-clash, synonym, and naming
-findings. An optional `[ext, ext]` list limits a `name` or `signal` rule to those file types.
+(a sitemap, Django's `apps.py`, a Laravel seeder) so the unreferenced finding never flags them and
+a folder holding only such files is no junk drawer, and `ignore-name` leaves names out of the
+name-clash, synonym, and naming findings. Files a manifest runs — pyproject `[project.scripts]`,
+`[project.gui-scripts]`, and `[project.entry-points.*]` targets, package.json `bin`, `main`,
+`module`, and `exports` paths — count as entries without an `entry` line. An optional `[ext, ext]` list limits a `name` or `signal` rule to those file types.
 Signals beat names, and the most specific home glob wins, so a rule of your own does not silence a
 pack's finding; record a deliberate exception with `accept`: a glob alone covers whole files, and
 `= symbol, ...` covers only those symbols. Accepted code gets no misplaced, mixed, naming, or
@@ -77,25 +79,30 @@ organization finding; add the reason to `.clean/decisions.md`.
 ## Naming And Organization Findings
 
 `map_structure.py` also reports what a name or a folder gets wrong, each a `names` or an
-organization finding, evidence for judgement, never a verdict:
+organization finding, evidence for judgement, never a verdict. Each label below is the finding's
+key in `.clean/structure.json`:
 
-- **names**: a class, function, method, variable, or parameter that breaks a Clean Code naming
+- **`names`**: a class, function, method, variable, or parameter that breaks a Clean Code naming
   rule — vague, encoded (Hungarian, a stray `I` prefix), numbered (`_v2`, `data2`), a noise word
   (`Manager`, `Helper`), a verb-named class, too short, off the language's casing convention, or a
   file whose one public type has an unrelated name — each citing the rule it breaks (N1, N3, N4,
   N5, N6, G17, G24).
-- **family**: three or more files in one folder that share a name and import each other, proposed
+- **`family`**: three or more files in one folder that share a name and import each other, proposed
   as a folder named for it.
-- **junk-drawer**: a folder named for no concept (`utils`, `helpers`, `common`, `shared`, `misc`,
+- **`junk_drawer`**: a folder named for no concept (`utils`, `helpers`, `common`, `shared`, `misc`,
   and similar) holding production files, split by family and by role, or renamed when it holds one
-  concept.
-- **flat-folder**: a folder with more than fifteen production files, proposed to group by its
+  concept. A folder a convention names is left out: one holding only entries, the folder-glob home
+  of the role it is named for (Rails' `app/helpers/`), or a `shared/` folder holding only
+  components, directives, and pipes (an Angular shared UI module).
+- **`flat_folder`**: a folder with more than fifteen production files, proposed to group by its
   families.
-- **unreferenced**: a production file nothing imports and no role, entry point, or `entry` line
-  explains — "possibly unused" (G9), never a verdict; a file a framework finds by convention,
-  annotation, or base type is not reported.
-- **comment-heavy**: a file whose comment lines are at least 40% of its non-blank lines and at
-  least twenty in number — a candidate for the comment-cleanup workflow (`references/comments.md`).
+- **`unreferenced`**: a production file nothing imports and no role, entry point, `entry` line, or
+  manifest target explains — "possibly unused" (G9), never a verdict; a file a framework finds by
+  convention, annotation, or base type is not reported. Before deleting one, search its path,
+  module, and stem in manifests, Procfile, Dockerfile, CI files, HTML, and string imports.
+- **`comment_heavy`**: a file whose comment lines are at least 40% of its non-blank lines and at
+  least twenty in number — a candidate for the comment-cleanup workflow (`references/comments.md`);
+  files in a `config/` folder at the top of the repository or of a project are left out.
 
 `.clean/structure.md` collects the moves these findings imply under **Proposed moves**
 (`source -> destination`), for an audit to confirm before the clean-up campaign's placement batch

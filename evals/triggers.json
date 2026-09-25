@@ -9,6 +9,9 @@
   {"query": "write pytest tests for app/pricing/discounts.py — the tiered discount function has no tests and I'm scared to touch it", "should_trigger": true},
   {"query": "we have getUser, fetchUser and loadUser doing the same thing in different modules of the flutter app. make it consistent and remove the duplicates", "should_trigger": true},
   {"query": "I keep putting business rules into React components. OrdersPage.tsx computes discounts and taxes inline — move that logic where it belongs", "should_trigger": true},
+  {"query": "before touching anything, write me a plan for adding soft deletes to orders in our laravel app: which files change, where the new code should live, and how we'll test it. no edits yet, I want to approve it first", "should_trigger": true},
+  {"query": "review just the files I changed on this branch under src/billing/ for bad names and anything that landed in the wrong folder. give me findings only, don't fix anything", "should_trigger": true},
+  {"query": "our CLAUDE.md and AGENTS.md have grown to a few thousand words and get loaded on every turn. shrink them without dropping any rule, command, or path", "should_trigger": true},
   {"query": "recommend two or three books on software architecture for a junior dev who just finished a bootcamp, with a sentence on why each", "should_trigger": false},
   {"query": "make a 10-slide deck explaining the SOLID principles for our lunch-and-learn next friday, keep it light", "should_trigger": false},
   {"query": "explain the difference between TCP and UDP like I'm a product manager", "should_trigger": false},
@@ -18,5 +21,6 @@
   {"query": "summarize this 40-page PDF of our Q3 security audit into five bullet points for the exec summary", "should_trigger": false},
   {"query": "build me a spreadsheet tracking sprint velocity for the last six sprints from these numbers: 21, 18, 25, 30, 27, 24", "should_trigger": false},
   {"query": "what's the time complexity of quicksort in the worst case and why?", "should_trigger": false},
-  {"query": "write a short blog post for our engineering blog about why we adopted trunk-based development", "should_trigger": false}
+  {"query": "write a short blog post for our engineering blog about why we adopted trunk-based development", "should_trigger": false},
+  {"query": "compress the PNG screenshots in docs/images to webp so the README loads faster, keep the same file names", "should_trigger": false}
 ]

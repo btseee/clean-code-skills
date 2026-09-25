@@ -1,7 +1,6 @@
 # Framework And Language Map
 
-How the skill adapts to a stack: packs to read, role conventions for code placement, dependencies
-used as intended.
+How the skill adapts to a stack: packs, role conventions, dependencies used as intended.
 
 ## Packs
 
@@ -10,7 +9,7 @@ placement, tests, layers, enforcement tools, smells. Read the packs your stack n
 first edit.
 
 - `scripts/detect_stack.py` prints them under **Read next** (`.clean/context.json`, `packs`); by
-  hand, look up each language/framework, reading its files (paths relative here).
+  hand, look up each language/framework (paths relative here).
 - A language pack applies when it's the project's most common, or covers a tenth of its files;
   editing another, read its pack too.
 - A framework pack describes its own idiomatic structure — this skill is framework-first. Its
@@ -91,10 +90,9 @@ supersede Drupal > Symfony
 
 ## Roles
 
-A role: a responsibility with a conventional home — middleware with middleware, controllers with
-controllers. `scripts/map_structure.py` reads role conventions from fenced `clean-roles` blocks (this
-one, per framework pack, optionally `.clean/roles.md`), flagging symbols whose role differs from
-where they live.
+A role: a responsibility with a conventional home. `scripts/map_structure.py` reads role
+conventions from fenced `clean-roles` blocks (this one, per framework pack, optionally
+`.clean/roles.md`), flagging symbols whose role differs from where they live.
 
 ```text
 role <name> = <glob>[, <glob>...]      matches are homes for <name>
@@ -102,7 +100,7 @@ name <name> [<exts>] = <regex>         matching symbol names have role <name>
 signal <name> [<exts>] = <regex>       matching declarations (decorators, base types) have role <name>
 allow <home> = <role>[, <role>...]     a <home> file may hold these roles too
 accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced, mixed, naming, or organization finding
-entry <glob>[, <glob>...]              files a framework loads without an import: never reported unreferenced
+entry <glob>[, <glob>...]              files a framework loads without an import: never unreferenced; an all-entry folder is no junk drawer
 ignore-name = <regex>                  names left out of name-clash, synonym, and naming findings
 ```
 
@@ -110,7 +108,8 @@ Read order: `.clean/roles.md`, framework packs as `detect_stack.py` lists them, 
 below. Signals beat names; the most specific glob wins — record exceptions with `accept`, not a
 competing rule. Interfaces, protocols, traits, enums, type aliases never have a role: abstractions
 live beside the code using them. `entry` lists files the framework finds by name or place (Next.js
-`sitemap.ts`, Django `apps.py`, Laravel seeders); only the unreferenced finding reads it.
+`sitemap.ts`, Django `apps.py`, Laravel seeders); manifest targets (pyproject scripts and entry
+points, package.json `bin`, `main`, `module`, `exports`) are entries automatically.
 
 ```clean-roles
 # Conventional homes shared by most stacks.

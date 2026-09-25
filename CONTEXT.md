@@ -90,7 +90,7 @@ A folder holding more production files than the map's limit, with no grouping; p
 The **Proposed moves** section of the structure map: concrete `source -> destination` moves a family, a junk drawer, or a misplaced symbol implies, for an audit to confirm before the clean-up campaign's placement batch acts on them.
 
 **Entry directive**:
-A `clean-roles` line naming files a framework loads without an import (a sitemap, a seeder); read only by the unreferenced finding, so such a file is never called possibly unused.
+A `clean-roles` line naming files a framework loads without an import (a sitemap, a seeder); the unreferenced finding never calls such a file possibly unused, and the junk-drawer finding skips a folder holding only such files. Files a manifest runs (pyproject scripts, package.json `bin`) are entries without one.
 
 **Agent smell**:
 One of ten failure patterns specific to AI-generated code (A1-A10, `review-checklist.md`), each with a signal and a response, cited beside the book's smell IDs.

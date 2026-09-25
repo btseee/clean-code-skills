@@ -337,7 +337,7 @@ else
 fi
 
 if [[ -n "$SKILL_PYTHON" ]]; then
-  # The scripts folder holds the four CLIs plus the source, symbols, and structure
+  # The scripts folder holds the five CLIs plus the source, symbols, and structure
   # packages; walk it recursively so a subpackage module gets the same checks.
   while IFS= read -r -d '' script; do
     "$SKILL_PYTHON" -c "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8').read())" "$script" \

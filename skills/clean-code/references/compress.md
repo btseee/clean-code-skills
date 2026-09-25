@@ -2,8 +2,9 @@
 
 For `/clean-code compress [files]` or "shrink our agent instructions". Rewrites a project's
 instruction files tersely: same rules, fewer tokens. Hosts load these files on every turn, so each
-word cut is saved on every request. Invoking the command is consent to rewrite the named files or,
-with none named, the default targets that exist. Changes no code.
+word cut is saved on every request. Invoking the command is consent to rewrite the named files.
+With none named, list the default targets that exist and wait for the user's confirmation before
+rewriting. Changes no code.
 
 ## Targets
 
@@ -47,7 +48,7 @@ Before the first edit, list the targets with their token counts (words x 4/3).
    - Never merge files or move rules between them: different hosts read different files.
 3. **Check:** `python <skill>/scripts/check_compression.py <backup> <file>`, where `<skill>` is the
    folder holding `SKILL.md`. It compares headings, code blocks, inline code, URLs, rule IDs, and
-   numbers as multisets, then prints word and token counts and the reduction. Exit 0: nothing
+   numbers as multisets, then prints token counts and the reduction. Exit 0: nothing
    technical lost. Exit 1: each loss on its own line. Exit 2: bad arguments or an unreadable file.
    Without Python, compare those item kinds by hand.
 4. **Stop on any loss.** Restore the file from its backup, report the losses, and redo that file

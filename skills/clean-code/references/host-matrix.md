@@ -2,7 +2,7 @@
 
 This skill: a folder of Markdown plus standard-library Python scripts — the entire Agent Skills
 standard. Beyond that, hooks, commands, permissions, memory, session-start behavior are
-host-specific. This file maps what each host offers, and where nothing.
+host-specific. This file maps what each host offers.
 
 **Never depend on a host capability for correctness** — deterministic enforcement beats an
 instruction the model might skip. Missing? Fall back to the prose step.
@@ -73,8 +73,7 @@ loaded on demand.
 
 ## How a user forces a skill
 
-Every host matches the request against `description` to activate; the explicit form is where hosts
-diverge:
+Every host activates by matching the request against `description`; explicit forms diverge:
 
 | Host | Explicit invocation |
 | --- | --- |
@@ -89,8 +88,9 @@ diverge:
 | Cursor, Antigravity, Factory Droid, pi | no documented syntax; name the skill plainly |
 
 Every explicit form also takes the skill's arguments — `init` (alias `questions`), `audit`,
-`clean-up`, `new-project <description>` — after the name: `/clean-code init`, `$clean-code audit`,
-`@clean-code audit`, `/skill:clean-code audit`.
+`clean-up`, `new-project <description>`, `plan <task>`, `review [files]`, `compress [files]` —
+after the name: `/clean-code init`, `$clean-code audit`, `@clean-code audit`,
+`/skill:clean-code audit`.
 
 No explicit form? "Use the clean-code skill for this" works everywhere, naming the skill in the
 request `description` matches.
@@ -104,7 +104,7 @@ here; automatic activation is the point.
 identical everywhere.
 
 **Claude Code:** merge `assets/hooks/claude-settings.json` into `.claude/settings.json`
-(session-start print, post-edit scan); optionally add the four workflows to `.claude/commands/`.
+(session-start print, post-edit scan); optionally add the seven workflows to `.claude/commands/`.
 
 **Codex CLI, Copilot, Gemini CLI, Cursor, Amp, OpenCode, Factory Droid, Devin CLI, Kimi Code,
 Antigravity, pi:** installer's `agents` profile → `.agents/skills/clean-code`, read project-side by
