@@ -378,9 +378,9 @@ import pathlib
 import sys
 
 ALLOWED = {
-    "argparse", "ast", "bisect", "collections", "dataclasses", "difflib", "fnmatch",
-    "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath", "re",
-    "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
+    "argparse", "ast", "bisect", "collections", "configparser", "dataclasses", "difflib",
+    "fnmatch", "functools", "hashlib", "io", "itertools", "json", "os", "pathlib", "posixpath",
+    "re", "shutil", "subprocess", "sys", "tempfile", "textwrap", "time", "typing",
     "unicodedata", "warnings", "__future__",
 }
 
