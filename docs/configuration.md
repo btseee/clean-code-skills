@@ -70,7 +70,8 @@ context file holds its Provider and hook), `entry` lists files a framework loads
 a folder holding only such files is no junk drawer, and `ignore-name` leaves names out of the
 name-clash, synonym, and naming findings. Files a manifest runs — pyproject `[project.scripts]`,
 `[project.gui-scripts]`, and `[project.entry-points.*]` targets, package.json `bin`, `main`,
-`module`, and `exports` paths — count as entries without an `entry` line. An optional `[ext, ext]` list limits a `name` or `signal` rule to those file types.
+`module`, and `exports` paths — count as entries without an `entry` line. An optional
+`[ext, ext]` list limits a `name` or `signal` rule to those file types.
 Signals beat names, and the most specific home glob wins, so a rule of your own does not silence a
 pack's finding; record a deliberate exception with `accept`: a glob alone covers whole files, and
 `= symbol, ...` covers only those symbols. Accepted code gets no misplaced, mixed, naming, or

@@ -213,7 +213,7 @@ class LoadAndAssignTest(unittest.TestCase):
 
 
 class EntryTest(unittest.TestCase):
-    """`entry` names files a framework loads without an import; only the unreferenced finding reads it."""
+    """`entry` names files a framework loads without an import: never unreferenced, never a junk drawer."""
 
     def test_an_entry_line_marks_the_files_it_matches(self):
         statements = structure_roles.parse_roles(block("entry app/**/sitemap.*, instrumentation.*"), "nextjs.md")
