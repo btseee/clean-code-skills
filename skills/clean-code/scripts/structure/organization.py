@@ -15,6 +15,7 @@ Standard library only.
 
 from __future__ import annotations
 
+import configparser
 import json
 import posixpath
 import re
@@ -355,29 +356,87 @@ def runs_as_program(text: str) -> bool:
     return text.startswith("#!") or bool(_PROGRAM_GUARD.search(text))
 
 
-# Manifests name the files a package runs: pyproject's scripts and entry points name a module
-# (`shipit.cli:main`), package.json's `bin`, `main`, `module`, and `exports` name paths.
-# tomllib needs Python 3.11, so a line scan reads the few pyproject tables that matter.
-ENTRY_MANIFESTS = frozenset({"pyproject.toml", "package.json"})
+# Manifests name the files a package runs: pyproject's and setup.cfg's scripts and entry points
+# name a module (`shipit.cli:main`), package.json's `bin`, `main`, `module`, and `exports` name
+# paths. tomllib needs Python 3.11, so a line scan reads the few pyproject tables that matter;
+# setup.cfg is ini syntax, which configparser (standard library) reads natively.
+ENTRY_MANIFESTS = frozenset({"pyproject.toml", "setup.cfg", "package.json"})
 _TOML_TABLE = re.compile(r"^\s*\[\[?\s*(?P<name>[^\[\]]*?)\s*\]")
+# `[project.scripts]`/`[project.gui-scripts]`/`[project.entry-points.*]` (PEP 621), and Poetry's
+# `[tool.poetry.scripts]`/`[tool.poetry.plugins."group"]`: both hold `name = "target"` lines.
 _ENTRY_TABLE = re.compile(
-    r"""^project\.(?:scripts|gui-scripts|entry-points\.(?:"[^"]*"|'[^']*'|[\w.-]+))$""")
+    r"""^project\.(?:scripts|gui-scripts|entry-points\.(?:"[^"]*"|'[^']*'|[\w.-]+))$"""
+    r"""|^tool\.poetry\.(?:scripts|plugins\.(?:"[^"]*"|'[^']*'|[\w.-]+))$""")
 _ENTRY_TARGET = re.compile(r"""^\s*(?:"[^"]*"|'[^']*'|[\w.-]+)\s*=\s*["']\s*(?P<module>[\w.]+)""")
+# A single-line inline table as an entry's value: Poetry's extended script form,
+# `name = { reference = "shipit.cli:main", type = "file" }`.
+_INLINE_TABLE = re.compile(r"""^\s*(?:"[^"]*"|'[^']*'|[\w.-]+)\s*=\s*\{(?P<body>[^{}]*)\}\s*$""")
+_INLINE_PAIR = re.compile(r"""(?P<key>[\w.-]+)\s*=\s*["'](?P<value>[^"']*)["']""")
+# `[project]` itself may hold its scripts inline: `scripts = { cli = "pkg.cli:main" }`.
+_PROJECT_SCRIPT_FIELD = re.compile(r"""^\s*(?:scripts|gui-scripts)\s*=\s*\{(?P<body>[^{}]*)\}\s*$""")
+# setup.cfg's `[options.entry_points]` lines are unquoted: `console_scripts =\n    cli = pkg:main`.
+_SETUP_CFG_TARGET = re.compile(r"^\s*[\w.-]+\s*=\s*(?P<module>[\w.]+)")
 _PACKAGE_ENTRY_FIELDS = ("bin", "main", "module", "exports")
+# A package.json path naming no extension: what bundlers and Node itself try, in order.
+_PACKAGE_EXTENSIONS = (".js", ".mjs", ".cjs", ".ts", ".tsx")
+_PACKAGE_INDEX_FILES = ("index.js", "index.ts")
 
 
-def _pyproject_modules(text: str) -> list:
-    """The modules `[project.scripts]`, `[project.gui-scripts]`, and `[project.entry-points.*]` name."""
-    modules, in_entry_table = [], False
+def _pyproject_entries(text: str) -> tuple:
+    """(modules, files): what `[project.scripts]`, `[project.gui-scripts]`,
+    `[project.entry-points.*]`, `[tool.poetry.scripts]`, and `[tool.poetry.plugins.*]` name as a
+    module, and what a Poetry `{ type = "file" }` script names as a file directly. An inline
+    `scripts = {...}` or `gui-scripts = {...}` table under `[project]` itself names modules the
+    same way as the tables above."""
+    modules, files, table = [], [], ""
     for line in text.split("\n"):
-        table = _TOML_TABLE.match(line)
-        if table:
-            in_entry_table = bool(_ENTRY_TABLE.match(table.group("name")))
+        header = _TOML_TABLE.match(line)
+        if header:
+            table = header.group("name").strip()
             continue
-        target = _ENTRY_TARGET.match(line) if in_entry_table else None
-        if target:
-            modules.append(target.group("module"))
+        if _ENTRY_TABLE.match(table):
+            target = _ENTRY_TARGET.match(line)
+            if target:
+                modules.append(target.group("module"))
+                continue
+            inline = _INLINE_TABLE.match(line)
+            pairs = dict(_INLINE_PAIR.findall(inline.group("body"))) if inline else {}
+            if pairs.get("type") == "file" and pairs.get("reference"):
+                files.append(pairs["reference"])
+            elif pairs.get("reference"):
+                modules.append(pairs["reference"].split(":")[0])
+        elif table == "project":
+            field = _PROJECT_SCRIPT_FIELD.match(line)
+            if field:
+                modules += [value.split(":")[0] for _, value in _INLINE_PAIR.findall(field.group("body"))]
+    return modules, files
+
+
+def _setup_cfg_modules(text: str) -> list:
+    """The modules setup.cfg's `[options.entry_points]` groups name (`console_scripts`,
+    `gui_scripts`, or any other group), each holding `name = module:func` lines."""
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read_string(text)
+    except configparser.Error:
+        return []
+    if not parser.has_section("options.entry_points"):
+        return []
+    modules = []
+    for _, value in parser.items("options.entry_points"):
+        for line in value.splitlines():
+            target = _SETUP_CFG_TARGET.match(line.strip())
+            if target:
+                modules.append(target.group("module"))
     return modules
+
+
+def _module_paths(folder: str, module: str) -> list:
+    """Where a Python module target (`pkg.cli` from `pkg.cli:main`) may live: its file, or, when
+    it names a package, that package's `__init__.py`; from the manifest's folder or its `src/`."""
+    relative = module.replace(".", "/")
+    return [posixpath.join(folder, base, suffix)
+            for base in ("", "src") for suffix in (relative + ".py", relative + "/__init__.py")]
 
 
 def _package_paths(value) -> list:
@@ -391,23 +450,42 @@ def _package_paths(value) -> list:
     return [path for item in value for path in _package_paths(item)]
 
 
+def _package_candidates(path: str) -> list:
+    """A package.json path, plus, when it names no extension, the files it may resolve to: each
+    of _PACKAGE_EXTENSIONS appended, or one of _PACKAGE_INDEX_FILES inside it."""
+    if posixpath.splitext(path)[1]:
+        return [path]
+    return [path + suffix for suffix in _PACKAGE_EXTENSIONS] + \
+           [posixpath.join(path, name) for name in _PACKAGE_INDEX_FILES]
+
+
 def manifest_entries(manifest_texts: dict, paths) -> set:
-    """The files among paths a manifest runs, from each manifest's path -> text: a pyproject
-    target's module in the manifest's folder or its `src/`, or a package.json target path."""
+    """The files among paths a manifest runs, from each manifest's path -> text: a pyproject or
+    Poetry target's module in the manifest's folder or its `src/` (or the file a Poetry
+    `type = "file"` script names directly), a setup.cfg `[options.entry_points]` target the same
+    way, or a package.json target path (an extension-less `main`, `module`, or `bin` value
+    resolved the way Node and bundlers resolve one)."""
     candidates = []
     for manifest, text in manifest_texts.items():
         folder = posixpath.dirname(manifest)
-        if posixpath.basename(manifest) == "pyproject.toml":
-            candidates += [posixpath.join(folder, base, module.replace(".", "/") + ".py")
-                           for module in _pyproject_modules(text) for base in ("", "src")]
+        name = posixpath.basename(manifest)
+        if name == "pyproject.toml":
+            modules, files = _pyproject_entries(text)
+            candidates += [path for module in modules for path in _module_paths(folder, module)]
+            candidates += [posixpath.normpath(posixpath.join(folder, path)) for path in files]
+            continue
+        if name == "setup.cfg":
+            candidates += [path for module in _setup_cfg_modules(text)
+                           for path in _module_paths(folder, module)]
             continue
         try:
             package = json.loads(text)
         except ValueError:
             continue
-        fields = [package.get(name) for name in _PACKAGE_ENTRY_FIELDS] if isinstance(package, dict) else []
-        candidates += [posixpath.normpath(posixpath.join(folder, path))
-                       for field in fields for path in _package_paths(field)]
+        fields = [package.get(field) for field in _PACKAGE_ENTRY_FIELDS] if isinstance(package, dict) else []
+        candidates += [posixpath.normpath(posixpath.join(folder, candidate))
+                       for field in fields for path in _package_paths(field)
+                       for candidate in _package_candidates(path)]
     return set(candidates) & set(paths)
 
 

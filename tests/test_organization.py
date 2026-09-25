@@ -613,6 +613,64 @@ FIXTURE = {
 }
 
 
+class ManifestEntriesTest(unittest.TestCase):
+    """manifest_entries: the files a manifest names as an entry point, so find_unreferenced
+    never reports them as possibly unused."""
+
+    def test_poetry_scripts_name_a_module(self):
+        text = '[tool.poetry.scripts]\nshipit = "shipit.cli:main"\n'
+        paths = {"shipit/cli.py", "shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"shipit/cli.py"})
+
+    def test_poetry_plugin_groups_name_a_module(self):
+        text = '[tool.poetry.plugins."shipit.plugins"]\ndeploy = "shipit.deploy:run"\n'
+        paths = {"shipit/deploy.py", "shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"shipit/deploy.py"})
+
+    def test_a_poetry_file_script_names_a_file_directly(self):
+        text = '[tool.poetry.scripts]\nshipit = { reference = "tools/shipit.py", type = "file" }\n'
+        paths = {"tools/shipit.py", "tools/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"tools/shipit.py"})
+
+    def test_an_inline_project_scripts_table_names_a_module(self):
+        text = '[project]\nname = "shipit"\nscripts = { cli = "shipit.cli:main" }\n'
+        paths = {"shipit/cli.py", "shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths),
+                         {"shipit/cli.py"})
+
+    def test_setup_cfg_entry_point_groups_name_a_module(self):
+        text = ("[options.entry_points]\n"
+                "console_scripts =\n"
+                "    shipit = shipit.cli:main\n"
+                "custom_group =\n"
+                "    deploy = shipit.deploy:run\n")
+        paths = {"shipit/cli.py", "shipit/deploy.py", "shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"setup.cfg": text}, paths),
+                         {"shipit/cli.py", "shipit/deploy.py"})
+
+    def test_an_extensionless_package_json_main_resolves_by_extension(self):
+        text = '{"main": "lib/api"}\n'
+        paths = {"lib/api.js", "lib/unused.js"}
+        self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths),
+                         {"lib/api.js"})
+
+    def test_an_extensionless_package_json_bin_resolves_to_a_folder_index(self):
+        text = '{"bin": {"shipit": "./cli"}}\n'
+        paths = {"cli/index.js", "cli/unused.js"}
+        self.assertEqual(structure_organization.manifest_entries({"package.json": text}, paths),
+                         {"cli/index.js"})
+
+    def test_a_malformed_poetry_script_or_a_dangling_target_adds_no_entry(self):
+        text = ('[tool.poetry.scripts]\n'
+                'ghost = { type = "file" }\n'
+                'broken = "shipit.missing:main"\n')
+        paths = {"shipit/unused.py"}
+        self.assertEqual(structure_organization.manifest_entries({"pyproject.toml": text}, paths), set())
+
+
 class OrganizationMapTest(unittest.TestCase):
     def test_the_map_reports_each_organization_finding(self):
         findings = map_of(FIXTURE)["findings"]
