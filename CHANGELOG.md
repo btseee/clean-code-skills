@@ -141,6 +141,21 @@ edit stays small on any model.
   workspace, passes on exit 0) and `new_file` now accepts a list of globs. `evals/README.md` records
   a second benchmark iteration across the new cases and two of the first iteration's, with and
   without the skill, on Sonnet and Haiku.
+- **After the second benchmark:**
+  - An explicit request widens the surgical scope. When the request names an outcome that needs an
+    out-of-scope fix ("make the suite pass"), the agent makes the smallest fix and reports it
+    separately, never by weakening a test (`SKILL.md` Scope Modes and the managed block).
+  - The context gate tells the agent to open each listed pack before the first edit; naming a pack
+    is not reading it. The completion checklist checks it.
+  - `references/tools.md` holds what each script answers, its flags, exit codes, and finding keys;
+    `SKILL.md` keeps one line pointing there.
+  - The walker lists files through `git ls-files --cached --others --exclude-standard`, so a
+    project's ignored folders drop out. It falls back to `os.walk` outside git or when git ignores
+    the root, and still walks submodules and nested repositories.
+  - Poetry scripts and plugins, inline `[project]` script tables, setup.cfg `[options.entry_points]`,
+    and extension-less package.json targets count as entry points.
+  - Two harder planted-flaw cases (secret-logging, swallowed-error); unverified-success checks the
+    suite. A third, targeted benchmark iteration is recorded in `evals/README.md`.
 
 ### Terse Content
 

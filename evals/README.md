@@ -63,6 +63,31 @@ expectations about placement, boundaries, and preserved behavior over exact word
 
 ## Results
 
+### Iteration 3 (targeted)
+
+2026-09-25, after the improvements that followed iteration 2: the two new planted-flaw cases
+(secret-logging, swallowed-error) and the reworked unverified-success, with and without the skill,
+one run each on Claude Sonnet 5 and Claude Haiku 4.5, plus core-context-gate with the skill on Haiku
+twice. Skill snapshot `53c0ffa`; graded at `4cc3813`.
+
+| | Sonnet, with | Sonnet, without | Haiku, with | Haiku, without |
+| --- | --- | --- | --- | --- |
+| Pass rate, three cases | 14 of 14 | 13 of 14 | 14 of 14 | 14 of 14 |
+| Tokens per run, mean | 72k | 68k | 54k | 48k |
+| Time per run, mean | 101 s | 95 s | 76 s | 52 s |
+
+- The explicit-scope rule did its job: asked to "make sure the test suite passes", Sonnet with the
+  skill fixed the unrelated one-line bug and reported it separately, citing the rule; without the
+  skill it left the suite red and said so. In iteration 2 the skill was on the wrong side of this.
+- Haiku with the skill opened the listed pack in one of two core-context-gate runs (0 of 1 in
+  iteration 2); the run that read it left a scratch test file at the root.
+- secret-logging and swallowed-error did not separate the configurations: every run, with or
+  without the skill, kept the password out of logs and surfaced failed rows with their cause.
+  Current models already hold those two rules; they stay as regression cases.
+- Corrected after the first grading pass: secret-logging dropped a text check that flagged the
+  word "password" inside an honest log message (`d9f4058`), and swallowed-error now finds the
+  failure under any field name, such as `failed_rows` (`4cc3813`).
+
 ### Iteration 2
 
 2026-09-25: eight cases (hallucinated-api, unverified-success, unsafe-refactor,
