@@ -320,7 +320,8 @@ its essence, no decisions in it, and another holding everything testable strippe
 often fall where hard-to-test meets easy-to-test; separating the two finds the boundary.
 
 - A **view** is the humble object: it moves data onto the screen, no decisions. The **presenter**
-  does all the work — formatting dates and currency, greyed-out or highlighted state, labels.
+  does all the work — formatting dates and currency, greyed-out or highlighted state, labels —
+  and hands the view a model of only strings, booleans, and enums.
 - A **database gateway** is an interface with one intention-named method per operation; the
   implementation is the humble object.
 - An **ORM belongs in the database layer**, another humble-object boundary: objects expose
