@@ -101,8 +101,8 @@ role <name> = <glob>[, <glob>...]      matches are homes for <name>
 name <name> [<exts>] = <regex>         matching symbol names have role <name>
 signal <name> [<exts>] = <regex>       matching declarations (decorators, base types) have role <name>
 allow <home> = <role>[, <role>...]     a <home> file may hold these roles too
-accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced or mixed finding
-ignore-name = <regex>                  names left out of name-clash and synonym findings
+accept <glob>[ = <symbol>, ...]        a recorded exception: no misplaced, mixed, or naming finding
+ignore-name = <regex>                  names left out of name-clash, synonym, and naming findings
 ```
 
 Read order: `.clean/roles.md`, framework packs as `detect_stack.py` lists them, then the conventions
