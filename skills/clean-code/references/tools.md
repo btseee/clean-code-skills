@@ -6,7 +6,8 @@ evidence, never a verdict: confirm each finding against the code. No Python: use
 equivalent where the workflow names one; otherwise report the check as not run.
 
 All take `--json` for machine-readable output; all but `check_compression.py` take `--root <dir>`
-(default `.`). Exit 2 means the run could not start: a bad root, flag, or input.
+(default `.`). Exit 2 means the run could not start: a bad root, flag, or input. Inside a git
+work tree they list files through `git ls-files`, so gitignored paths are skipped.
 
 ## detect_stack.py
 
