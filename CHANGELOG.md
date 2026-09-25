@@ -91,8 +91,8 @@ edit stays small on any model.
   never hides the React app beside it, and move suggestions and name clashes stay inside one
   project.
 - **An eval harness**: `evals/grade.py` grades a run against a case's deterministic expectations
-  and exports `evals/evals.json` in skill-creator's layout; 47 cases (nine core, 38 covering 37
-  packs, the fourteen listed below included), and `evals/triggers.json` for description tuning.
+  and exports `evals/evals.json` in skill-creator's layout; 49 cases (eleven core, 38 covering 37
+  packs, the sixteen listed below included), and `evals/triggers.json` for description tuning.
   `evals/README.md` records the first benchmark on ten cases: every expectation passed with the
   skill, 95.5% without it, at about 48% more tokens per task.
 - **A unit test suite** (`tests/`, standard library `unittest`), run by `validate.sh` and CI.
