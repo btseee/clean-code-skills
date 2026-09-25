@@ -93,7 +93,10 @@ _POWERSHELL_SUFFIXES = frozenset({".ps1", ".psm1", ".psd1"})
 
 MAX_FILE_BYTES = 2_000_000
 MAX_FILES_SCANNED = 40000
-_GIT_LS_FILES_TIMEOUT_SECONDS = 5
+# Matches the timeout scan_repo.py and map_structure.py already use for their own
+# git subprocess calls.
+_GIT_TIMEOUT_SECONDS = 30
+_GITLINK_MODE = "160000"
 
 
 class Walk(NamedTuple):
@@ -115,11 +118,12 @@ def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
     Inside a git work tree with `git` on PATH, the list comes from `git ls-files`
     (tracked files plus untracked ones `.gitignore` doesn't exclude), so a project's
     own ignored folders - vendored code, build output, a gitignored `books/` - drop
-    out before the pruning below even runs. Outside a work tree, without `git`, or if
-    the command fails for any reason, this falls back to `os.walk`; either way the same
-    SKIP_DIRS, dot-folder, and framework-owned-folder pruning and the same suffix/name
-    filters apply, in the same order `os.walk` would visit a directory: a directory's
-    own files before its subdirectories, both sorted by name.
+    out before the pruning below even runs. Outside a work tree, without `git`, if
+    `root` itself is ignored by an enclosing repository, or if the command fails for
+    any other reason, this falls back to `os.walk`; either way the same SKIP_DIRS,
+    dot-folder, and framework-owned-folder pruning and the same suffix/name filters
+    apply, in the same order `os.walk` would visit a directory: a directory's own
+    files before its subdirectories, both sorted by name.
 
     Stops at MAX_FILES_SCANNED and says so, so a caller never mistakes a partial
     walk for the whole project.
@@ -166,28 +170,35 @@ def _pruned_child_names(directory_basename: str, child_dirs) -> frozenset:
 
 def _walk_git(root: Path, suffixes, names):
     """`walk()`'s result read from `git ls-files`, or None when `root` is not a git
-    work tree, `git` is missing, or the command fails for any other reason.
+    work tree, `git` is missing, `root` itself is ignored by an enclosing repository,
+    or the command fails for any other reason.
     """
-    raw_paths = _git_tracked_paths(root)
-    if raw_paths is None:
+    raw = _run_git_ls_files(root)
+    if raw is None:
         return None
-    children_by_dir = _raw_subdirectories(raw_paths)
-    files_by_dir = _files_by_directory(raw_paths)
-    return _walk_pruned_tree(children_by_dir, files_by_dir, suffixes, names)
+    entries = [entry for entry in raw.split("\0") if entry]
+    if not entries and _root_ignore_makes_list_unusable(root):
+        return None
+    file_paths = _expand_to_file_paths(root, entries)
+    children_by_dir = _raw_subdirectories(file_paths)
+    files_by_dir = _files_by_directory(file_paths)
+    return _walk_pruned_tree(root, children_by_dir, files_by_dir, suffixes, names)
 
 
-def _git_tracked_paths(root: Path):
-    """Root-relative posix paths `git` reports for `root` - tracked files plus
-    untracked ones `.gitignore` doesn't exclude - or None when git can't be used.
+def _run_git_ls_files(root: Path):
+    """The raw, null-separated `git ls-files -s` output for `root`, decoded, or None
+    when git can't be used. Never raises.
 
-    Run with `cwd=root`, `git ls-files` on its own (no pathspec) already limits itself
-    to files at or under `root` and reports them relative to it, even when `root` is a
-    subfolder of a larger work tree. Never raises.
+    `-s` also reports each `--cached` entry's file mode, so a submodule gitlink
+    (mode 160000) can be told apart from a regular file without stat-ing anything.
+    Run with `cwd=root`, `git ls-files` on its own (no pathspec) already limits
+    itself to files at or under `root` and reports them relative to it, even when
+    `root` is a subfolder of a larger work tree.
     """
     try:
         result = subprocess.run(
-            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-            cwd=root, capture_output=True, timeout=_GIT_LS_FILES_TIMEOUT_SECONDS,
+            ["git", "ls-files", "-s", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=root, capture_output=True, timeout=_GIT_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -196,20 +207,103 @@ def _git_tracked_paths(root: Path):
     # A path can carry bytes that are not valid utf-8 (a filename from another
     # encoding); surrogateescape keeps them round-trippable instead of collapsing
     # them to the replacement character the way errors="replace" would.
-    raw = result.stdout.decode("utf-8", errors="surrogateescape")
-    entries = (entry for entry in raw.split("\0") if entry)
-    return [entry for entry in entries if _is_file_under_root(root, entry)]
+    return result.stdout.decode("utf-8", errors="surrogateescape")
 
 
-def _is_file_under_root(root: Path, entry: str) -> bool:
-    """Whether a git-reported entry is a regular file under root: false for a
-    submodule gitlink (a directory, not a file) and for a file git still lists as
-    tracked but that no longer exists in the working tree.
+def _root_ignore_makes_list_unusable(root: Path) -> bool:
+    """Whether an empty `git ls-files` result means `root` itself is ignored by an
+    enclosing repository - its own content is invisible to git, not actually absent -
+    rather than `root` being a genuinely empty folder.
+
+    Checked directly first (`git check-ignore` on `.`); as a fallback, since that
+    call could itself fail to return a clear answer, by whether `root` plainly has
+    something on disk that an empty git result didn't account for.
     """
-    posix_entry = entry.replace("\\", "/")
-    if posix_entry.startswith("/") or posix_entry.split("/", 1)[0] == "..":
+    if _is_ignored_by_git(root):
+        return True
+    try:
+        return any(root.iterdir())
+    except OSError:
         return False
-    return (root / entry).is_file()
+
+
+def _is_ignored_by_git(root: Path) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "--quiet", "."],
+            cwd=root, capture_output=True, timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _parse_ls_files_entry(entry: str) -> tuple:
+    """(kind, path) for one `git ls-files -s --cached --others --exclude-standard -z`
+    entry.
+
+    "gitlink" is a submodule (mode 160000, from `--cached`); "nested" is an
+    untracked directory git didn't descend into because it holds its own repository
+    (reported with a trailing slash, from `--others`); either way git lists none of
+    the files inside. Otherwise "file" - a path git believes is a file; its existence
+    is confirmed only if it survives suffix/name filtering, since a tracked file can
+    still be gone from the working tree.
+    """
+    left, tab, path = entry.partition("\t")
+    if tab:
+        mode = left.split(" ", 1)[0]
+        return ("gitlink", path) if mode == _GITLINK_MODE else ("file", path)
+    if entry.endswith("/"):
+        return ("nested", entry[:-1])
+    return ("file", entry)
+
+
+def _is_safe_relative_path(path: str) -> bool:
+    """Whether `path` stays under root: false for one that climbs out of it or is
+    already absolute, which `git ls-files` should never emit here but a broken
+    pathspec elsewhere might.
+    """
+    posix_path = path.replace("\\", "/")
+    return not (posix_path.startswith("/") or posix_path.split("/", 1)[0] == "..")
+
+
+def _expand_to_file_paths(root: Path, entries: list) -> list:
+    """Every git-reported entry, as concrete root-relative file paths.
+
+    A submodule gitlink or an untracked nested repository is expanded by walking it
+    directly with `os.walk` (the same pruning `_walk_os` applies), since git itself
+    won't list the files inside either one.
+    """
+    file_paths = []
+    for entry in entries:
+        kind, path = _parse_ls_files_entry(entry)
+        if not _is_safe_relative_path(path):
+            continue
+        if kind == "file":
+            file_paths.append(path)
+        else:
+            file_paths.extend(_os_walk_raw_paths(root, path))
+    return file_paths
+
+
+def _os_walk_raw_paths(root: Path, start_relative: str) -> list:
+    """Every file under root/start_relative, root-relative posix paths, pruned the
+    same way `_walk_os` prunes - unfiltered by suffix or name, for merging into a
+    git-derived path list.
+    """
+    paths: list = []
+    for current_dir, subdirs, filenames in os.walk(root / start_relative):
+        parent = os.path.basename(current_dir)
+        pruned = _pruned_child_names(parent, subdirs)
+        subdirs[:] = sorted(name for name in subdirs
+                             if not is_skippable(name) and name not in pruned)
+        for filename in sorted(filenames):
+            path = Path(current_dir) / filename
+            try:
+                paths.append(path.relative_to(root).as_posix())
+            except ValueError:
+                continue
+    return paths
 
 
 def _raw_subdirectories(paths: list) -> dict:
@@ -236,7 +330,21 @@ def _files_by_directory(paths: list) -> dict:
     return files
 
 
-def _walk_pruned_tree(children_by_dir: dict, files_by_dir: dict, suffixes, names) -> Walk:
+def _existing_subdirectories(root: Path, directory: str) -> frozenset:
+    """Immediate child directory names that exist on disk under root/directory.
+
+    A framework-owned-folder rule's required sibling (a Unity `ProjectSettings/`, a
+    Drupal `modules/custom/`) must still count as present even when git lists none
+    of its files - because it is empty, or every file inside happens to be
+    gitignored too - or the rule would silently stop firing for a git-backed walk.
+    """
+    try:
+        return frozenset(entry.name for entry in (root / directory).iterdir() if entry.is_dir())
+    except OSError:
+        return frozenset()
+
+
+def _walk_pruned_tree(root: Path, children_by_dir: dict, files_by_dir: dict, suffixes, names) -> Walk:
     """A directory tree built from a flat path list, visited the way `os.walk` visits
     the filesystem: a directory's own files before its subdirectories, both sorted by
     name, with the same SKIP_DIRS/dot-folder/framework-owned pruning.
@@ -251,12 +359,19 @@ def _walk_pruned_tree(children_by_dir: dict, files_by_dir: dict, suffixes, names
         for filename in sorted(files_by_dir.get(directory, ())):
             if suffixes is not None and Path(filename).suffix.lower() not in suffixes and filename not in names:
                 continue
+            full_relative = f"{directory}/{filename}" if directory else filename
+            # Stat only a file that already cleared the filter above and is about to
+            # be emitted: git can still list a tracked file that is gone on disk.
+            if not (root / full_relative).is_file():
+                continue
             if len(paths) >= MAX_FILES_SCANNED:
                 truncated = True
                 return True
-            paths.append(f"{directory}/{filename}" if directory else filename)
+            paths.append(full_relative)
         child_dirs = children_by_dir.get(directory, frozenset())
-        pruned = _pruned_child_names(directory.rpartition("/")[2], child_dirs)
+        basename = directory.rpartition("/")[2] if directory else root.name
+        pruning_siblings = frozenset(child_dirs) | _existing_subdirectories(root, directory)
+        pruned = _pruned_child_names(basename, pruning_siblings)
         for child in sorted(child_dirs):
             if is_skippable(child) or child in pruned:
                 continue

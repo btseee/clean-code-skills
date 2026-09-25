@@ -62,6 +62,14 @@ class GitRepoTestCase(unittest.TestCase):
             (Path(directory.name) / relative_path).unlink()
         return directory
 
+    def assert_git_walk_used(self, root):
+        """Proves the test exercises the git-backed walk, not the `os.walk` fallback:
+        a test that never checks this could pass the same way on either path.
+        """
+        self.assertIsNotNone(
+            project_files._walk_git(Path(root), None, frozenset()),
+            "expected the git-backed walk to be usable for this root")
+
 
 class GlobMatchTest(unittest.TestCase):
     CASES = [
@@ -234,6 +242,7 @@ class GitBackedWalkTest(GitRepoTestCase):
             "ignored/secret.py": "token = 1\n",
             "kept.py": "value = 1\n",
         }) as directory:
+            self.assert_git_walk_used(directory)
             result = project_files.walk(Path(directory))
         self.assertIn("kept.py", result.paths)
         self.assertNotIn("ignored/secret.py", result.paths)
@@ -241,6 +250,7 @@ class GitBackedWalkTest(GitRepoTestCase):
     def test_an_untracked_non_ignored_file_is_included(self):
         with self.init_repo({".gitignore": "ignored/\n", "tracked.py": "value = 1\n"}) as directory:
             (Path(directory) / "untracked.py").write_text("value = 2\n", encoding="utf-8")
+            self.assert_git_walk_used(directory)
             result = project_files.walk(Path(directory))
         self.assertIn("tracked.py", result.paths)
         self.assertIn("untracked.py", result.paths)
@@ -249,6 +259,7 @@ class GitBackedWalkTest(GitRepoTestCase):
         with self.init_repo(
             {"gone.py": "value = 1\n", "kept.py": "value = 2\n"}, deleted=("gone.py",),
         ) as directory:
+            self.assert_git_walk_used(directory)
             result = project_files.walk(Path(directory))
         self.assertNotIn("gone.py", result.paths)
         self.assertIn("kept.py", result.paths)
@@ -259,6 +270,7 @@ class GitBackedWalkTest(GitRepoTestCase):
             "sub/inner.py": "value = 2\n",
             "sub/deeper/leaf.py": "value = 3\n",
         }) as directory:
+            self.assert_git_walk_used(Path(directory) / "sub")
             result = project_files.walk(Path(directory) / "sub")
         self.assertEqual(sorted(result.paths), ["deeper/leaf.py", "inner.py"])
 
@@ -267,6 +279,7 @@ class GitBackedWalkTest(GitRepoTestCase):
             "node_modules/pkg/index.js": "module.exports = 1;\n",
             "app.js": "console.log(1);\n",
         }) as directory:
+            self.assert_git_walk_used(directory)
             result = project_files.walk(Path(directory))
         self.assertIn("app.js", result.paths)
         self.assertFalse(any(path.startswith("node_modules/") for path in result.paths))
@@ -275,8 +288,105 @@ class GitBackedWalkTest(GitRepoTestCase):
         with make_tree({"a.py": "value = 1\n", "sub/b.py": "value = 2\n"}) as directory:
             with mock.patch.dict(os.environ,
                                   {"GIT_CEILING_DIRECTORIES": str(Path(directory).parent)}):
+                self.assertIsNone(project_files._walk_git(Path(directory), None, frozenset()),
+                                  "expected no repository to be found above this folder")
                 result = project_files.walk(Path(directory))
         self.assertEqual(sorted(result.paths), ["a.py", "sub/b.py"])
+
+    def test_a_root_ignored_by_an_enclosing_repository_falls_back_to_os_walk(self):
+        # The root itself is entirely invisible to git (`.gitignore: project/`), so
+        # `git ls-files` returns nothing for it even though it plainly has files.
+        with make_tree({
+            ".gitignore": "project/\n",
+            "project/app.py": "value = 1\n",
+        }) as directory:
+            self.git("init", cwd=directory)
+            self.git("add", "-A", cwd=directory)
+            root = Path(directory) / "project"
+            self.assertIsNone(project_files._walk_git(root, None, frozenset()),
+                               "expected the ignored root to make the git path unusable")
+            result = project_files.walk(root)
+        self.assertEqual(result.paths, ["app.py"])
+
+    def test_a_submodule_gitlinks_files_are_still_walked(self):
+        with self.init_repo({"app.py": "value = 1\n"}) as directory:
+            submodule_dir = Path(directory) / "libs" / "sub"
+            submodule_dir.mkdir(parents=True)
+            (submodule_dir / "mod.py").write_text("value = 2\n", encoding="utf-8")
+            self.git("update-index", "--add", "--cacheinfo", f"160000,{'a' * 40},libs/sub",
+                      cwd=directory)
+            self.assert_git_walk_used(directory)
+            result = project_files.walk(Path(directory))
+        self.assertIn("app.py", result.paths)
+        self.assertIn("libs/sub/mod.py", result.paths)
+
+    def test_an_untracked_nested_repositorys_files_are_still_walked(self):
+        with self.init_repo({"app.py": "value = 1\n"}) as directory:
+            nested_dir = Path(directory) / "inner"
+            nested_dir.mkdir()
+            self.git("init", cwd=nested_dir)
+            (nested_dir / "mod.py").write_text("value = 2\n", encoding="utf-8")
+            self.assert_git_walk_used(directory)
+            result = project_files.walk(Path(directory))
+        self.assertIn("app.py", result.paths)
+        self.assertIn("inner/mod.py", result.paths)
+
+    def test_a_root_named_flutter_still_prunes_its_own_ephemeral_folder(self):
+        # The framework-owned rule keys off the containing directory's own name; a
+        # git-tree root has no ancestor path to read that from, unlike `os.walk`.
+        with self.init_repo({
+            "flutter/ephemeral/generated_config.cmake": "set(A 1)\n",
+            "flutter/runner/main.cpp": "int main() { return 0; }\n",
+        }) as directory:
+            flutter_root = Path(directory) / "flutter"
+            self.assert_git_walk_used(flutter_root)
+            result = project_files.walk(flutter_root)
+        self.assertEqual(result.paths, ["runner/main.cpp"])
+
+    def test_an_empty_required_sibling_still_counts_for_pruning(self):
+        # git never lists an empty directory, so "sites" would be invisible to a
+        # walk built only from git's file list; the Drupal rule still needs it.
+        with self.init_repo({
+            "web/core/core.php": "<?php\n",
+            "web/modules/custom/greeting/greeting.info.yml": "name: Greeting\n",
+        }) as directory:
+            (Path(directory) / "web" / "sites").mkdir(parents=True)
+            self.assert_git_walk_used(directory)
+            result = project_files.walk(Path(directory))
+        self.assertNotIn("web/core/core.php", result.paths)
+        self.assertIn("web/modules/custom/greeting/greeting.info.yml", result.paths)
+
+    def test_the_cap_still_applies_and_reports_truncation_through_the_git_path(self):
+        files = {f"file_{index:03d}.py": "value = 1\n" for index in range(5)}
+        with self.init_repo(files) as directory:
+            self.assert_git_walk_used(directory)
+            with mock.patch.object(project_files, "MAX_FILES_SCANNED", 3):
+                result = project_files.walk(Path(directory))
+        self.assertEqual(len(result.paths), 3)
+        self.assertTrue(result.truncated)
+
+    def test_order_matches_os_walk_not_a_flat_path_sort(self):
+        # `os.walk` visits a directory's own files before its subdirectories, so
+        # "a/z.py" comes before "a/b/x.py" - the opposite of a flat alphabetical sort.
+        with self.init_repo({
+            "a/z.py": "value = 1\n",
+            "a/b/x.py": "value = 2\n",
+        }) as directory:
+            self.assert_git_walk_used(directory)
+            result = project_files.walk(Path(directory))
+        self.assertEqual(result.paths, ["a/z.py", "a/b/x.py"])
+
+
+class GitMissingFallbackTest(unittest.TestCase):
+    """No real git repository needed: `subprocess.run` is replaced outright to
+    simulate `git` not being installed, so this runs even where git is unavailable.
+    """
+
+    def test_a_missing_git_binary_falls_back_to_os_walk(self):
+        with make_tree({"a.py": "value = 1\n"}) as directory:
+            with mock.patch("source.files.subprocess.run", side_effect=FileNotFoundError):
+                result = project_files.walk(Path(directory))
+        self.assertEqual(result.paths, ["a.py"])
 
 
 if __name__ == "__main__":
