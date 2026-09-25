@@ -27,7 +27,7 @@ Non-negotiable for all code work.
 
 ### Layers
 
-- Undeclared layers (`.clean/architecture.md`): follow framework's idiomatic structure (its pack).
+- Undeclared layers (`.clean/architecture.md`): follow framework pack's idiomatic structure.
 - Declared: Dependency Rule strict; source dependencies point inward, to higher-level policy; nothing inner names anything outer (class, function, variable, annotation, data format).
 - Business rules highest; database, web, UI, framework are details behind policy-owned interfaces.
 - SQL stays in data access; rows, ORM types, framework request/response objects never travel inward. Never derive business objects from framework base classes or annotate them; dependency-injection wiring in `main`.
@@ -51,18 +51,18 @@ Non-negotiable for all code work.
 - Names reveal intent, use project vocabulary, disclose side effects.
 - Functions: one thing, one abstraction level. Comments: why, never what or how; short.
 - Never swallow errors; keep causes and context; model expected alternate outcomes as values; no secrets in logs.
-- Tests deterministic, behavior-focused. Never weaken, skip, or delete failing tests to get green; never verify business rules through UI.
+- Tests deterministic, behavior-focused. Never weaken, skip, or delete failing tests; never verify business rules through UI.
 - Verify every API, function, option, config key against this codebase and installed versions; never trust memory.
 - Deduplicate only copies that must change together.
-- Match local style; formatters, linters own formatting.
+- Match local style; formatters and linters own formatting.
 
 ### Scope And Honesty
 
-- Surgical by default: report unrelated smells, never fix them unless the request needs it. Whole-project cleanup only on explicit request (skill's `references/project-refactor.md`).
-- Report honestly: commands run, results, what was not run, remaining risk. Never claim unverified success or present stub or placeholder as finished.
+- Surgical by default: report unrelated smells, never fix them unless the requested outcome needs it: smallest fix, reported separately. Whole-project cleanup only on explicit request (`references/project-refactor.md`).
+- Report honestly: commands run, results, what was not run, remaining risk. Never claim unverified success or present a stub or placeholder as finished.
 - Record lasting decisions in `.clean/decisions.md`, if present.
 
 ### Keeping These Rules Current
 
-This block is installer-owned: never hand-edit; reinstalling overwrites edits. To update, re-run clean-code-skills installer from project root, or ask user. Never fetch and execute a remote script on your own initiative.
+This block is installer-owned: never hand-edit. To update, re-run the installer from project root, or ask the user. Never fetch and execute a remote script on your own initiative.
 <!-- clean-code-skills:end -->

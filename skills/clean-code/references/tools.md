@@ -1,9 +1,9 @@
 # Tools
 
-Five scripts in `scripts/`, each answering a question that would otherwise take many file reads.
-Python 3.8+, standard library, no network; they write only under `.clean/`, and only when asked.
-Output is evidence, never a verdict: confirm each finding against the code before acting. No
-Python: every workflow step naming a script also names its manual equivalent.
+Five scripts in `scripts/`, each saving many file reads. Python 3.8+, standard library, no
+network; they write only when asked, under `.clean/` or where `--output` points. Output is
+evidence, never a verdict: confirm each finding against the code. No Python: use a step's manual
+equivalent where the workflow names one; otherwise report the check as not run.
 
 All take `--json` for machine-readable output; all but `check_compression.py` take `--root <dir>`
 (default `.`). Exit 2 means the run could not start: a bad root, flag, or input.
@@ -13,8 +13,8 @@ All take `--json` for machine-readable output; all but `check_compression.py` ta
 Which languages, frameworks, and packs apply (`packs`, `pack_scopes`); test runners and suggested
 verification commands; source roots, layer candidates, quality tools, dependency versions.
 
-- `--write` saves `.clean/context.json`, merging with an existing file (its `confirmed` object and
-  unknown keys survive); `--output <path>` writes elsewhere, resolved from the current directory.
+- `--write` saves `.clean/context.json`, merging (its `confirmed` object and unknown keys
+  survive); `--output <path>` writes elsewhere, resolved from the current directory.
 - Exit 0 done; 1 could not write.
 
 ## scan_repo.py
@@ -23,8 +23,8 @@ Smell evidence by measurement, any language: large files, sibling variants, junk
 output, commented-out code, comment blocks, TODO markers, skipped tests, long lines, areas without
 tests.
 
-- `--changed` scans only files changed against HEAD; `--top N` caps each summary list (default 15;
-  `--json` is complete).
+- `--changed` scans only files changed against HEAD, staged, or untracked (outside git: nothing,
+  with a warning); `--top N` caps each summary list (default 15; `--json` is complete).
 - Exit 0 whatever it finds.
 
 ## map_structure.py
@@ -35,7 +35,9 @@ role belongs.
 - `--path <folder>` summarizes one area; `--changed` keeps findings and moves touching files git
   reports changed against HEAD, or untracked (outside a repository: every file); `--write` saves
   `.clean/structure.md` and `.clean/structure.json`, never with `--changed`; `--depth N` sets the
-  folder depth of a component (default 2); `--packs a,b` overrides the packs whose roles apply.
+  folder depth of a component (default 2); `--top N` caps findings per kind in `structure.md`
+  (default 25); `--packs a,b` overrides the packs whose roles apply, as paths under `references/`
+  (`frameworks/django.md`): a bare `django` matches no file and is silently skipped.
 - Findings, keyed as in `structure.json`: `misplaced` (symbol or file outside its role's home),
   `mixed` (homeless file holding two or more roles), `duplicates` (identical function bodies, or
   identical but for names and literals), `name_clashes` (one public type or global function name
@@ -45,8 +47,10 @@ role belongs.
   named for no concept), `flat_folder` (more than fifteen production files), `unreferenced`
   (possibly unused, G9), `comment_heavy` (comments at least 40% of non-blank lines, twenty or
   more).
-- `structure.md` opens with the findings, then `## Proposed moves` (`from -> to (why)`); a clean-up
-  campaign's placement batch confirms each before moving it.
+- Also in the JSON: `truncated` (the file cap cut the walk short), `unparsed` (files whose symbols
+  could not be read, with the reason), `moves` (the proposed moves).
+- `structure.md` opens with the findings, then `## Proposed moves` (`from -> to (why)`), which the
+  clean-up placement batch confirms before moving anything.
 - Exit 0 done; 1 could not write; 2 also for `--changed` with `--write`, or a roles block that does
   not parse.
 

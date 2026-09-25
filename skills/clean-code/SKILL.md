@@ -17,10 +17,9 @@ folder. Read in order; trivial edits (typo, comment) skip this gate and the revi
 
 1. **Stack.** `.clean/context.json`; missing: run `scripts/detect_stack.py`, or read manifests and
    file extensions.
-2. **Packs.** Before planning, open each pack in `packs` or under "Read next" with the file-read
-   tool (listing is not reading), except framework packs whose `pack_scopes` exclude your area. By
-   hand: `clean-packs` index in `references/framework-map.md`; none: answer its adaptation
-   questions.
+2. **Packs.** Open each pack in `packs` or under "Read next" with the file-read tool (naming a pack
+   is not reading it), except framework packs whose `pack_scopes` exclude your area. By hand:
+   `clean-packs` index in `references/framework-map.md`; none: answer its adaptation questions.
 3. **Layers.** `.clean/architecture.md`; see Layer Rules.
 4. **Decisions.** `.clean/decisions.md`, `.clean/ledger.md`. Recorded decisions are settled; resume,
    never restart, campaigns in progress.
