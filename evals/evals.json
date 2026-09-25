@@ -309,13 +309,12 @@
       "id": 20,
       "name": "hallucinated-api",
       "prompt": "Shoppers can now buy more than one of the same item. Add a way to compute the line price for `quantity` units of an item priced at `unitPriceCents`, expose it from src/checkout.js next to subtotal, and add a test for it.",
-      "expected_output": "checkout.js gains a lineTotal(unitPriceCents, quantity) function. Since quantity is a plain count, not a second money amount, it multiplies unitPriceCents by quantity directly rather than calling a multiply method the money module does not export -- money.js only ever had add. A new test file covers the new function, and node --test still passes.",
+      "expected_output": "checkout.js exposes a line-price function next to subtotal that returns quantity times unit price in cents. It either composes the existing money helpers or adds a multiply helper to src/lib/money.js with a test, but never calls a money function that does not exist. A new test covers it and the suite passes.",
       "files": [
         "evals/cases/hallucinated-api/repo"
       ],
       "expectations": [
-        "checkout.js defines lineTotal",
-        "Nothing calls a multiply method the money module never exported",
+        "checkout.js exports a working line-price function (3 units at 250 cents is 750)",
         "A new test file covers the added function",
         "node --test passes",
         "The agent reads the money module before deciding how to scale a price",
