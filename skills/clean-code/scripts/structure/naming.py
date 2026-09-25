@@ -132,7 +132,7 @@ _STRUCTURAL_BASE_SUFFIXES = ("Error", "Exception", "Warning")
 READABLE_SHORT_NAMES = frozenset({
     "x", "y", "z", "i", "j", "k", "n", "e", "t", "id", "pi", "dx", "dy", "dz", "dt", "lo", "hi",
     "lr", "on", "is", "as", "do", "go", "to", "up", "at", "by", "of", "in", "or", "ok", "it",
-    "df", "ax", "db", "pk", "ip", "fd", "tb", "tz", "el",
+    "df", "ax", "db", "pk", "ip", "fd", "tb", "tz", "el", "ev", "fn", "cb", "ms", "xs",
 })
 _COORDINATE = re.compile(r"[xyz]\d", re.IGNORECASE)
 
@@ -232,7 +232,6 @@ def _declared_names(roled_file) -> list:
     return names + [Declared(declared.name, declared.kind, declared.line, owner=declared.owner)
                     for declared in roled_file.declarations
                     if (declared.name, declared.line) not in symbol_lines]
-
 
 
 # --- The rules ---------------------------------------------------------------------------------

@@ -15,6 +15,7 @@ Standard library only.
 
 from __future__ import annotations
 
+import json
 import posixpath
 import re
 from collections import Counter, defaultdict
@@ -145,6 +146,10 @@ def find_families(file_imports, paths) -> list:
 
 # --- Junk drawers ------------------------------------------------------------------------------
 
+# What a shared UI module holds, as Angular's `shared/` does: presentational pieces features reuse.
+SHARED_UI_ROLES = frozenset({"component", "directive", "pipe"})
+
+
 def _single_role(roled_file) -> Optional[str]:
     """The one role a file plays: its home's, else the one its symbols show; None when mixed."""
     if roled_file.home_role:
@@ -210,6 +215,20 @@ def _rename(folder: str, splits: list) -> Optional[str]:
     return _inside(posixpath.dirname(folder), _pluralized(name) if splits[0]["by"] == "role" else name)
 
 
+def _chosen_by_convention(folder: str, drawer_files) -> bool:
+    """Whether a convention chose the drawer's name: every file an `entry` line names (Nuxt's
+    utils/), a folder glob making it the home of the role it is named for (Rails' app/helpers/
+    for `helper`), or a shared UI module of SHARED_UI_ROLES alone (Angular's shared/)."""
+    name = posixpath.basename(folder).lower()
+    if all(roled_file.entry for roled_file in drawer_files):
+        return True
+    if any(roled_file.home_role and not roled_file.home_by_name
+           and _same_word(name, roled_file.home_role) for roled_file in drawer_files):
+        return True
+    return name == "shared" and all(_single_role(roled_file) in SHARED_UI_ROLES
+                                    for roled_file in drawer_files)
+
+
 def find_junk_drawers(roled_files, families, project_roots=()) -> list:
     """Folders named for no concept (project_files.JUNK_DRAWER_NAMES) holding two or more
     production files besides a package marker (`__init__.py`, `index.ts`), their files grouped by
@@ -219,7 +238,8 @@ def find_junk_drawers(roled_files, families, project_roots=()) -> list:
     the same project (None when it has none): only these propose moves. A file already inside its
     role's home (`components/helper/`) groups by name, since the drawer's name is what is wrong.
     Files sharing a leading name form a group with no destination; the rest are unsorted, waiting
-    for a name. `project_roots` are the folders holding a manifest.
+    for a name. A folder whose name a convention chose (_chosen_by_convention) is no drawer.
+    `project_roots` are the folders holding a manifest.
     """
     family_of = {path: family["token"] for family in families for path in family["files"]}
     by_folder = defaultdict(list)
@@ -233,8 +253,7 @@ def find_junk_drawers(roled_files, families, project_roots=()) -> list:
     homes = structure_findings.home_folders(roled_files)
     found = []
     for folder, drawer_files in sorted(by_folder.items()):
-        # A folder whose every file an `entry` names is one the framework chose by name: Nuxt's utils/.
-        if len(drawer_files) < 2 or all(roled_file.entry for roled_file in drawer_files):
+        if len(drawer_files) < 2 or _chosen_by_convention(folder, drawer_files):
             continue
         groups, unsorted = _drawer_groups(drawer_files, family_of)
         splits = [{"by": by, "name": name, "files": sorted(paths),
@@ -336,6 +355,62 @@ def runs_as_program(text: str) -> bool:
     return text.startswith("#!") or bool(_PROGRAM_GUARD.search(text))
 
 
+# Manifests name the files a package runs: pyproject's scripts and entry points name a module
+# (`shipit.cli:main`), package.json's `bin`, `main`, `module`, and `exports` name paths.
+# tomllib needs Python 3.11, so a line scan reads the few pyproject tables that matter.
+ENTRY_MANIFESTS = frozenset({"pyproject.toml", "package.json"})
+_TOML_TABLE = re.compile(r"^\s*\[\[?\s*(?P<name>[^\[\]]*?)\s*\]")
+_ENTRY_TABLE = re.compile(
+    r"""^project\.(?:scripts|gui-scripts|entry-points\.(?:"[^"]*"|'[^']*'|[\w.-]+))$""")
+_ENTRY_TARGET = re.compile(r"""^\s*(?:"[^"]*"|'[^']*'|[\w.-]+)\s*=\s*["']\s*(?P<module>[\w.]+)""")
+_PACKAGE_ENTRY_FIELDS = ("bin", "main", "module", "exports")
+
+
+def _pyproject_modules(text: str) -> list:
+    """The modules `[project.scripts]`, `[project.gui-scripts]`, and `[project.entry-points.*]` name."""
+    modules, in_entry_table = [], False
+    for line in text.split("\n"):
+        table = _TOML_TABLE.match(line)
+        if table:
+            in_entry_table = bool(_ENTRY_TABLE.match(table.group("name")))
+            continue
+        target = _ENTRY_TARGET.match(line) if in_entry_table else None
+        if target:
+            modules.append(target.group("module"))
+    return modules
+
+
+def _package_paths(value) -> list:
+    """Every path in a package.json field; `bin` and `exports` nest them in objects."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        value = list(value.values())
+    if not isinstance(value, list):
+        return []
+    return [path for item in value for path in _package_paths(item)]
+
+
+def manifest_entries(manifest_texts: dict, paths) -> set:
+    """The files among paths a manifest runs, from each manifest's path -> text: a pyproject
+    target's module in the manifest's folder or its `src/`, or a package.json target path."""
+    candidates = []
+    for manifest, text in manifest_texts.items():
+        folder = posixpath.dirname(manifest)
+        if posixpath.basename(manifest) == "pyproject.toml":
+            candidates += [posixpath.join(folder, base, module.replace(".", "/") + ".py")
+                           for module in _pyproject_modules(text) for base in ("", "src")]
+            continue
+        try:
+            package = json.loads(text)
+        except ValueError:
+            continue
+        fields = [package.get(name) for name in _PACKAGE_ENTRY_FIELDS] if isinstance(package, dict) else []
+        candidates += [posixpath.normpath(posixpath.join(folder, path))
+                       for field in fields for path in _package_paths(field)]
+    return set(candidates) & set(paths)
+
+
 def _family(language) -> str:
     return structure_findings.LANGUAGE_FAMILY.get(language, language)
 
@@ -421,9 +496,9 @@ def _found_by_framework(types: list, declared_types: set) -> bool:
 
 def _reached_without_import(roled_file, declared_types: set) -> bool:
     """Whether something other than an import reaches the file: the toolchain as an entry point
-    (an app shell such as `MainActivity` too), a framework through its role, an `entry` line, an
-    annotation, or a base type, a tool by its name, a server, a reader, or a person through its
-    folder, or, where the map traces types, code it does not read."""
+    (an app shell such as `MainActivity` too), a framework through its role, an `entry` line or a
+    manifest, an annotation, or a base type, a tool by its name, a server, a reader, or a person
+    through its folder, or, where the map traces types, code it does not read."""
     name = posixpath.basename(roled_file.path)
     stem = name.split(".")[0]
     folders = [folder.lower() for folder in roled_file.path.split("/")[:-1]]
@@ -453,9 +528,10 @@ def find_unreferenced(file_imports, roled_files, resolvable_languages, unresolve
     tests import is still used. unresolved_imports maps a file to the imports that named no
     project file; a file in the same language family that one names by its last segment counts
     as imported, when its first segment names a project folder or file. Never judged: tests,
-    entry points, programs (files runs_as_program says start one), files holding a role or
-    matching an `entry` line, which a framework loads, annotated or framework-derived classes
-    (FRAMEWORK_FOUND_LANGUAGES), and files a tool or a server loads by name or folder.
+    entry points, programs (files runs_as_program says start one), files holding a role, which a
+    framework loads, entries (an `entry` line or manifest_entries), annotated or
+    framework-derived classes (FRAMEWORK_FOUND_LANGUAGES), and files a tool or a server loads by
+    name or folder.
     """
     languages = {roled_file.path: roled_file.language for roled_file in roled_files}
     imported = {target for targets in file_imports.values() for target in targets}
@@ -543,19 +619,28 @@ def _comment_count(text: str, language: str) -> tuple:
     return sum(1 for line in judged if line.is_comment), len(judged)
 
 
+def _is_project_config(path: str, project_roots) -> bool:
+    """Whether the file sits in a `config/` folder at the top of its project, whose files
+    document the keys they set by design: Laravel's stock `config/app.php`."""
+    project = structure_findings.project_of(path, project_roots)
+    return (path[len(project) + 1:] if project else path).startswith("config/")
+
+
 def find_comment_heavy(texts_by_path, languages_by_path, ratio=COMMENT_RATIO,
-                       minimum=COMMENT_MINIMUM) -> list:
+                       minimum=COMMENT_MINIMUM, project_roots=()) -> list:
     """Production files whose comment lines are at least ratio of their non-blank lines and at
     least minimum in number: candidates for the comment workflow.
 
-    Test files, generated files, C headers, and languages the lexer does not know are skipped.
+    Test files, generated files, C headers, project configuration (`config/` at the top of the
+    repository or of a project in `project_roots`), and languages the lexer does not know are
+    skipped.
     """
     found = []
     for path, text in texts_by_path.items():
         language = languages_by_path.get(path)
         if language not in source_lexer.SYNTAX or project_files.is_test_path(path) \
                 or posixpath.splitext(path)[1].lower() in HEADER_SUFFIXES \
-                or project_files.is_generated(path, text):
+                or _is_project_config(path, project_roots) or project_files.is_generated(path, text):
             continue
         comment_lines, judged_lines = _comment_count(text, language)
         if judged_lines and comment_lines >= minimum and comment_lines / judged_lines >= ratio:

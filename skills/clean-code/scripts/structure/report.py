@@ -129,7 +129,7 @@ def _family_line(family) -> str:
 def _junk_drawer_split(split) -> str:
     files = _file_names(split["files"], 3)
     if split["by"] == "unsorted":
-        return f"{files}: name the concept its files share"
+        return f"{files}: give each file a named home"
     if split["by"] == "name":
         return f"{_code(split['name'])} ({files}) share a name"
     label = split["name"] if split["by"] == "role" else f"{split['name']} family"

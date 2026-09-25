@@ -212,8 +212,9 @@ def compare(original_text: str, compressed_text: str) -> Report:
 
 def render_report(report: Report) -> str:
     label = "nothing lost" if not report.losses else f"{len(report.losses)} lost"
+    change = "smaller" if report.reduction >= 0 else "larger"
     summary = (f"{label}: {report.original_tokens:,} -> {report.compressed_tokens:,} tokens "
-               f"({report.reduction * 100:.1f}% smaller)")
+               f"({abs(report.reduction) * 100:.1f}% {change})")
     return "\n".join([*report.losses, summary])
 
 

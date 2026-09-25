@@ -208,6 +208,9 @@ def build_map(root: Path, packs, depth: int, scopes=None, changed=None) -> dict:
     wanted = project_symbols.SUPPORTED_SUFFIXES | set(detect_stack.MANIFEST_SUFFIXES)
     walk = project_files.walk(root, wanted, frozenset(detect_stack.MANIFESTS))
     project_roots = _project_roots(root, walk.paths)
+    run_by_manifest = structure_organization.manifest_entries(
+        {path: project_files.read_text(root / path) or "" for path in walk.paths
+         if posixpath.basename(path) in structure_organization.ENTRY_MANIFESTS}, walk.paths)
     index = import_resolution.ModuleIndex(root)
     roled_files = []
     modules = {}
@@ -225,7 +228,8 @@ def build_map(root: Path, packs, depth: int, scopes=None, changed=None) -> dict:
             symbols = project_symbols.extract(path, text)
             if symbols is None:
                 continue
-            roled = structure_roles.assign(symbols, roles, project_files.is_test_path(path))
+            roled = structure_roles.assign(symbols, roles, project_files.is_test_path(path),
+                                           path in run_by_manifest)
             index.add(path, text, symbols)
         except Exception as error:  # one pathological file must not cost the whole map
             unparsed.append({"path": path, "reason": f"{type(error).__name__}: {error}"[:160]})
@@ -241,7 +245,8 @@ def build_map(root: Path, packs, depth: int, scopes=None, changed=None) -> dict:
         if structure_organization.runs_as_program(text):
             programs.add(path)
         # Counted here, so no file's text outlives the walk.
-        comment_heavy += structure_organization.find_comment_heavy({path: text}, {path: roled.language})
+        comment_heavy += structure_organization.find_comment_heavy({path: text}, {path: roled.language},
+                                                                   project_roots=project_roots)
 
     imports = _resolve_imports(index, modules, test_modules)
     file_imports = imports.file_imports

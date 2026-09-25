@@ -17,7 +17,9 @@ the order detect_stack lists them, then the generic block.
                                            or reported for their names; a whole file or folder
                                            is left out of the organization findings too
     entry <glob>[, <glob>...]              files a framework loads without an import: never
-                                           reported unreferenced (no other finding reads it)
+                                           reported unreferenced, and a folder of only these
+                                           is no junk drawer; files a manifest runs are
+                                           entries too (organization.manifest_entries)
     ignore-name = <regex>                  names left out of clash, synonym, and naming findings
 
 The allow statements of every source apply together. An accept glob matches the
@@ -285,11 +287,12 @@ class RoledFile(NamedTuple):
     abstract_types: int
     home_by_name: bool = False    # the home comes from the file's name, so its folder is none
     declarations: tuple = ()      # the file's variables and parameters, from its extractor
-    entry: bool = False           # an `entry` line says a framework loads it without an import
+    entry: bool = False           # an `entry` line or a manifest says it is loaded without an import
 
 
-def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
-    """A file's home role, and an intrinsic role for each of its top-level symbols."""
+def assign(file_symbols, roles: Roles, is_test: bool, named_by_manifest: bool = False) -> RoledFile:
+    """A file's home role, an intrinsic role for each of its top-level symbols, and whether it is
+    an entry: an `entry` line or a manifest (named_by_manifest) names it."""
     suffix = Path(file_symbols.path).suffix.lower().lstrip(".")
     symbols = [
         RoledSymbol(symbol, *roles.intrinsic(symbol.name, symbol.context, suffix, file_symbols.path))
@@ -310,5 +313,5 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
         abstract_types=file_symbols.abstract_types,
         home_by_name=home.by_name,
         declarations=file_symbols.declarations,
-        entry=roles.is_entry(file_symbols.path),
+        entry=named_by_manifest or roles.is_entry(file_symbols.path),
     )

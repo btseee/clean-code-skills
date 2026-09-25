@@ -26,7 +26,8 @@ def write_files(root: Path, files: dict) -> None:
     for path, text in files.items():
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8", newline="\n")
+        with target.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
         if path.startswith("bin/"):
             target.chmod(0o755)
 

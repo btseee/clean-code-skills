@@ -36,6 +36,7 @@ SCRIPTS_DIR = SKILL_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from source import files as project_files  # noqa: E402  (the skill's scripts folder, put on the path above)
+from structure import report as structure_report  # noqa: E402
 
 REQUIRED_FIELDS = {
     "file_exists": ("glob",),
@@ -236,8 +237,10 @@ def _map_finding_absent(workspace: Path, expectation: dict):
     items = structure_map["findings"].get(expectation["kind"], [])
     pattern = expectation.get("path")
     if pattern:
+        # Every path a finding names counts: a duplicate group's members, a cycle's components.
         items = [item for item in items
-                if project_files.glob_match(pattern, item.get("path") or item.get("folder") or "")]
+                 if any(project_files.glob_match(pattern, path.rstrip("/"))
+                        for path in structure_report.finding_paths(expectation["kind"], item))]
     return not items, f"{len(items)} {expectation['kind']} finding(s)"
 
 

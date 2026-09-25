@@ -256,6 +256,22 @@ class MapFindingAbsentTest(unittest.TestCase):
         self.assertTrue(self.grade_with_map(
             {"type": "map_finding_absent", "kind": "names", "path": "src/c.js"}, data))
 
+    def test_path_matches_any_path_a_finding_names(self):
+        # A duplicate group or a cycle has no `path` of its own; its members' paths count.
+        data = {"findings": {
+            "duplicates": [{"kind": "function", "lines": 8, "members": [
+                {"path": "src/a.js", "line": 1, "symbol": "load"},
+                {"path": "src/b.js", "line": 1, "symbol": "load"}]}],
+            "cycles": [{"components": ["src/orders", "src/billing"], "edges": []}],
+            "junk_drawer": [{"folder": "src/utils", "splits": [], "rename": None}],
+        }}
+        for kind, path, absent in (("duplicates", "src/b.js", False), ("duplicates", "src/c.js", True),
+                                   ("cycles", "src/billing", False), ("junk_drawer", "src/utils", False),
+                                   ("junk_drawer", "src/helpers", True)):
+            with self.subTest(kind=kind, path=path):
+                expectation = {"type": "map_finding_absent", "kind": kind, "path": path}
+                self.assertEqual(self.grade_with_map(expectation, data), absent)
+
 
 class SelfTestTest(unittest.TestCase):
     def test_a_case_that_passes_on_its_own_fixture_tests_nothing(self):

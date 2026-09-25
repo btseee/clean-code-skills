@@ -33,7 +33,7 @@ signal policy = <\s*ApplicationPolicy
 role helper = app/helpers/**
 role service = app/services/**
 role concern = app/models/concerns/**, app/controllers/concerns/**
-entry app/serializers/**
+entry app/serializers/**, app/helpers/**
 ignore-name = ^(ApplicationRecord|ApplicationController|ApplicationJob|ApplicationMailer|ApplicationPolicy)$
 ```
 

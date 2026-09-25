@@ -173,6 +173,12 @@ class CliTest(unittest.TestCase):
         self.assertEqual(len(output.splitlines()), 1)
         self.assertTrue(output.startswith("nothing lost:"))
 
+    def test_a_rewrite_that_grew_says_how_much_larger_it_got(self):
+        self.assertEqual(cc.render_report(cc.Report([], 100, 105, -0.05)),
+                         "nothing lost: 100 -> 105 tokens (5.0% larger)")
+        self.assertEqual(cc.render_report(cc.Report([], 100, 95, 0.05)),
+                         "nothing lost: 100 -> 95 tokens (5.0% smaller)")
+
     def test_json_reports_losses_and_token_counts(self):
         original = self.write("original.md", "## Placement\n\nSee G17 for the rule.\n")
         compressed = self.write("compressed.md", "See the rule.\n")

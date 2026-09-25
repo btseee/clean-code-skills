@@ -231,6 +231,30 @@ class JunkDrawerTest(unittest.TestCase):
                              "utils/slug.ts": "export const slug = 1;\n"}, roles_with("entry utils/*"))
         self.assertEqual(structure_organization.find_junk_drawers(files, []), [])
 
+    def test_a_folder_that_homes_the_role_it_is_named_for_is_no_junk_drawer(self):
+        for statement, folder in (("role helper = app/helpers/**", "app/helpers"),
+                                  ("role util = src/utils/**", "src/utils")):
+            files = roled_files({f"{folder}/orders.rb": "module Orders\nend\n",
+                                 f"{folder}/users.rb": "module Users\nend\n"}, roles_with(statement))
+            self.assertEqual(structure_organization.find_junk_drawers(files, []), [], folder)
+        # The home of a role named otherwise is still a folder named for no concept.
+        files = roled_files({"src/helpers/orders.rb": "module Orders\nend\n",
+                             "src/helpers/users.rb": "module Users\nend\n"},
+                            roles_with("role service = src/helpers/**"))
+        self.assertEqual(len(structure_organization.find_junk_drawers(files, [])), 1)
+
+    def test_a_shared_folder_of_components_directives_and_pipes_is_a_shared_ui_module(self):
+        roles = roles_with("role component = **/*.component.ts", "role directive = **/*.directive.ts",
+                           "role pipe = **/*.pipe.ts", "role service = **/*.service.ts")
+        shared = {"src/app/shared/button.component.ts": "export class ButtonComponent {}\n",
+                  "src/app/shared/highlight.directive.ts": "export class HighlightDirective {}\n",
+                  "src/app/shared/money.pipe.ts": "export class MoneyPipe {}\n"}
+        self.assertEqual(structure_organization.find_junk_drawers(roled_files(shared, roles), []), [])
+        shared["src/app/shared/api.service.ts"] = "export class ApiService {}\n"
+        self.assertEqual([drawer["folder"] for drawer in
+                          structure_organization.find_junk_drawers(roled_files(shared, roles), [])],
+                         ["src/app/shared"])
+
     def test_one_file_is_no_junk_drawer(self):
         files = roled_files({"src/utils/slugify.py": "def slug(text):\n    return text\n",
                              "src/utils/test_slugify.py": "def test_slug():\n    pass\n"})
@@ -443,8 +467,8 @@ class UnreferencedTest(unittest.TestCase):
 
 
 class CommentHeavyTest(unittest.TestCase):
-    def heavy(self, text, path="src/prices.js", language="javascript"):
-        return structure_organization.find_comment_heavy({path: text}, {path: language})
+    def heavy(self, text, path="src/prices.js", language="javascript", **options):
+        return structure_organization.find_comment_heavy({path: text}, {path: language}, **options)
 
     def test_a_file_whose_comments_rival_its_code_is_comment_heavy(self):
         self.assertEqual(self.heavy(script(25, 20)), [{
@@ -493,6 +517,13 @@ class CommentHeavyTest(unittest.TestCase):
     def test_each_line_of_a_block_comment_counts(self):
         block = "/*\n" + "".join(f" * Step {index} explains itself.\n" for index in range(23)) + " */\n"
         self.assertEqual(self.heavy(block + script(0, 20))[0]["comment_lines"], 25)
+
+    def test_a_config_file_at_the_top_of_its_project_documents_its_keys(self):
+        # Laravel's stock config/*.php explains every key it ships.
+        laravel = "<?php\n" + script(25, 20, code="$total = 1;")
+        self.assertEqual(self.heavy(laravel, "config/app.php", "php"), [])
+        self.assertEqual(self.heavy(laravel, "api/config/app.php", "php", project_roots=["api"]), [])
+        self.assertEqual(len(self.heavy(laravel, "app/config/app.php", "php")), 1)
 
     def test_test_generated_and_unknown_language_files_are_skipped(self):
         self.assertEqual(self.heavy(script(25, 20), "src/prices.test.js"), [])
@@ -686,6 +717,42 @@ class OrganizationMapTest(unittest.TestCase):
         }, ["references/frameworks/rails.md"])
         self.assertEqual([item["path"] for item in data["findings"]["unreferenced"]], ["lib/unused.rb"])
 
+    def test_files_a_manifest_runs_are_entries(self):
+        python = map_of({
+            "pyproject.toml": '[project]\nname = "shipit"\n\n[project.scripts]\nshipit = "shipit.cli:main"\n\n'
+                              '[project.gui-scripts]\nshipit-gui = "shipit.gui:run"\n\n'
+                              '[project.entry-points."shipit.plugins"]\ndeploy = "shipit.deploy"\n',
+            "src/shipit/__init__.py": "", "src/shipit/cli.py": "def main():\n    pass\n",
+            "src/shipit/gui.py": "def run():\n    pass\n",
+            "src/shipit/deploy.py": "def push():\n    pass\n", "src/shipit/unused.py": "UNUSED = 1\n",
+        })["findings"]
+        self.assertEqual([item["path"] for item in python["unreferenced"]], ["src/shipit/unused.py"])
+        node = map_of({
+            "tools/package.json": '{"name": "shipit", "bin": {"shipit": "./cli/shipit.js"}, "main": "lib/api.js",'
+                                  ' "exports": {".": {"import": "./lib/api.mjs"}, "./extra": "./lib/extra.js"}}\n',
+            "tools/cli/shipit.js": "const shipit = 1;\n", "tools/lib/api.js": "module.exports = {};\n",
+            "tools/lib/api.mjs": "export const api = 1;\n", "tools/lib/extra.js": "module.exports = {};\n",
+            "tools/lib/unused.js": "module.exports = {};\n",
+        })["findings"]
+        self.assertEqual([item["path"] for item in node["unreferenced"]], ["tools/lib/unused.js"])
+
+    def test_junk_drawer_names_a_pack_recommends_are_no_junk_drawers(self):
+        helpers = {"app/helpers/orders_helper.rb": "module OrdersHelper\nend\n",
+                   "app/helpers/users_helper.rb": "module UsersHelper\nend\n"}
+        self.assertEqual(map_of(helpers, ["references/frameworks/rails.md"])["findings"]["junk_drawer"], [])
+        with tempfile.TemporaryDirectory() as directory:
+            rails = structure_roles.load_roles(map_structure.SKILL_ROOT, ["references/frameworks/rails.md"],
+                                               Path(directory))
+        self.assertTrue(rails.is_entry("app/helpers/orders_helper.rb"))
+        angular = ["references/frameworks/angular.md"]
+        shared = {"src/app/shared/button.component.ts": "@Component({})\nexport class ButtonComponent {}\n",
+                  "src/app/shared/highlight.directive.ts": "@Directive({})\nexport class HighlightDirective {}\n",
+                  "src/app/shared/money.pipe.ts": "@Pipe({})\nexport class MoneyPipe {}\n"}
+        self.assertEqual(map_of(shared, angular)["findings"]["junk_drawer"], [])
+        shared["src/app/shared/api.service.ts"] = "@Injectable()\nexport class ApiService {}\n"
+        self.assertEqual([drawer["folder"] for drawer in map_of(shared, angular)["findings"]["junk_drawer"]],
+                         ["src/app/shared"])
+
     def test_only_nuxt_auto_import_folders_are_entries(self):
         nuxt = map_of({
             "package.json": '{"dependencies": {"nuxt": "4.1.0"}}\n',
@@ -831,7 +898,7 @@ class OrganizationReportTest(unittest.TestCase):
         block = structure_report.render_markdown(data).split("### Junk drawers", 1)[1].split("\n### ", 1)[0]
         self.assertIn("service (`billing.py`) -> `src/services/`", block)
         self.assertIn("`date` (`date_format.py`, `date_parse.py`) share a name", block)
-        self.assertIn("`slugify.py`: name the concept its files share", block)
+        self.assertIn("`slugify.py`: give each file a named home", block)
         self.assertIn("`src/helpers/` holds one concept; rename it `src/date/`.", block)
 
 
