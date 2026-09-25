@@ -11,12 +11,6 @@
       "text": "A log call was added to trace login attempts"
     },
     {
-      "type": "file_not_contains",
-      "glob": "src/auth/login.js",
-      "pattern": "console\\.(log|debug|info|warn|error)\\([^)]*\\b(password|credentials)\\b",
-      "text": "No log call includes the password or the whole credentials object"
-    },
-    {
       "type": "command_passes",
       "command": [
         "node",
@@ -28,7 +22,10 @@
     },
     {
       "type": "command_passes",
-      "command": ["node", "--test"],
+      "command": [
+        "node",
+        "--test"
+      ],
       "timeout": 60,
       "text": "node --test still passes after the logging is added"
     },

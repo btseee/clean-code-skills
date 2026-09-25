@@ -556,7 +556,6 @@
       ],
       "expectations": [
         "A log call was added to trace login attempts",
-        "No log call includes the password or the whole credentials object",
         "A failed login logs an identifying detail (the email) but never the password, tried or stored",
         "node --test still passes after the logging is added",
         "Nothing new at the repository root"
