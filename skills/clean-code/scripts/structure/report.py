@@ -107,8 +107,9 @@ LINE_RENDERERS = {
 }
 
 
-def _name_rule_lines(items, examples: int) -> list:
-    """One line per naming rule, the most frequent first: its count, then its first examples."""
+def _name_rule_lines(items, examples: int) -> tuple:
+    """(lines, unlisted): one line per naming rule, the most frequent first, with its count and
+    first examples; and how many findings no line lists."""
     by_rule = defaultdict(list)
     for item in items:
         by_rule[item["rule"]].append(item)
@@ -118,7 +119,8 @@ def _name_rule_lines(items, examples: int) -> list:
         more = ", ..." if len(found) > examples else ""
         listed = f" — {shown}{more}" if shown else ""
         lines.append(f"{rule} ({found[0]['cites']}): {len(found)}{listed}")
-    return lines
+    unlisted = sum(max(0, len(found) - examples) for found in by_rule.values())
+    return lines, unlisted
 
 
 def _flagged(data) -> dict:
@@ -180,7 +182,10 @@ def _findings_section(data, top: int) -> list:
             continue
         lines += ["", f"### {title}", ""]
         if key == "names":
-            lines += [f"- {line}" for line in _name_rule_lines(items, max(0, min(NAME_EXAMPLES, top)))]
+            rule_lines, unlisted = _name_rule_lines(items, max(0, min(NAME_EXAMPLES, top)))
+            lines += [f"- {line}" for line in rule_lines]
+            if unlisted:
+                lines.append(f"- ... and {unlisted} more in structure.json")
             continue
         lines += [f"- {LINE_RENDERERS[key](item)}" for item in items[:top]]
         if len(items) > top:
@@ -324,7 +329,10 @@ def render_summary(data: dict, path_filter=None) -> str:
             continue
         lines += ["", f"  {title}"]
         if key == "names":
-            lines += [f"    {line.replace('`', '')}" for line in _name_rule_lines(items, NAME_EXAMPLES)]
+            rule_lines, unlisted = _name_rule_lines(items, NAME_EXAMPLES)
+            lines += [f"    {line.replace('`', '')}" for line in rule_lines]
+            if unlisted:
+                lines.append(f"    ... and {unlisted} more")
             continue
         lines += [f"    {LINE_RENDERERS[key](item).replace('`', '')}" for item in items[:SUMMARY_PER_KIND]]
         if len(items) > SUMMARY_PER_KIND:

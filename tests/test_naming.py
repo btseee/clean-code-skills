@@ -16,6 +16,10 @@ from structure import roles as structure_roles
 
 NO_ROLES = structure_roles.Roles([])
 
+PLUGIN_NOUNS = ("page", "options", "domain", "notices", "nonce", "scripts", "hooks", "input", "menu",
+                "boxes", "fields", "users", "roles", "posts", "terms", "media", "links", "themes",
+                "widgets", "blocks", "styles")
+
 CSHARP_MAIN = """
     public class Program
     {
@@ -32,14 +36,10 @@ def roles_with(*lines):
 
 def naming_findings(files, roles=NO_ROLES, project_roots=()):
     """The naming findings for files, a path -> source mapping."""
-    roled_files = []
-    texts = {}
-    for path, source in files.items():
-        text = textwrap.dedent(source).lstrip("\n")
-        roled_files.append(structure_roles.assign(
-            project_symbols.extract(path, text), roles, project_files.is_test_path(path)))
-        texts[path] = text
-    return structure_naming.find_names(roled_files, roles, texts, project_roots)
+    roled_files = [structure_roles.assign(project_symbols.extract(path, textwrap.dedent(source).lstrip("\n")),
+                                          roles, project_files.is_test_path(path))
+                   for path, source in files.items()]
+    return structure_naming.find_names(roled_files, roles, project_roots)
 
 
 def findings_for(files, roles=NO_ROLES, project_roots=()):
@@ -96,6 +96,13 @@ class VagueTest(unittest.TestCase):
             "app/routers/items.py": "def read_item(item_id):\n    item = load(item_id)\n    return item\n",
         }), set())
 
+    def test_a_noise_word_or_an_abbreviation_is_no_vocabulary_even_as_a_type_name(self):
+        self.assertEqual(findings_for({
+            "app/types.ts": "export type Data = { name: string };\n",
+            "app/load.ts": "export async function load(res: Response) {\n"
+                           "  const data = await res.json();\n  return data;\n}\n",
+        }), {("vague", "data", "variable")})
+
     def test_a_types_vocabulary_stays_inside_its_own_project(self):
         self.assertEqual(findings_for({
             "shop/app/models.py": "class Item:\n    pass\n",
@@ -106,6 +113,42 @@ class VagueTest(unittest.TestCase):
     def test_the_data_form_of_a_bare_verb_is_vague(self):
         self.assertEqual(names_in("src/rows.js", "function handleData(rows) {}\n"),
                          {("vague", "handleData", "function")})
+
+    def test_an_external_base_class_dictates_its_overrides_parameters_and_names(self):
+        self.assertEqual(names_in("shop/admin.py", """
+            class OrderAdmin(admin.ModelAdmin):
+                def has_delete_permission(self, request, obj=None):
+                    return False
+                def save_model(self, request, obj, form, change):
+                    pass
+            class OrderSerializer(serializers.ModelSerializer):
+                def validate(self, data):
+                    return data
+            class DecimalEncoder(json.JSONEncoder):
+                def default(self, o):
+                    return str(o)
+            class MainWindow(QMainWindow):
+                def closeEvent(self, event):
+                    pass
+            """), set())
+        test_case = "class ShopCase(unittest.TestCase):\n    def setUp(self):\n        pass\n"
+        self.assertEqual(names_in("shop/fixtures/cases.py", test_case), set())
+
+    def test_a_class_without_an_external_base_is_judged_as_usual(self):
+        self.assertEqual(names_in("shop/views.py", """
+            class BaseView:
+                def show(self, tmp):
+                    return tmp
+            class OrderView(BaseView):
+                def render(self, obj):
+                    return obj
+                def closeEvent(self, event):
+                    pass
+            class Repository(metaclass=ABCMeta):
+                def save(self, val):
+                    pass
+            """), {("vague", "tmp", "parameter"), ("vague", "obj", "parameter"),
+                   ("convention", "closeEvent", "method"), ("vague", "val", "parameter")})
 
     def test_a_name_bound_again_in_its_scope_is_reported_once_where_first_bound(self):
         found = naming_findings({"src/totals.py": """
@@ -163,10 +206,35 @@ class NumberedTest(unittest.TestCase):
     def test_a_function_copy_is_numbered_but_a_predicate_a_copy_operation_or_a_year_is_not(self):
         self.assertEqual(names_in("src/orders.py", """
             def process_order_new(order): ...
-            def is_new(order): ...
-            def deep_copy(order): ...
+            def is_order_new(order): ...
+            class DeepCopy: pass
             tax_rules_2024 = {}
             """), {("numbered", "process_order_new", "function")})
+
+    def test_a_copy_suffix_right_after_the_verb_is_the_verbs_object(self):
+        self.assertEqual(names_in("src/cleanup.py", """
+            def create_new(order): ...
+            def remove_old(order): ...
+            def purge_old(order): ...
+            def make_copy(order): ...
+            def start_new(order): ...
+            def mark_final(order): ...
+            def add_new(order): ...
+            def clean_old(order): ...
+            """), set())
+
+    def test_a_function_named_for_the_copy_it_makes_is_a_copy_only_beside_its_original(self):
+        self.assertEqual(findings_for({
+            "src/streams.js": "function createLocalCopy() {}\nfunction getUserCopy() {}\n",
+            "src/orders.js": "function processOrder() {}\nfunction processOrderCopy() {}\n",
+        }), {("numbered", "processOrderCopy", "function")})
+
+    def test_a_copy_suffix_after_a_noun_or_beside_the_original_is_numbered_in_every_casing(self):
+        self.assertEqual(findings_for({
+            "src/orders.js": "function processOrderNew() {}\nfunction getUserNew() {}\n",
+            "src/handlers.py": "def handler(): ...\ndef handler_new(): ...\n",
+        }), {("numbered", "processOrderNew", "function"), ("numbered", "getUserNew", "function"),
+             ("numbered", "handler_new", "function")})
 
     def test_digits_in_a_term_or_a_value_are_no_copy_number(self):
         self.assertEqual(names_in("src/codec.py", """
@@ -185,6 +253,12 @@ class NumberedTest(unittest.TestCase):
             request_uuid4 = uuid4()
             b64 = encode(payload)
             is_pep8 = check(source)
+            class ResNet18: pass
+            resnet50 = build()
+            mobilenet_v2 = build()
+            def supports_html5(browser): ...
+            def to_css3(style): ...
+            use_gpt4 = True
             """), set())
 
 
@@ -213,7 +287,20 @@ class ClassNameTest(unittest.TestCase):
             class CreateOrder(Command): pass
             class ProcessPoolExecutor: pass
             class GetPassWarning(UserWarning): pass
+            class SendGridClient: pass
+            class FetchContext: pass
+            class GetConfigProvider: pass
+            class ConvertCurrencyAdapter: pass
             """), set())
+
+    def test_a_class_in_an_action_shaped_role_may_be_named_for_its_action(self):
+        roles = roles_with("role action = app/Actions/**", "role listener = app/Listeners/**")
+        self.assertEqual(findings_for({
+            "app/Actions/Fortify/CreateNewUser.php":
+                "<?php\nclass CreateNewUser {\n    public function create(array $input) {}\n}\n",
+            "app/Listeners/SendShipmentNotification.php":
+                "<?php\nclass SendShipmentNotification {\n    public function handle($event) {}\n}\n",
+        }, roles), set())
 
     def test_a_class_named_for_the_interface_it_implements_takes_its_name(self):
         declaration = "public abstract class NotifyPropertyChanged : INotifyPropertyChanged\n{\n}\n"
@@ -263,6 +350,7 @@ class TooShortTest(unittest.TestCase):
             def search(rows, lo, hi, **kw): ...
             def report(tb): ...
             def localize(moment, tz): ...
+            def train(model, lr): ...
             """), set())
         self.assertEqual(names_in("src/permissions.ts", "export const permission = {\n"
                                                         "  mounted(el: HTMLElement) {},\n};\n"), set())
@@ -360,6 +448,7 @@ class ConventionTest(unittest.TestCase):
         self.assertEqual(names_in("src/visitor.py", """
             class Collector(ast.NodeVisitor):
                 def visit_FunctionDef(self, node): pass
+            class Money:
                 def __eq__(self, other): pass
             class Handler(BaseHTTPRequestHandler):
                 def do_GET(self): pass
@@ -391,6 +480,30 @@ class ConventionTest(unittest.TestCase):
                "    public function renderSettings() {}\n}\n")
         self.assertEqual(names_in("src/class-plugin-admin.php", few),
                          {("convention", "add_menu_page", "method")})
+
+    def test_the_majority_needs_ten_names_and_more_than_sixty_percent(self):
+        def flagged(snake_count, camel_count):
+            methods = ([f"load_{noun}" for noun in PLUGIN_NOUNS[:snake_count]]
+                       + [f"save{noun.capitalize()}" for noun in PLUGIN_NOUNS[:camel_count]])
+            plugin = ("<?php\nclass Plugin {\n"
+                      + "".join(f"    public function {name}() {{}}\n" for name in methods) + "}\n")
+            return {item["name"] for item in naming_findings({"src/class-plugin.php": plugin})}
+
+        self.assertEqual(flagged(9, 1), {"savePage"})                                    # 10 names
+        self.assertEqual(flagged(8, 1), {f"load_{noun}" for noun in PLUGIN_NOUNS[:8]})    # 9 names
+        self.assertEqual(flagged(6, 4), {f"load_{noun}" for noun in PLUGIN_NOUNS[:6]})    # exactly 60%
+        self.assertEqual(flagged(13, 8), {f"save{noun.capitalize()}" for noun in PLUGIN_NOUNS[:8]})
+
+    def test_only_the_kinds_a_language_judges_vote_on_its_majority(self):
+        helpers = "<?php\n" + "".join(f"function load_{noun}() {{}}\n" for noun in PLUGIN_NOUNS[:11])
+        self.assertEqual(findings_for({
+            "src/helpers.php": helpers,
+            "src/Cart.php": "<?php\nclass Cart {\n    public function addItem() {}\n}\n",
+        }), set())
+
+    def test_a_class_joined_by_an_underscore_breaks_the_convention(self):
+        self.assertEqual(names_in("src/http.py", "class Http_Client:\n    pass\n"),
+                         {("convention", "Http_Client", "class")})
 
     def test_each_project_of_a_monorepo_keeps_its_own_majority(self):
         snake_methods = "".join(f"    public function {verb}_{noun}() {{}}\n" for verb, noun in (
@@ -468,6 +581,17 @@ class NamesReportTest(unittest.TestCase):
         self.assertEqual(vague_line(25).count("`data`"), 5)
         self.assertTrue(vague_line(25).endswith(", ..."))
         self.assertEqual(vague_line(2).count("`data`"), 2)
+
+    def test_the_names_block_points_to_structure_json_for_the_rest(self):
+        source = "".join(f"def load_{letter}():\n    data = []\n    return data\n" for letter in "abcdefg")
+        data = map_of({"src/orders.py": source})
+
+        def names_block(top):
+            return structure_report.render_markdown(data, top).split("### Names", 1)[1].split("\n## ", 1)[0]
+
+        self.assertTrue(names_block(25).rstrip().endswith("- ... and 2 more in structure.json"))
+        self.assertTrue(names_block(2).rstrip().endswith("- ... and 5 more in structure.json"))
+        self.assertIn("    ... and 2 more", structure_report.render_summary(data))
 
 
 if __name__ == "__main__":

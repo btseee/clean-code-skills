@@ -13,6 +13,7 @@ from typing import Optional
 
 from source import lexer as source_lexer
 
+from . import declarations as symbol_declarations
 from . import model as symbol_model
 from .model import Symbol
 
@@ -134,4 +135,5 @@ def extract(path: str, text: str) -> symbol_model.FileSymbols:
             symbols.append(builder.symbol(node, "function", exported(node.name)))
 
     purpose = symbol_model.first_sentence(ast.get_docstring(tree) or "")
-    return symbol_model.file_symbols(path, "python", purpose, text, symbols)
+    return symbol_model.file_symbols(path, "python", purpose, text, symbols,
+                                     declarations=symbol_declarations.python_declarations(tree))

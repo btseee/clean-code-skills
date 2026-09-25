@@ -13,8 +13,9 @@ the order detect_stack lists them, then the generic block.
     signal <name> [<exts>] = <regex>       declaration context matching has role <name>
     allow <home> = <role>[, <role>...]     symbols of these roles may live in a <home> file
     accept <glob> [= <symbol>[, ...]]      a recorded exception: matching files, or only the
-                                           listed symbols in them, are never misplaced or mixed
-    ignore-name = <regex>                  names left out of clash and synonym findings
+                                           listed symbols in them, are never misplaced, mixed,
+                                           or reported for their names
+    ignore-name = <regex>                  names left out of clash, synonym, and naming findings
 
 The allow statements of every source apply together. An accept glob matches the
 path from the repository root; it belongs in the project's .clean/roles.md, beside
@@ -269,6 +270,7 @@ class RoledFile(NamedTuple):
     types: int
     abstract_types: int
     home_by_name: bool = False    # the home comes from the file's name, so its folder is none
+    declarations: tuple = ()      # the file's variables and parameters, from its extractor
 
 
 def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
@@ -292,4 +294,5 @@ def assign(file_symbols, roles: Roles, is_test: bool) -> RoledFile:
         types=file_symbols.types,
         abstract_types=file_symbols.abstract_types,
         home_by_name=home.by_name,
+        declarations=file_symbols.declarations,
     )

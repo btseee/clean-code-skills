@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 """Names that break Clean Code's naming rules, each finding citing the rule it breaks.
 
-Classes, functions, and methods come from the symbols of every language the map reads.
-Variables and parameters come only where declarations read reliably: Python through its own
-parser, JavaScript and TypeScript through `const`, `let`, `var`, and parameter lists on the
-lexer's code view. A name that a loop, a catch, a lambda, or another author dictates is not
-read: the rules judge only names their author chose. Evidence for judgement, never a verdict.
+Classes, functions, and methods come from the symbols of every language the map reads;
+variables and parameters from the declarations its extractors read reliably (Python,
+JavaScript, TypeScript: symbols.declarations). This module only judges names: the rules
+weigh names their author chose. Evidence for judgement, never a verdict.
 
 Standard library only.
 """
 
 from __future__ import annotations
 
-import ast
-import bisect
 import posixpath
 import re
-import warnings
 from collections import Counter, defaultdict
 from typing import NamedTuple, Optional
 
-from source import lexer as source_lexer
 from symbols import model as symbol_model
 
 from . import findings as structure_findings
@@ -35,9 +30,6 @@ RULE_CITES = {
     "convention": "N3, G24",
     "file-mismatch": "N4, G17",
 }
-
-# Languages whose variables and parameters are read, not only their classes and functions.
-VARIABLE_LANGUAGES = frozenset({"python", "javascript", "typescript"})
 
 MIN_NAME_LENGTH = 3
 # The project's own convention wins over the language's when at least this many of its names
@@ -71,14 +63,16 @@ _INTERFACE_KINDS = frozenset({"interface", "protocol", "trait"})
 _ABSTRACTION_KINDS = _INTERFACE_KINDS | {"type"}
 
 # Digits that belong to a term rather than number a copy: hashes and encodings (sha256, md5,
-# utf8, base64, b64, cp1252), standards (iso8601, rfc3339, pep8), sized types and vectors
-# (int32, float64, u8, Vector3), platforms, formats, and protocols (win32, x86, arm64, zip64,
-# uuid4, http2, ipv6, oauth2, x509, h264, mp4, es2015, python3), services (s3, ec2), math
-# (log10, l2), coordinates (x2, lat1), rankings (top10), and quarters (q3).
+# utf8, base64, b64, cp1252), standards (iso8601, rfc3339, pep8, html5, css3), sized types and
+# vectors (int32, float64, u8, Vector3), platforms, formats, and protocols (win32, x86, arm64,
+# zip64, uuid4, http2, ipv6, oauth2, x509, h264, mp4, es2015, python3, webgl2), services (s3,
+# ec2), models (ResNet18, vgg16, mobilenet_v2, yolov8, gpt4, llama3), math (log10, l2),
+# coordinates (x2, lat1), rankings (top10), and quarters (q3).
 _TERM_DIGITS = re.compile(
-    r"(?:sha|md|crc|adler|blake|murmur|utf|ucs|base|b|latin|cp|iso|rfc|pep|aes|rsa|win|arm|amd|"
-    r"aarch|int|uint|float|double|half|bool|bigint|i|u|f|vec|vector|mat|matrix|zip|uuid|http|ipv|"
-    r"oauth|tls|ssl|x|y|z|lat|lon|lng|h|mp|es|py|python|web|s|ec|log|l|top|q)\d+")
+    r"(?:sha|md|crc|adler|blake|murmur|utf|ucs|base|b|latin|cp|iso|rfc|pep|html|css|aes|rsa|win|"
+    r"arm|amd|aarch|int|uint|float|double|half|bool|bigint|i|u|f|vec|vector|mat|matrix|zip|uuid|"
+    r"http|ipv|oauth|tls|ssl|x|y|z|lat|lon|lng|h|mp|es|py|python|web|webgl|s|ec|net|resnet|vgg|"
+    r"mobilenet|efficientnet|inception|yolo|gpt|llama|log|l|top|q)v?\d+")
 # A copy is numbered 1, 2, or 10; three digits or more are a value: a year, a threshold, a code.
 MAX_COPY_NUMBER_DIGITS = 2
 # An API version is no copy beside a word that says so: `api_v1`, `v2_router`.
@@ -89,6 +83,9 @@ _PREDICATE_WORDS = frozenset({"is", "has", "was", "can", "should", "will", "did"
 _COPY_OPERATIONS = frozenset({"deep", "shallow"})
 
 NOISE_WORDS = frozenset({"manager", "processor", "data", "info", "helper", "util", "utils", "stuff"})
+# Of the vague words, only a real noun can be a project's own vocabulary (`item` beside its
+# `Item`); a noise word or an abbreviation stays vague even as a type's name (`type Data`).
+_OWNABLE_VAGUE_NAMES = VAGUE_NAMES - NOISE_WORDS - {"obj", "tmp", "temp", "val", "res", "ret", "foo", "bar"}
 # A compound term that ends in a noise word yet names one thing: Python's context manager protocol.
 TERMS_OF_ART = frozenset({"context manager"})
 _CLASS_LIKE_KINDS = frozenset({"class", "struct", "record", "object"})
@@ -105,18 +102,23 @@ ROLE_NOUNS = NOISE_WORDS | frozenset({
     "command", "query", "request", "response", "input", "output", "dto", "event", "message",
     "mutation", "payload", "params", "options", "result", "action", "job", "task", "case",
     "handler", "service", "controller", "listener", "builder", "factory", "executor", "runner",
-    "monitor", "form", "view", "page", "component", "button", "dialog", "modal", "screen", "panel",
-    "menu", "widget", "list", "set", "map", "queue", "pool", "group", "handle", "state", "status",
-    "type", "config", "error", "exception", "warning", "id", "test",
+    "monitor", "client", "provider", "adapter", "context", "form", "view", "page", "component",
+    "button", "dialog", "modal", "screen", "panel", "menu", "widget", "list", "set", "map", "queue",
+    "pool", "group", "handle", "state", "status", "type", "config", "error", "exception", "warning",
+    "id", "test",
 })
+# Roles whose classes each do one action and are named for it by convention: Laravel's actions,
+# jobs, and listeners, a use case, a command or message handler, an event subscriber.
+ACTION_ROLES = frozenset({"action", "server-action", "job", "listener", "command", "handler",
+                          "message-handler", "use-case", "interactor", "subscriber", "event-subscriber"})
 
 # Short names every reader knows: the spec's math idioms (x, y, i, j, k, e, id) and their kin,
-# bisect's lo and hi, two-letter words, and the handles an ecosystem fixes: pandas' df,
-# matplotlib's ax, a database db, Django's pk, an ip address, a file descriptor fd, a traceback
-# tb, a time zone tz, the DOM element el of Vue's directive hooks.
+# bisect's lo and hi, a learning rate lr, two-letter words, and the handles an ecosystem fixes:
+# pandas' df, matplotlib's ax, a database db, Django's pk, an ip address, a file descriptor fd, a
+# traceback tb, a time zone tz, the DOM element el of Vue's directive hooks.
 READABLE_SHORT_NAMES = frozenset({
     "x", "y", "z", "i", "j", "k", "n", "e", "t", "id", "pi", "dx", "dy", "dz", "dt", "lo", "hi",
-    "on", "is", "as", "do", "go", "to", "up", "at", "by", "of", "in", "or", "ok", "it",
+    "lr", "on", "is", "as", "do", "go", "to", "up", "at", "by", "of", "in", "or", "ok", "it",
     "df", "ax", "db", "pk", "ip", "fd", "tb", "tz", "el",
 })
 _COORDINATE = re.compile(r"[xyz]\d", re.IGNORECASE)
@@ -159,6 +161,8 @@ class Declared(NamedTuple):
     kind: str               # class, function, method, variable, parameter, or file
     line: int
     symbol: Optional[symbol_model.Symbol] = None    # behind a class, function, method, or file
+    role: Optional[str] = None      # the role the symbol's own declaration shows
+    owner: Optional[str] = None     # the class whose method declares this parameter
 
 
 class ProjectConventions(NamedTuple):
@@ -167,11 +171,13 @@ class ProjectConventions(NamedTuple):
     casing: dict                    # language -> kind -> accepted casings
     type_names: frozenset           # the project's own type names, lowercased: its vocabulary
     i_prefix_families: frozenset    # language families whose interfaces mostly carry an I prefix
+    function_names: frozenset       # every function and method name the project declares
 
 
 # --- Classes, functions, and methods ------------------------------------------------------------
 
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*[?!=]?")
+_NAME_TOKEN = re.compile(r"[A-Za-z_$][\w$]*")
 
 
 def _kind_of(symbol) -> Optional[str]:
@@ -198,401 +204,20 @@ def _symbol_names(roled_file) -> list:
             continue
         if kind == "method" and symbol.name == symbol.parent:
             continue
-        names.append(Declared(symbol.name, kind, symbol.line, symbol))
+        names.append(Declared(symbol.name, kind, symbol.line, symbol, item.role))
     return names
 
 
-# --- Python variables and parameters ------------------------------------------------------------
-
-def _parameters(arguments) -> list:
-    """Every parameter of a signature, positional-only to `**kwargs`."""
-    listed = arguments.posonlyargs + arguments.args + arguments.kwonlyargs
-    return listed + [parameter for parameter in (arguments.vararg, arguments.kwarg) if parameter]
-
-
-def _assigned_targets(statement) -> list:
-    if isinstance(statement, ast.Assign):
-        return statement.targets
-    if isinstance(statement, ast.AnnAssign):
-        return [statement.target]
-    return []
-
-
-def _nested_statements(statement) -> list:
-    """The statements inside a compound statement: its bodies, and each handler's or case's."""
-    nested = []
-    for field in ("body", "orelse", "finalbody"):
-        nested += getattr(statement, field, None) or []
-    clauses = (getattr(statement, "handlers", None) or []) + (getattr(statement, "cases", None) or [])
-    for clause in clauses:
-        nested += clause.body
-    return nested
-
-
-def _bound_names(target) -> list:
-    """The plain names a target binds: `a` and `b` in `a, (b, *rest) = ...`, never `self.a`."""
-    if isinstance(target, ast.Name):
-        return [target]
-    if isinstance(target, ast.Starred):
-        return _bound_names(target.value)
-    if isinstance(target, (ast.Tuple, ast.List)):
-        return [name for element in target.elts for name in _bound_names(element)]
-    return []
-
-
-def _bind(first_bindings: dict, scope, name: str, line: int, kind: str) -> None:
-    """Record name's binding in scope unless an earlier line bound it: rebinding a parameter or a
-    variable declares nothing new."""
-    key = (scope, name)
-    if key not in first_bindings or line < first_bindings[key][0]:
-        first_bindings[key] = (line, kind)
-
-
-def _python_names(text: str) -> list:
-    """Parameters and assigned variables, each at its first binding in its scope.
-
-    Only statements are walked: loop and `with` targets, `except` names, comprehension targets,
-    and lambda parameters are short-lived, a walrus target lives inside an expression, and class
-    attributes are fields, so none are read. A stack, not recursion, keeps deep nesting safe.
-    """
-    try:
-        with warnings.catch_warnings():
-            # The scanned file's own warnings (invalid escapes, say) are not ours to print.
-            warnings.simplefilter("ignore")
-            tree = ast.parse(text)
-    except (SyntaxError, ValueError, RecursionError, MemoryError):
-        return []       # the file's symbols record why it could not be read
-    first_bindings = {}
-    # Each entry: a statement, the scope its names bind in, and whether it sits in a class body.
-    pending = [(statement, tree, False) for statement in tree.body]
-    while pending:
-        statement, scope, in_class = pending.pop()
-        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            for parameter in _parameters(statement.args):
-                _bind(first_bindings, statement, parameter.arg, parameter.lineno, "parameter")
-            pending += [(nested, statement, False) for nested in statement.body]
-        elif isinstance(statement, ast.ClassDef):
-            pending += [(nested, statement, True) for nested in statement.body]
-        else:
-            if not in_class:
-                for target in _assigned_targets(statement):
-                    for name in _bound_names(target):
-                        _bind(first_bindings, scope, name.id, name.lineno, "variable")
-            pending += [(nested, scope, in_class) for nested in _nested_statements(statement)]
-    return [Declared(name, kind, line) for (_, name), (line, kind) in first_bindings.items()]
-
-
-# --- JavaScript and TypeScript variables and parameters ---------------------------------------
-
-_DECLARATION = re.compile(r"(?<![\w$.])(?:const|let|var)\b")
-_FOR_HEADER = re.compile(r"\bfor\s*(?:await\s*)?\(\s*$")
-_SCRIPT_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
-_PROPERTY_KEY = re.compile(r"[A-Za-z_$][\w$]*|\d+|\"[^\"\n]*\"|'[^'\n]*'")
-_REQUIRE_CALL = re.compile(r"\s*require\s*\(")
-_SPACE = re.compile(r"\s*")
-_FUNCTION_KEYWORD = re.compile(r"(?<![\w$.])function\b(?:\s*\*)?\s*(?:(?P<name>[A-Za-z_$][\w$]*)\s*)?"
-                               r"(?:<[^<>()]*>\s*)?\(")
-_METHOD = re.compile(r"^[ \t]*(?:(?:public|private|protected|static|async|readonly|override|abstract|"
-                     r"get|set|accessor)[ \t]+)*(?:\*[ \t]*)?(?P<name>#?[A-Za-z_$][\w$]*)[ \t]*"
-                     r"(?:<[^<>\n]*>[ \t]*)?\(", re.M)
-_METHOD_BODY = re.compile(r"\s*(?::[^{};=]*)?\{")
-_NOT_METHODS = frozenset({"if", "for", "while", "switch", "catch", "function", "return", "with",
-                          "typeof", "new", "delete", "void", "await", "yield", "super", "import",
-                          "export", "else", "do", "try", "throw", "case", "default", "in", "of",
-                          "instanceof"})
-_ARROW = re.compile(r"=>")
-_RETURN_TYPE = re.compile(r"\)\s*:[^=;{}()]*$")
-_ASSIGNED = re.compile(r"=\s*(?:async\s+)?(?:<[^<>()]*>\s*)?$")
-_TYPE_ALIAS = re.compile(r"\btype\s+[A-Za-z_$][\w$]*\s*(?:<[^<>]*>\s*)?=\s*(?:<[^<>()]*>\s*)?$")
-_PARAMETER_MODIFIER = re.compile(r"(?:public|private|protected|readonly|override)\s+")
-_DECORATOR = re.compile(r"@[\w$.]+")
-_DECLARATOR_TOKENS = re.compile(r"[()\[\]{},;<>\n]")
-_ELEMENT_TOKENS = re.compile(r"[()\[\]{},]")
-_PARAMETER_TOKENS = re.compile(r"=>|[()\[\]{}<>,]")
-_ANNOTATION_TOKENS = re.compile(r"=>|[()\[\]{}<>=,;\n]")
-# How far back the assignment naming a function, or an arrow's return type, may start.
-_LOOKBEHIND = 200
-_MAX_PARAMETER_SPAN = 1000
-_MAX_PATTERN_NESTING = 8
-
-
-def _skip_space(code: str, index: int) -> int:
-    return _SPACE.match(code, index).end()
-
-
-def _skip_space_back(code: str, index: int) -> int:
-    while index >= 0 and code[index] in " \t\r\n":
-        index -= 1
-    return index
-
-
-def _element_end(code: str, index: int) -> int:
-    """The offset of the `,` or closing bracket ending the element at index; a default value
-    (`= []`) is passed over."""
-    depth = 0
-    for token in _ELEMENT_TOKENS.finditer(code, index):
-        if token.group() in "([{":
-            depth += 1
-        elif depth == 0:
-            return token.start()
-        elif token.group() != ",":
-            depth -= 1
-    return len(code)
-
-
-def _property_key_end(code: str, index: int) -> int:
-    """The offset after the property key at index: a name, a string, a number, or `[computed]`."""
-    key = _PROPERTY_KEY.match(code, index)
-    if key:
-        return key.end()
-    if code.startswith("[", index):
-        return _element_end(code, index + 1) + 1
-    return index
-
-
-def _binding(code: str, index: int, nesting: int = 0) -> tuple:
-    """([(name, offset)], end) for the identifier or destructuring pattern at index.
-
-    A shorthand property (`{ data }`) takes the object's key as its name, chosen by the object's
-    author, so it binds no name here; a renamed one (`{ data: rows }`) does.
-    """
-    index = _skip_space(code, index)
-    identifier = _SCRIPT_IDENTIFIER.match(code, index)
-    if identifier:
-        return [(identifier.group(), index)], identifier.end()
-    if nesting > _MAX_PATTERN_NESTING or not code.startswith(("{", "["), index):
-        return [], index
-    closer = "}" if code[index] == "{" else "]"
-    names = []
-    index += 1
-    while True:
-        index = _skip_space(code, index)
-        if index >= len(code) or code[index] == closer:
-            return names, index + 1
-        if code[index] == ",":         # a hole in an array pattern
-            index += 1
-            continue
-        if code.startswith("...", index):
-            found, index = _binding(code, index + 3, nesting + 1)
-            names += found
-        elif closer == "]":
-            found, index = _binding(code, index, nesting + 1)
-            names += found
-        else:
-            index = _skip_space(code, _property_key_end(code, index))
-            if code.startswith(":", index):
-                found, index = _binding(code, index + 1, nesting + 1)
-                names += found
-        index = _element_end(code, index)
-        if index >= len(code) or code[index] not in (",", closer):
-            return names, index        # not a pattern after all
-        if code[index] == ",":
-            index += 1
-
-
-def _skip_annotation(code: str, index: int) -> int:
-    """The offset after a TypeScript `: Type` annotation at index, if there is one."""
-    index = _skip_space(code, index)
-    if not code.startswith(":", index):
-        return index
-    depth = 0
-    for token in _ANNOTATION_TOKENS.finditer(code, index + 1):
-        character = token.group()
-        if character == "=>":
-            continue
-        if character in "([{<":
-            depth += 1
-        elif character in ")]}>":
-            if depth == 0:
-                return token.start()
-            depth -= 1
-        elif depth == 0:
-            return token.start()        # `=`, `,`, `;`, or a line break
-    return len(code)
-
-
-def _declarator_end(code: str, index: int) -> tuple:
-    """(offset, whether another declarator follows) for the end of the declarator at index.
-    Reading stops at a line break, and at `<` or `>`, which may open JSX or generics."""
-    depth = 0
-    for token in _DECLARATOR_TOKENS.finditer(code, index):
-        character = token.group()
-        if character in "([{":
-            depth += 1
-        elif character in ")]}":
-            if depth == 0:
-                return token.start(), False
-            depth -= 1
-        elif depth == 0:
-            return token.start(), character == ","
-    return len(code), False
-
-
-def _declared_variables(code: str, declaration) -> list:
-    """(name, offset) for each name one `const`, `let`, or `var` declares. A for loop's variable
-    is short-lived, and a `require`d module's alias mirrors the module's name: neither is read."""
-    start = declaration.start()
-    if _FOR_HEADER.search(code, max(0, start - 30), start):
-        return []
-    index = _skip_space(code, declaration.end())
-    names = []
-    while True:
-        index = _skip_space(code, index)
-        is_pattern = code.startswith(("{", "["), index)
-        begin = index
-        bindings, index = _binding(code, index)
-        if index == begin:
-            return names
-        index = _skip_annotation(code, index)
-        initialized = code.startswith("=", index) and not code.startswith("=>", index)
-        if is_pattern or not (initialized and _REQUIRE_CALL.match(code, index + 1)):
-            names += bindings
-        index, more = _declarator_end(code, index)
-        if not more:
-            return names
-        index += 1
-
-
-def _is_assigned_a_name(code: str, head: int) -> bool:
-    """Whether the function whose `function` keyword or parameters start at head is assigned a
-    name: `const total = (...) =>`, or a class field. An arrow typed in an alias
-    (`type Total = (x) => number`) is no function."""
-    window = max(0, head - _LOOKBEHIND)
-    return bool(_ASSIGNED.search(code, window, head)) and not _TYPE_ALIAS.search(code, window, head)
-
-
-def _opening_paren(code: str, close: int) -> Optional[int]:
-    depth = 0
-    for index in range(close, max(-1, close - _MAX_PARAMETER_SPAN), -1):
-        if code[index] == ")":
-            depth += 1
-        elif code[index] == "(":
-            depth -= 1
-            if depth == 0:
-                return index
-    return None
-
-
-def _arrow_parameters_start(code: str, arrow: int) -> Optional[int]:
-    """Where the parameters of the arrow function at arrow start: its `(`, or its lone parameter."""
-    end = _skip_space_back(code, arrow - 1)
-    if end < 0:
-        return None
-    if code[end] != ")":
-        annotated = _RETURN_TYPE.search(code, max(0, arrow - _LOOKBEHIND), arrow)
-        if annotated is not None:
-            end = annotated.start()
-    if code[end] == ")":
-        return _opening_paren(code, end)
-    start = end
-    while start > 0 and (code[start - 1].isalnum() or code[start - 1] in "_$"):
-        start -= 1
-    before = _skip_space_back(code, start - 1)
-    if not _SCRIPT_IDENTIFIER.fullmatch(code, start, end + 1) or (before >= 0 and code[before] in ":."):
-        return None         # a return type, or a member
-    return start
-
-
-def _parameter_list_starts(code: str) -> set:
-    """Offsets where the parameters of each function with a chosen name start: a function
-    declaration, a method, or a function or arrow assigned to a name. A function passed as an
-    argument is a lambda, its parameters short-lived."""
-    starts = set()
-    for match in _FUNCTION_KEYWORD.finditer(code):
-        if match.group("name") or _is_assigned_a_name(code, match.start()):
-            starts.add(match.end() - 1)
-    for match in _METHOD.finditer(code):
-        close = source_lexer.closing_paren(code, match.end() - 1)
-        if match.group("name") not in _NOT_METHODS and close >= 0 and _METHOD_BODY.match(code, close + 1):
-            starts.add(match.end() - 1)
-    for match in _ARROW.finditer(code):
-        start = _arrow_parameters_start(code, match.start())
-        if start is not None and _is_assigned_a_name(code, start):
-            starts.add(start)
-    return starts
-
-
-def _parameter_start(code: str, index: int, close: int) -> int:
-    """The offset of the binding a parameter declares, past decorators, modifiers, and `...`."""
-    while index < close:
-        index = _skip_space(code, index)
-        decorator = _DECORATOR.match(code, index)
-        modifier = _PARAMETER_MODIFIER.match(code, index)
-        if decorator:
-            index = _skip_space(code, decorator.end())
-            if code.startswith("(", index):
-                end = source_lexer.closing_paren(code, index)
-                index = end + 1 if end >= 0 else close
-        elif modifier:
-            index = modifier.end()
-        elif code.startswith("...", index):
-            index += 3
-        else:
-            return index
-    return index
-
-
-def _parameter_end(code: str, index: int, close: int) -> int:
-    """The offset of the `,` ending the parameter at index, or close."""
-    depth = 0
-    for token in _PARAMETER_TOKENS.finditer(code, index, close):
-        character = token.group()
-        if character == "=>":
-            continue
-        if character in "([{<":
-            depth += 1
-        elif character in ")]}>":
-            depth = max(depth - 1, 0)
-        elif depth == 0:
-            return token.start()
-    return close
-
-
-def _parameter_names(code: str, start: int) -> list:
-    """(name, offset) for each parameter the list at start declares: a `(` list, or an arrow's
-    lone parameter."""
-    if code[start] != "(":
-        identifier = _SCRIPT_IDENTIFIER.match(code, start)
-        return [(identifier.group(), start)] if identifier else []
-    close = source_lexer.closing_paren(code, start)
-    names = []
-    index = start + 1
-    while 0 <= index < close:
-        index = _parameter_start(code, index, close)
-        bindings, index = _binding(code, index)
-        names += [(name, offset) for name, offset in bindings if offset < close]
-        index = _parameter_end(code, index, close) + 1
-    return names
-
-
-def _script_names(text: str, language: str) -> list:
-    """Variables from `const`, `let`, and `var`, and the parameters of named functions."""
-    code = source_lexer.strip(text, language).code
-    line_starts = [0] + [match.end() for match in re.finditer("\n", code)]
-
-    def declared_at(name: str, offset: int, kind: str) -> Declared:
-        return Declared(name, kind, bisect.bisect_right(line_starts, offset))
-
-    names = [declared_at(name, offset, "variable") for declaration in _DECLARATION.finditer(code)
-             for name, offset in _declared_variables(code, declaration)]
-    names += [declared_at(name, offset, "parameter") for start in sorted(_parameter_list_starts(code))
-              for name, offset in _parameter_names(code, start)]
-    return names
-
-
-def _declared_names(roled_file, text: Optional[str]) -> list:
-    """Every name the file's author chose: its symbols, then, where declarations read reliably,
-    its variables and parameters."""
+def _declared_names(roled_file) -> list:
+    """Every name the file's author chose: its symbols, then the variables and parameters its
+    extractor declares."""
     names = _symbol_names(roled_file)
-    if text is None or roled_file.language not in VARIABLE_LANGUAGES:
-        return names
-    if roled_file.language == "python":
-        variables = _python_names(text)
-    else:
-        variables = _script_names(text, roled_file.language)
     # A top-level `const load = () => {}` is already a function symbol.
     symbol_lines = {(name.name, name.line) for name in names}
-    return names + [name for name in variables if (name.name, name.line) not in symbol_lines]
+    return names + [Declared(declared.name, declared.kind, declared.line, owner=declared.owner)
+                    for declared in roled_file.declarations
+                    if (declared.name, declared.line) not in symbol_lines]
+
 
 
 # --- The rules ---------------------------------------------------------------------------------
@@ -606,7 +231,7 @@ def _is_vague(name: Declared, type_names: frozenset) -> bool:
     if name.kind in ("variable", "parameter"):
         # An `item` holding the project's own `Item` speaks its vocabulary.
         word = name.name.lower()
-        return word in VAGUE_NAMES and word not in type_names
+        return word in VAGUE_NAMES and not (word in _OWNABLE_VAGUE_NAMES and word in type_names)
     if name.kind != "function":
         return False
     verb = name.name.lower().replace("_", "")
@@ -629,7 +254,12 @@ def _is_encoded(name: Declared, language: str, i_prefix_families: frozenset) -> 
     return is_abstraction and bool(_INTERFACE_PREFIX.match(name.name))
 
 
-def _is_numbered(name: Declared) -> bool:
+def _without_suffix(name: str, suffix: str) -> str:
+    """`handler_new` -> `handler`, `getUserNew` -> `getUser`."""
+    return name[:-len(suffix)].rstrip("_")
+
+
+def _is_numbered(name: Declared, function_names: frozenset) -> bool:
     core = name.name.strip("_")
     if len(core) < MIN_NAME_LENGTH or core.upper() == core:
         return False        # too-short owns a short name; a constant's digits name its value
@@ -638,17 +268,25 @@ def _is_numbered(name: Declared) -> bool:
         return False
     last = words[-1]
     if last.isdigit():
-        is_api_version = words[-2] == "v" and bool(_API_WORDS.intersection(words))
-        return not (len(last) > MAX_COPY_NUMBER_DIGITS or _TERM_DIGITS.fullmatch(words[-2] + last)
-                    or is_api_version)
+        is_version = words[-2] == "v" and len(words) >= 3
+        term = "".join(words[-3:]) if is_version else words[-2] + last      # `mobilenet_v2`
+        is_api_version = is_version and bool(_API_WORDS.intersection(words))
+        return not (len(last) > MAX_COPY_NUMBER_DIGITS or _TERM_DIGITS.fullmatch(term) or is_api_version)
     if last not in COPY_SUFFIXES or words[0] in _PREDICATE_WORDS:
         return False
     if last == "copy" and words[-2] in _COPY_OPERATIONS:
         return False
-    # A variable's old, new, or final value describes it; a class or function so named is a copy.
     if name.kind == "class":
         return True
-    return name.kind in ("function", "method") and name.name.lower().endswith("_" + last)
+    if name.kind not in ("function", "method"):
+        return False        # a variable's old, new, or final value describes it
+    beside_original = _without_suffix(name.name, last) in function_names
+    if last == "copy":
+        return beside_original      # else the copy is what it makes: `createLocalCopy`
+    # A noun between the verb and the suffix makes a copy (`process_order_new`, `getUserNew`);
+    # right after the verb, the suffix is its object (`create_new`, `remove_old`), unless the
+    # unsuffixed original is declared too (`handler` beside `handler_new`).
+    return len(words) >= 3 or beside_original
 
 
 def _base_names(symbol, language: str) -> list:
@@ -665,9 +303,10 @@ def _base_names(symbol, language: str) -> list:
             return []
         closing = header.find(")")
         header = header[:closing] if closing >= 0 else header
+        header = re.sub(r"\b\w+\s*=[^,]*", "", header)      # `metaclass=ABCMeta` is no base
     else:
-        header = re.split(r"[{;]", header, 1)[0]
-    return _SCRIPT_IDENTIFIER.findall(header)
+        header = re.split(r"[{;]", header, maxsplit=1)[0]
+    return _NAME_TOKEN.findall(header)
 
 
 def _last_word(identifier: str) -> str:
@@ -690,8 +329,9 @@ def _is_noise_word(name: Declared, language: str) -> bool:
     return not any(base.lower().endswith(words[-1]) for base in _base_names(name.symbol, language))
 
 
-def _is_verb_class(name: Declared, language: str) -> bool:
-    if not _is_class_like(name):
+def _is_verb_class(name: Declared, language: str, home_role: Optional[str]) -> bool:
+    """A class named like an action, unless its role is one: a Laravel action or listener, a job."""
+    if not _is_class_like(name) or home_role in ACTION_ROLES or name.role in ACTION_ROLES:
         return False
     words = structure_findings.split_identifier(name.name)
     if len(words) < 2 or words[0] not in ACTION_VERBS or words[-1] in ROLE_NOUNS:
@@ -731,7 +371,7 @@ def _has_dictated_casing(name: str) -> bool:
 
 def _breaks_convention(name: Declared, expected: dict) -> bool:
     accepted = expected.get(name.kind)
-    if accepted is None or _has_dictated_casing(name.name):
+    if accepted is None or (name.kind in ("function", "method") and _has_dictated_casing(name.name)):
         return False
     casing = _casing_of(name.name)
     return casing is not None and casing not in accepted
@@ -744,11 +384,13 @@ def _is_majority(agreeing: int, total: int) -> bool:
 def _project_casing(files, declared: dict) -> dict:
     """language -> kind -> accepted casings: the language's own, unless most of the project's
     function and method names in that language follow another casing the language rejects, as
-    WordPress PHP follows snake_case. Then that casing is the one expected."""
+    WordPress PHP follows snake_case. Then that casing is the one expected. Only the kinds a
+    language judges vote: PHP's global helper functions do not set its methods' casing."""
     votes = defaultdict(Counter)
     for roled_file in files:
+        judged_kinds = {"function", "method"} & set(LANGUAGE_CASING.get(roled_file.language, ()))
         for name in declared[roled_file.path]:
-            if name.kind in ("function", "method") and not _has_dictated_casing(name.name):
+            if name.kind in judged_kinds and not _has_dictated_casing(name.name):
                 casing = _casing_of(name.name)
                 if casing in (SNAKE, CAMEL, PASCAL, MIXED):
                     votes[roled_file.language][casing] += 1
@@ -785,17 +427,42 @@ def _i_prefix_families(files) -> frozenset:
     return frozenset(family for family, total in interfaces.items() if _is_majority(prefixed[family], total))
 
 
-def _rules_broken(name: Declared, language: str, conventions: ProjectConventions) -> list:
+def _extends_outside(class_symbol, type_names: frozenset) -> bool:
+    bases = [base for base in _base_names(class_symbol, "python") if base != "object"]
+    return bool(bases) and not any(base.lower() in type_names for base in bases)
+
+
+def _framework_classes(roled_file, type_names: frozenset) -> frozenset:
+    """Python classes whose every base lies outside the project: a framework's, whose hook
+    methods and their parameters the framework names (`ModelAdmin.save_model(self, request,
+    obj, ...)`, `JSONEncoder.default(self, o)`, Qt's `closeEvent`, unittest's `setUp`)."""
+    if roled_file.language != "python":
+        return frozenset()
+    return frozenset(item.symbol.name for item in roled_file.symbols
+                     if item.symbol.kind == "class" and _extends_outside(item.symbol, type_names))
+
+
+def _overrides_a_framework(name: Declared, framework_classes: frozenset) -> bool:
+    """A method of a framework class, or a parameter of one."""
+    if name.kind == "parameter":
+        return name.owner in framework_classes
+    return name.kind == "method" and name.symbol.parent in framework_classes
+
+
+def _rules_broken(name: Declared, roled_file, conventions: ProjectConventions,
+                  framework_classes: frozenset) -> list:
     if _is_exempt(name):
         return []
+    language = roled_file.language
+    overrides = _overrides_a_framework(name, framework_classes)
     checks = (
-        ("vague", _is_vague(name, conventions.type_names)),
+        ("vague", not overrides and _is_vague(name, conventions.type_names)),
         ("encoded", _is_encoded(name, language, conventions.i_prefix_families)),
-        ("numbered", _is_numbered(name)),
+        ("numbered", _is_numbered(name, conventions.function_names)),
         ("noise-word", _is_noise_word(name, language)),
-        ("verb-class", _is_verb_class(name, language)),
-        ("too-short", _is_too_short(name)),
-        ("convention", _breaks_convention(name, conventions.casing.get(language, {}))),
+        ("verb-class", _is_verb_class(name, language, roled_file.home_role)),
+        ("too-short", not overrides and _is_too_short(name)),
+        ("convention", not overrides and _breaks_convention(name, conventions.casing.get(language, {}))),
     )
     return [rule for rule, broken in checks if broken]
 
@@ -829,15 +496,17 @@ def _finding(rule: str, name: Declared, path: str) -> dict:
             "cites": RULE_CITES[rule]}
 
 
-def _project_findings(sources, roles, texts) -> list:
+def _project_findings(sources, roles) -> list:
     """The naming findings of one project's production files, judged by its own conventions."""
-    declared = {roled_file.path: _declared_names(roled_file, texts.get(roled_file.path))
-                for roled_file in sources}
+    declared = {roled_file.path: _declared_names(roled_file) for roled_file in sources}
+    function_names = frozenset(name.name for names in declared.values() for name in names
+                               if name.kind in ("function", "method"))
     conventions = ProjectConventions(_project_casing(sources, declared), _project_type_names(sources),
-                                     _i_prefix_families(sources))
+                                     _i_prefix_families(sources), function_names)
     found = []
     for roled_file in sources:
-        judged = [(name, _rules_broken(name, roled_file.language, conventions))
+        framework_classes = _framework_classes(roled_file, conventions.type_names)
+        judged = [(name, _rules_broken(name, roled_file, conventions, framework_classes))
                   for name in declared[roled_file.path]]
         mismatch = _file_mismatch(roled_file)
         if mismatch is not None:
@@ -849,19 +518,17 @@ def _project_findings(sources, roles, texts) -> list:
     return found
 
 
-def find_names(files, roles, texts, project_roots=()) -> list:
+def find_names(files, roles, project_roots=()) -> list:
     """Names in production files that break a naming rule, each finding citing the rule.
 
-    files are roled files; texts maps a path to its source, for the files whose variables and
-    parameters are read (VARIABLE_LANGUAGES). `project_roots` are the folders holding a
-    manifest: each project of a monorepo keeps its own casing and vocabulary. Test files, names
-    an `ignore-name` pattern matches, and files or symbols the project `accept`s are exempt; the
-    map passes no generated file.
+    files are roled files, carrying their symbols and declarations. `project_roots` are the
+    folders holding a manifest: each project of a monorepo keeps its own casing and vocabulary.
+    Test files, names an `ignore-name` pattern matches, and files or symbols the project
+    `accept`s are exempt; the map passes no generated file.
     """
     projects = defaultdict(list)
     for roled_file in files:
         if not roled_file.is_test:
-            projects[structure_findings._project_of(roled_file.path, project_roots)].append(roled_file)
-    found = [finding for sources in projects.values()
-             for finding in _project_findings(sources, roles, texts)]
+            projects[structure_findings.project_of(roled_file.path, project_roots)].append(roled_file)
+    found = [finding for sources in projects.values() for finding in _project_findings(sources, roles)]
     return sorted(found, key=lambda item: (item["path"], item["line"], item["rule"], item["name"]))

@@ -135,7 +135,7 @@ def _home_folders(files) -> dict:
     return homes
 
 
-def _project_of(path: str, project_roots) -> str:
+def project_of(path: str, project_roots) -> str:
     """The deepest folder holding a manifest that contains path; "" for the repository root."""
     owners = [root for root in project_roots if root and path.startswith(root + "/")]
     return max(owners, key=len) if owners else ""
@@ -201,7 +201,7 @@ class _Destinations:
         beside it, or the role's conventional folder, in that order."""
         path = roled_file.path
         here = posixpath.dirname(path)
-        project = _project_of(path, self.project_roots)
+        project = project_of(path, self.project_roots)
 
         def in_project(where: str) -> bool:
             return not project or where == project or where.startswith(project + "/")
@@ -386,7 +386,7 @@ def find_name_clashes(files, roles, project_roots=()) -> list:
         if roled_file.is_test:
             continue
         family = LANGUAGE_FAMILY.get(roled_file.language, roled_file.language)
-        project = _project_of(roled_file.path, project_roots)
+        project = project_of(roled_file.path, project_roots)
         for item in roled_file.symbols:
             symbol = item.symbol
             if not _can_clash(symbol, roled_file.language) or roles.is_ignored_name(symbol.name) \

@@ -1172,5 +1172,33 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(project_symbols.language_of("src/App.TSX"), "typescript")
 
 
+class DeclarationsTest(unittest.TestCase):
+    def as_rows(self, file_symbols):
+        return [(item.name, item.kind, item.line, item.owner) for item in file_symbols.declarations]
+
+    def test_a_python_file_declares_its_parameters_and_variables_from_the_same_parse(self):
+        result = extract("orders.py", """
+            class Encoder(json.JSONEncoder):
+                def default(self, o):
+                    text = str(o)
+                    return text
+            """)
+        self.assertEqual(self.as_rows(result), [("self", "parameter", 2, "Encoder"),
+                                               ("o", "parameter", 2, "Encoder"),
+                                               ("text", "variable", 3, None)])
+
+    def test_a_script_declares_its_variables_and_named_functions_parameters(self):
+        result = extract("orders.ts", """
+            export function total(lines: number[]) {
+              const subtotal = 0;
+            }
+            """)
+        self.assertEqual(self.as_rows(result), [("lines", "parameter", 1, None),
+                                               ("subtotal", "variable", 2, None)])
+
+    def test_other_languages_declare_no_variables(self):
+        self.assertEqual(extract("Orders.java", "public class Orders { int count = 0; }\n").declarations, ())
+
+
 if __name__ == "__main__":
     unittest.main()

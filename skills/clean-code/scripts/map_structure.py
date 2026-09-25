@@ -118,7 +118,6 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
     index = import_resolution.ModuleIndex(root)
     roled_files = []
     modules = {}
-    texts = {}      # the sources whose variables and parameters the naming rules read
     unparsed = []
     for path in walk.paths:
         if Path(path).suffix.lower() not in project_symbols.SUPPORTED_SUFFIXES:
@@ -140,8 +139,6 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
         roled_files.append(roled)
         if not roled.is_test:
             modules[path] = project_imports.resolvable_imports(Path(path).suffix, text)
-            if roled.language in structure_naming.VARIABLE_LANGUAGES:
-                texts[path] = text
 
     sources = set(modules)
     file_imports = {}
@@ -177,7 +174,7 @@ def build_map(root: Path, packs, depth: int, scopes=None) -> dict:
             "duplicates": structure_findings.find_duplicates(roled_files),
             "name_clashes": structure_findings.find_name_clashes(roled_files, roles, project_roots),
             "synonyms": structure_findings.find_synonyms(roled_files, roles),
-            "names": structure_naming.find_names(roled_files, roles, texts, project_roots),
+            "names": structure_naming.find_names(roled_files, roles, project_roots),
             "cycles": metrics["cycles"],
         },
         "components": metrics["components"],

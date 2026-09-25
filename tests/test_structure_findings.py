@@ -347,5 +347,11 @@ class SplitIdentifierTest(unittest.TestCase):
         self.assertEqual(findings.split_identifier("Get-ChildItem"), ["get", "child", "item"])
 
 
+class ProjectOfTest(unittest.TestCase):
+    def test_the_deepest_manifest_folder_owns_a_path(self):
+        self.assertEqual(findings.project_of("web/src/app.ts", ["", "web", "web/src"]), "web/src")
+        self.assertEqual(findings.project_of("tools/run.py", ["web"]), "")
+
+
 if __name__ == "__main__":
     unittest.main()

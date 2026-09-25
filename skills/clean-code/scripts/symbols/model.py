@@ -44,6 +44,15 @@ class Symbol(NamedTuple):
     abstract: bool = False
 
 
+class Declaration(NamedTuple):
+    """A variable or a parameter a file declares, where its extractor reads them reliably."""
+
+    name: str
+    kind: str                   # variable or parameter
+    line: int
+    owner: Optional[str] = None     # the class whose method declares this parameter
+
+
 class FileSymbols(NamedTuple):
     """Everything one source file declares."""
 
@@ -55,10 +64,11 @@ class FileSymbols(NamedTuple):
     types: int
     abstract_types: int
     unparsed: str = ""          # why the file could not be read, so its symbols are missing
+    declarations: tuple = ()    # its variables and parameters, by line
 
 
 def file_symbols(path: str, language: str, purpose: str, text: str, symbols: list,
-                 unparsed: str = "") -> FileSymbols:
+                 unparsed: str = "", declarations=()) -> FileSymbols:
     top_types = [s for s in symbols if s.kind in TYPE_KINDS and s.parent is None]
     return FileSymbols(
         path=path,
@@ -69,6 +79,7 @@ def file_symbols(path: str, language: str, purpose: str, text: str, symbols: lis
         types=len(top_types),
         abstract_types=sum(1 for symbol in top_types if symbol.abstract),
         unparsed=unparsed,
+        declarations=tuple(declarations),
     )
 
 

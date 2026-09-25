@@ -2,8 +2,10 @@
 """Which symbols a source file declares, for every language the scanners know.
 
 The entry point for the structure map: pick the extractor for a file's language
-and return one FileSymbols record. Extraction is evidence, never a verdict: a
-construct the patterns do not recognise is left out, never guessed.
+and return one FileSymbols record, with the variables and parameters of Python,
+JavaScript, and TypeScript files as its declarations. Extraction is evidence,
+never a verdict: a construct the patterns do not recognise is left out, never
+guessed.
 
 Standard library only.
 """
@@ -15,6 +17,7 @@ from typing import Optional
 
 from . import grammars as brace_grammars
 from . import braces as symbols_braces
+from . import declarations as symbol_declarations
 from . import python_source as symbols_python
 from . import ruby_source as symbols_ruby
 from .model import FileSymbols, Symbol  # noqa: F401  (re-exported for callers)
@@ -74,4 +77,7 @@ def extract(path: str, text: str) -> Optional[FileSymbols]:
         return symbols_ruby.extract(path, text)
     if language in {"vue", "svelte"}:
         return brace_grammars.extract_component(path, text, language)
-    return symbols_braces.extract(_BRACE_GRAMMARS[language], path, text)
+    extracted = symbols_braces.extract(_BRACE_GRAMMARS[language], path, text)
+    if language in symbol_declarations.SCRIPT_LANGUAGES:
+        extracted = extracted._replace(declarations=symbol_declarations.script_declarations(text, language))
+    return extracted
