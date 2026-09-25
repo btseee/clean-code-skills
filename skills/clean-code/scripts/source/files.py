@@ -14,6 +14,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
@@ -92,6 +93,7 @@ _POWERSHELL_SUFFIXES = frozenset({".ps1", ".psm1", ".psd1"})
 
 MAX_FILE_BYTES = 2_000_000
 MAX_FILES_SCANNED = 40000
+_GIT_LS_FILES_TIMEOUT_SECONDS = 5
 
 
 class Walk(NamedTuple):
@@ -110,15 +112,30 @@ def is_skippable(directory_name: str) -> bool:
 def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
     """Every project file under root, optionally only those with the given suffixes or names.
 
+    Inside a git work tree with `git` on PATH, the list comes from `git ls-files`
+    (tracked files plus untracked ones `.gitignore` doesn't exclude), so a project's
+    own ignored folders - vendored code, build output, a gitignored `books/` - drop
+    out before the pruning below even runs. Outside a work tree, without `git`, or if
+    the command fails for any reason, this falls back to `os.walk`; either way the same
+    SKIP_DIRS, dot-folder, and framework-owned-folder pruning and the same suffix/name
+    filters apply, in the same order `os.walk` would visit a directory: a directory's
+    own files before its subdirectories, both sorted by name.
+
     Stops at MAX_FILES_SCANNED and says so, so a caller never mistakes a partial
     walk for the whole project.
     """
+    git_walk = _walk_git(root, suffixes, names)
+    if git_walk is not None:
+        return git_walk
+    return _walk_os(root, suffixes, names)
+
+
+def _walk_os(root: Path, suffixes, names) -> Walk:
+    """`walk()`'s fallback: the filesystem walked directly with `os.walk`."""
     paths: list = []
     for current_dir, subdirs, filenames in os.walk(root):
-        sibling_dirs = frozenset(subdirs)
         parent = os.path.basename(current_dir)
-        pruned = frozenset().union(*(prune_names for required, prune_names, parents in FRAMEWORK_OWNED_DIRS
-                                      if required <= sibling_dirs and (not parents or parent in parents)))
+        pruned = _pruned_child_names(parent, subdirs)
         subdirs[:] = sorted(name for name in subdirs
                              if not is_skippable(name) and name not in pruned)
         for filename in sorted(filenames):
@@ -132,6 +149,123 @@ def walk(root: Path, suffixes=None, names=frozenset()) -> Walk:
             except ValueError:
                 continue
     return Walk(paths, False)
+
+
+def _pruned_child_names(directory_basename: str, child_dirs) -> frozenset:
+    """Framework-owned subdirectory names to drop from `child_dirs`, decided by which
+    sibling directories are present and what the directory itself is named. Shared by
+    the `os.walk` fallback and the git-backed walk so the two rulesets can never drift
+    apart.
+    """
+    child_dirs = frozenset(child_dirs)
+    return frozenset().union(*(
+        prune_names for required, prune_names, parents in FRAMEWORK_OWNED_DIRS
+        if required <= child_dirs and (not parents or directory_basename in parents)
+    ))
+
+
+def _walk_git(root: Path, suffixes, names):
+    """`walk()`'s result read from `git ls-files`, or None when `root` is not a git
+    work tree, `git` is missing, or the command fails for any other reason.
+    """
+    raw_paths = _git_tracked_paths(root)
+    if raw_paths is None:
+        return None
+    children_by_dir = _raw_subdirectories(raw_paths)
+    files_by_dir = _files_by_directory(raw_paths)
+    return _walk_pruned_tree(children_by_dir, files_by_dir, suffixes, names)
+
+
+def _git_tracked_paths(root: Path):
+    """Root-relative posix paths `git` reports for `root` - tracked files plus
+    untracked ones `.gitignore` doesn't exclude - or None when git can't be used.
+
+    Run with `cwd=root`, `git ls-files` on its own (no pathspec) already limits itself
+    to files at or under `root` and reports them relative to it, even when `root` is a
+    subfolder of a larger work tree. Never raises.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            cwd=root, capture_output=True, timeout=_GIT_LS_FILES_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    # A path can carry bytes that are not valid utf-8 (a filename from another
+    # encoding); surrogateescape keeps them round-trippable instead of collapsing
+    # them to the replacement character the way errors="replace" would.
+    raw = result.stdout.decode("utf-8", errors="surrogateescape")
+    entries = (entry for entry in raw.split("\0") if entry)
+    return [entry for entry in entries if _is_file_under_root(root, entry)]
+
+
+def _is_file_under_root(root: Path, entry: str) -> bool:
+    """Whether a git-reported entry is a regular file under root: false for a
+    submodule gitlink (a directory, not a file) and for a file git still lists as
+    tracked but that no longer exists in the working tree.
+    """
+    posix_entry = entry.replace("\\", "/")
+    if posix_entry.startswith("/") or posix_entry.split("/", 1)[0] == "..":
+        return False
+    return (root / entry).is_file()
+
+
+def _raw_subdirectories(paths: list) -> dict:
+    """Every directory's immediate child directory names, as an unfiltered `os.walk`
+    would see them, keyed by the directory's own root-relative posix path (`""` for
+    root).
+    """
+    children: dict = {}
+    for path in paths:
+        parts = path.split("/")
+        current = ""
+        for part in parts[:-1]:
+            children.setdefault(current, set()).add(part)
+            current = f"{current}/{part}" if current else part
+    return children
+
+
+def _files_by_directory(paths: list) -> dict:
+    """Every directory's own files, keyed the same way as `_raw_subdirectories`."""
+    files: dict = {}
+    for path in paths:
+        directory, _, filename = path.rpartition("/")
+        files.setdefault(directory, []).append(filename)
+    return files
+
+
+def _walk_pruned_tree(children_by_dir: dict, files_by_dir: dict, suffixes, names) -> Walk:
+    """A directory tree built from a flat path list, visited the way `os.walk` visits
+    the filesystem: a directory's own files before its subdirectories, both sorted by
+    name, with the same SKIP_DIRS/dot-folder/framework-owned pruning.
+    """
+    paths: list = []
+    truncated = False
+
+    def visit(directory: str) -> bool:
+        """Emit `directory`'s kept files, then recurse into its kept subdirectories.
+        Returns True once the cap is hit, so the caller stops descending."""
+        nonlocal truncated
+        for filename in sorted(files_by_dir.get(directory, ())):
+            if suffixes is not None and Path(filename).suffix.lower() not in suffixes and filename not in names:
+                continue
+            if len(paths) >= MAX_FILES_SCANNED:
+                truncated = True
+                return True
+            paths.append(f"{directory}/{filename}" if directory else filename)
+        child_dirs = children_by_dir.get(directory, frozenset())
+        pruned = _pruned_child_names(directory.rpartition("/")[2], child_dirs)
+        for child in sorted(child_dirs):
+            if is_skippable(child) or child in pruned:
+                continue
+            if visit(f"{directory}/{child}" if directory else child):
+                return True
+        return False
+
+    visit("")
+    return Walk(paths, truncated)
 
 
 def is_test_path(relative_path: str) -> bool:

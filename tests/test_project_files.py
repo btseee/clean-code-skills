@@ -1,6 +1,10 @@
+import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import support  # noqa: F401  (puts the scripts folder on sys.path)
 from source import files as project_files
@@ -14,6 +18,49 @@ def make_tree(files: dict) -> tempfile.TemporaryDirectory:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
     return directory
+
+
+GIT_ON_PATH = shutil.which("git") is not None
+
+
+class GitRepoTestCase(unittest.TestCase):
+    """A TestCase whose tests run inside a temporary git repository, isolated from
+    whatever global or system git config happens to be installed on the machine
+    running them.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        if not GIT_ON_PATH:
+            raise unittest.SkipTest("git is not on PATH")
+
+    def setUp(self):
+        empty_config = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".gitconfig", delete=False)
+        empty_config.close()
+        self.addCleanup(os.unlink, empty_config.name)
+        env_patch = mock.patch.dict(os.environ, {
+            "GIT_CONFIG_GLOBAL": empty_config.name,
+            "GIT_CONFIG_SYSTEM": empty_config.name,
+        })
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
+
+    def git(self, *args, cwd):
+        subprocess.run(["git", *args], cwd=cwd, check=True,
+                        capture_output=True, timeout=10)
+
+    def init_repo(self, files: dict, deleted: tuple = ()) -> tempfile.TemporaryDirectory:
+        """A temporary git repository with `files` staged and any `deleted` paths
+        removed from the working tree afterwards, so they stay in the index only.
+        """
+        directory = make_tree(files)
+        self.git("init", cwd=directory.name)
+        if files:
+            self.git("add", "-A", cwd=directory.name)
+        for relative_path in deleted:
+            (Path(directory.name) / relative_path).unlink()
+        return directory
 
 
 class GlobMatchTest(unittest.TestCase):
@@ -174,6 +221,62 @@ class FrameworkOwnedDirsTest(unittest.TestCase):
         self.assertNotIn("wp-includes/functions.php", result.paths)
         self.assertNotIn("wp-admin/index.php", result.paths)
         self.assertIn("wp-content/plugins/hello/hello.php", result.paths)
+
+
+class GitBackedWalkTest(GitRepoTestCase):
+    """walk() reads a git work tree through `git ls-files`, so ignored folders drop
+    out without SKIP_DIRS or the framework-owned rules having to know about them.
+    """
+
+    def test_an_ignored_folder_is_left_out(self):
+        with self.init_repo({
+            ".gitignore": "ignored/\n",
+            "ignored/secret.py": "token = 1\n",
+            "kept.py": "value = 1\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertIn("kept.py", result.paths)
+        self.assertNotIn("ignored/secret.py", result.paths)
+
+    def test_an_untracked_non_ignored_file_is_included(self):
+        with self.init_repo({".gitignore": "ignored/\n", "tracked.py": "value = 1\n"}) as directory:
+            (Path(directory) / "untracked.py").write_text("value = 2\n", encoding="utf-8")
+            result = project_files.walk(Path(directory))
+        self.assertIn("tracked.py", result.paths)
+        self.assertIn("untracked.py", result.paths)
+
+    def test_a_deleted_tracked_file_is_not_listed(self):
+        with self.init_repo(
+            {"gone.py": "value = 1\n", "kept.py": "value = 2\n"}, deleted=("gone.py",),
+        ) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertNotIn("gone.py", result.paths)
+        self.assertIn("kept.py", result.paths)
+
+    def test_a_subfolder_root_lists_paths_relative_to_itself(self):
+        with self.init_repo({
+            "outer.py": "value = 1\n",
+            "sub/inner.py": "value = 2\n",
+            "sub/deeper/leaf.py": "value = 3\n",
+        }) as directory:
+            result = project_files.walk(Path(directory) / "sub")
+        self.assertEqual(sorted(result.paths), ["deeper/leaf.py", "inner.py"])
+
+    def test_skip_dirs_still_prune_a_tracked_node_modules_file(self):
+        with self.init_repo({
+            "node_modules/pkg/index.js": "module.exports = 1;\n",
+            "app.js": "console.log(1);\n",
+        }) as directory:
+            result = project_files.walk(Path(directory))
+        self.assertIn("app.js", result.paths)
+        self.assertFalse(any(path.startswith("node_modules/") for path in result.paths))
+
+    def test_a_non_repository_folder_still_walks_with_os_walk(self):
+        with make_tree({"a.py": "value = 1\n", "sub/b.py": "value = 2\n"}) as directory:
+            with mock.patch.dict(os.environ,
+                                  {"GIT_CEILING_DIRECTORIES": str(Path(directory).parent)}):
+                result = project_files.walk(Path(directory))
+        self.assertEqual(sorted(result.paths), ["a.py", "sub/b.py"])
 
 
 if __name__ == "__main__":
