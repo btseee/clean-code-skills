@@ -1,120 +1,110 @@
 # Concurrency
 
-Concurrency separates *what* is done from *when* it is done, which improves throughput and
-structure — and introduces a class of defect that ordinary testing does not catch. Read this before
-writing or changing anything that runs in more than one thread, task, process, or request handler
-that shares state.
+Concurrency separates *what* is done from *when*, improving throughput and structure — and
+introduces a defect class ordinary testing doesn't catch. Read this before touching anything that
+runs in more than one thread, task, process, or request handler sharing state.
 
-The defining property: a concurrency bug is not reliably reproducible. A system can pass every test
+Defining property: a concurrency bug is not reliably reproducible. A system can pass every test
 for a year and still be wrong.
 
 ## Myths worth naming
 
-- **"Concurrency always improves performance."** Only when there is genuine wait time to reclaim.
+- **"Concurrency always improves performance."** Only when there's genuine wait time to reclaim.
 - **"Design does not change."** Decoupling what from when changes the design substantially.
-- **"The container or framework handles it."** You still have to know what it guarantees, what it
-  does not, and what your own state does under concurrent access.
-- **"Concurrency is not much extra work."** It adds a second correctness problem on top of the first,
+- **"The container or framework handles it."** You still must know what it guarantees, what it
+  doesn't, and what your state does under concurrent access.
+- **"Concurrency is not much extra work."** It adds a second correctness problem atop the first,
   plus overhead, plus non-deterministic failure.
 
 ## Defense principles
 
-**Apply the Single Responsibility Principle.** Concurrency policy is its own reason to change, so it
-gets its own modules. Keep it out of business logic — code mixing threading with domain rules cannot
-be reasoned about or tested as either one.
+**Apply the Single Responsibility Principle.** Concurrency policy changes for its own reasons: its
+own modules, separate from business logic — mixed threading/domain code can't be reasoned about
+or tested as either.
 
-**Limit the scope of shared data.** Every location where shared mutable data is accessed is a place
-the bug can be. Take copies of the data where you can, use immutable values by default, and confine
-whatever must mutate to as few named places as possible. Race conditions, deadlocks, and
-concurrent-update defects all trace back to mutable variables — there are no deadlocks without
-mutable locks.
+**Limit the scope of shared data.** Every place shared mutable data is touched is a bug's possible
+home. Copy where you can, default to immutable values, confine mutation to a few named spots —
+races, deadlocks, and concurrent-update defects all trace to mutable variables; no mutable locks,
+no deadlocks.
 
-**Keep threads as independent as possible.** A task that shares nothing cannot race. Prefer designs
-where each unit of work owns its own data and communicates results rather than sharing state.
+**Keep threads as independent as possible.** A task sharing nothing cannot race — prefer each unit
+of work owning its data, returning results rather than sharing state.
 
-**Know your library.** Use the thread-safe collections, executors, and non-blocking primitives your
-platform provides rather than hand-rolling locks. Know which classes are explicitly *not*
-thread-safe, and know that composing two thread-safe calls does not give you a thread-safe operation.
+**Know your library.** Use your platform's thread-safe collections, executors, and non-blocking
+primitives instead of hand-rolled locks. Know which classes are explicitly *not* thread-safe, and
+that composing two thread-safe calls isn't automatically one.
 
 ## The named execution models
 
-Recognize which one you are in — each has a known failure and a known solution.
+Recognize which one you're in — each has a known failure and a known fix.
 
-**Producer-Consumer.** Producers put work in a bounded queue; consumers take it. The queue is the
-shared resource, and both sides must signal the other. The failures are lost signals (a consumer
-waits forever for work that arrived) and a full queue silently blocking producers. Backpressure is
-part of the design, not an afterthought.
+**Producer-Consumer.** Producers fill a bounded queue; consumers drain it, each side signaling the
+other. Failures: lost signals (a consumer waiting forever) and a full queue silently blocking
+producers. Design backpressure in, don't bolt it on after.
 
-**Readers-Writers.** Many readers, occasional writers, one shared resource. The failures are stale
-reads if writers are starved, and starvation of writers if readers are unlimited — plus throughput
-collapse if you serialize everything to avoid both. The trade is deliberate: decide which side may
-starve and bound it.
+**Readers-Writers.** Many readers, occasional writers, one resource. Failures: stale reads from
+starved writers, writer starvation from unlimited readers, throughput collapse from serializing to
+dodge both. Decide deliberately which side may starve, and bound it.
 
-**Dining Philosophers.** Several processes competing for several shared resources, each needing more
-than one at a time. This is the shape of most real lock contention, and its failures are deadlock,
-livelock, and starvation. The solution is not more locking but a resource-ordering discipline, so no
-cycle of waiting can form.
+**Dining Philosophers.** Several processes competing for several shared resources at once — the
+shape of most real lock contention. Failures: deadlock, livelock, starvation. Fix with resource
+ordering, not more locking.
 
-Most concurrency problems you meet are a variant of one of these three.
+Most concurrency problems are a variant of one of these three.
 
 ## Locking discipline
 
-- **Beware dependencies between synchronized methods.** Two or more synchronized methods on one
-  shared object invite subtle failure: each call is atomic, the sequence is not. Where a
-  sequence must be atomic, provide one method that does the whole sequence — client-side locking and
-  adapted server-side locking both work, but they must be chosen deliberately, not stumbled into.
-- **Keep synchronized sections small.** Locks are expensive and every critical section is a
-  bottleneck and a deadlock opportunity. Guard the smallest region that preserves the invariant — but
-  never split one invariant across two critical sections to make them smaller.
-- **Writing correct shutdown code is hard.** Signalled-and-waiting is the usual deadlock: workers
-  waiting for work that will never arrive, a parent waiting for children that are blocked. Design
-  shutdown early, and test it — this is where "it hangs occasionally in production" comes from.
+- **Synchronized methods don't compose.** Two-plus synchronized methods on one shared object
+  invite subtle failure: each call is atomic, the sequence isn't. Provide one method for the whole
+  sequence; choose client- or server-side locking deliberately, never by accident.
+- **Keep critical sections small.** Locks are expensive; every section is a bottleneck and a
+  deadlock risk. Guard only what preserves the invariant — never split one invariant across two
+  sections just to shrink them.
+- **Shutdown is hard to get right.** The usual deadlock: workers waiting on work that never
+  arrives, a parent waiting on blocked children. Design and test shutdown early — source of "it
+  hangs occasionally in production."
 
 ## The four conditions for deadlock
 
-Deadlock requires all four simultaneously, so breaking any one prevents it:
+All four are required together; break any one to prevent it:
 
 1. **Mutual exclusion** — a resource cannot be shared.
 2. **Hold and wait** — a holder waits while acquiring another resource.
 3. **No preemption** — a resource cannot be taken from its holder.
 4. **Circular wait** — a cycle of processes each waiting on the next.
 
-In practice you break hold-and-wait (acquire everything at once, release everything on failure) or
-circular wait (a global ordering on lock acquisition). Breaking mutual exclusion means removing the
-sharing; breaking no-preemption means timeouts and release, which is often the pragmatic answer.
+Usually you break hold-and-wait (acquire everything at once, release all on failure) or circular
+wait (a global lock order); breaking mutual exclusion removes the sharing, and no-preemption means
+timeouts and release — often the pragmatic fix.
 
 ## Testing threaded code — seven distinct tactics
 
-A single unit test proves nothing here. These are separate tactics, and the last is the one that
-actually finds races:
+A single unit test proves nothing here; the seventh tactic is the one that actually finds races:
 
-1. **Treat every spurious failure as a candidate threading defect.** Never re-run until green and
-   move on. "Flaky test" is a diagnosis nobody made; intermittent failure is a defect report.
-2. **Get the non-threaded code working first.** Do not debug two problems at once. Verify the logic
-   single-threaded, then add concurrency.
-3. **Make the threaded code pluggable and tunable.** Thread count, queue sizes, and timing should be
-   configurable, so the same code can run in one thread for logic tests and many for stress tests.
-4. **Run with more threads than processors.** Task switching happens at the points where state is
-   inconsistent; oversubscription forces more of those switches.
-5. **Run on different platforms.** Thread scheduling differs by OS and runtime. Code that passes only
-   on your machine has not been tested.
-6. **Instrument the code to force failures.** Insert jitter deliberately — sleeps, yields, or
-   priority changes at points where a switch would be damaging — so rare interleavings become common.
-   Do it either by hand-placed hooks or by an automated harness that randomizes them.
-7. **Run the suite many times, and keep the failures.** With jitter in place, a run count of hundreds
-   turns a one-in-a-million interleaving into a reproducible test.
+1. **Treat spurious failures as threading defects, not noise.** Never re-run until green and move
+   on — "flaky test" is a diagnosis nobody made.
+2. **Get non-threaded logic working first**; don't debug two problems at once.
+3. **Make thread count, queue size, and timing configurable**, so the same code runs
+   single-threaded for logic tests, multi-threaded for stress tests.
+4. **Run with more threads than processors** — oversubscription forces more task switches where
+   state is inconsistent.
+5. **Run on different platforms**; scheduling differs by OS and runtime, and passing on one
+   machine proves nothing.
+6. **Force failures with deliberate jitter** — sleeps, yields, or priority changes at damaging
+   points, by hand-placed hooks or an automated randomizing harness.
+7. **Run the suite hundreds of times, and keep the failures** — jitter turns a one-in-a-million
+   interleaving into a reproducible test.
 
 ## Throughput is a calculation, not a hope
 
-Adding threads improves throughput only in proportion to the wait time you reclaim. Before adding
-concurrency, know what fraction of the work is I/O wait versus processing — if it is nearly all
-processing, more threads add contention and overhead and make things slower. When you do add it,
-measure rather than assume; a bottleneck that moved is not a bottleneck removed.
+Threads help throughput only in proportion to wait time reclaimed. Know your I/O-wait-to-
+processing ratio before adding concurrency — mostly-processing work just adds contention and
+overhead. Measure after adding it: a moved bottleneck isn't a removed one.
 
 ## Related
 
 - `principles.md` — the summary rules for concurrency and state.
 - `tests.md` — general test discipline; this file supersedes it for threaded code.
-- `architecture.md` — why immutability and segregated mutability are architectural choices, and the
-  decoupling modes that decide what shares an address space.
+- `architecture.md` — why immutability and segregated mutability are architectural choices, and
+  the decoupling modes that decide what shares an address space.
 - `chapter-map.md` — the concurrency chapter checklist and the concurrency appendix.
