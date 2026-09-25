@@ -1,113 +1,105 @@
 # Session Protocol
 
-The default workflow: one coding task in an existing project. Use it for features, fixes, small
-refactors, and anything else that is not a full campaign, a greenfield start, or a report.
+Default workflow for one coding task in an existing project — features, fixes, small refactors,
+short of a full campaign, greenfield start, or report.
 
-It assumes you remember nothing. Every step either reads state from disk or writes state to disk, so
-the next session — yours or another agent's — can pick up where you stopped.
+Assume no memory: every step reads or writes disk state so the next session (yours or another
+agent's) can resume.
 
 ## Before
 
-**1. Load context.** Read `.clean/context.json` and the packs it lists, then `.clean/architecture.md`,
-`.clean/decisions.md`, and `.clean/ledger.md` if they exist, then the project's own instructions
-(`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`). Project instructions outrank this
-skill. If `.clean/` is absent, run `scripts/detect_stack.py` or derive the same facts by
-inspection: primary language, frameworks, the packs they need (`framework-map.md`), test command,
-source and test layout.
+**1. Load context.** Read `.clean/context.json` and its packs, then `.clean/architecture.md`,
+`.clean/decisions.md`, `.clean/ledger.md` if present, then project instructions (`AGENTS.md`,
+`CLAUDE.md`, `CONTRIBUTING.md`, `README.md`) — these outrank this skill. No `.clean/`? Run
+`scripts/detect_stack.py`, or derive by inspection: primary language, frameworks, packs needed
+(`framework-map.md`), test command, source/test layout.
 
-**2. Review previous decisions.** A recorded decision is settled. Do not re-open it because you
-would have chosen differently; if it now looks wrong, say so and let the user decide.
+**2. Review previous decisions.** A recorded decision is settled: don't reopen it; if it looks
+wrong, tell the user.
 
-**3. Confirm the goal.** State in one sentence what will be true when you are done, and what check
-will prove it. If the request is ambiguous in a way that changes the implementation, ask. Otherwise
-state your assumption and proceed.
+**3. Confirm the goal.** State in one sentence what will be true when done, and the check proving
+it. Ambiguous enough to matter? Ask; otherwise assume and proceed.
 
-**4. Check the constraints.** Note the declared layers and dependency rules — or, with no
-declaration, the framework pack's structure and roles — the naming conventions, and any no-go areas
-(generated code, vendored code, another person's in-flight work).
+**4. Check the constraints.** Declared layers and dependency rules — or, absent those, the framework
+pack's structure and roles, naming conventions, no-go areas (generated code, vendored code,
+another's in-flight work).
 
-**5. Inspect the related code.** Grep `.clean/structure.md` for the paths you are about to change,
-or run `scripts/map_structure.py --path <area>`: what each file declares, its role, and whether
-something nearby is already misplaced or duplicated. Then read the units themselves, their callers,
-and their tests. Search for an existing implementation of what you are about to write. Trace the
+**5. Inspect the related code.** Grep `.clean/structure.md`, or run
+`scripts/map_structure.py --path <area>`, for each file's role and any nearby misplacement or
+duplication. Read the units, callers, tests; search for an existing implementation first; trace
 behavior before altering it.
 
-**6. Plan the edit.** Decide which unit owns the responsibility, which side of which boundary the
-change sits on, and what the smallest diff looks like. For anything non-trivial, write the plan down
-before editing, under the headings in `plan.md`.
+**6. Plan the edit.** Which unit owns the responsibility, which boundary side it sits on, and the
+smallest diff. Non-trivial? Write the plan first, under `plan.md`'s headings.
 
 ## During
 
-**7. Prefer what exists.** Extend the current owner of a concern rather than creating a new home for
-it. A new dependency, layer, or file needs a reason you can state.
+**7. Prefer what exists.** Extend the current owner of a concern rather than making a new home. A new
+dependency, layer, or file needs a stated reason.
 
 **8. Make small changes.** One intent per edit. Targeted edits, not whole-file regeneration.
 
-**9. Keep the change focused.** Every changed line traces to the request or to cleanup the request
-caused. Report unrelated smells; do not fix them silently.
+**9. Keep the change focused.** Every changed line traces to the request or to cleanup it caused.
+Report unrelated smells; do not fix them silently.
 
-**10. Stay consistent.** Match local naming, error style, test style, and framework idiom, even where
-you would personally choose otherwise.
+**10. Stay consistent.** Match local naming, error style, test style, and framework idiom, even
+against personal preference.
 
 **11. Refactor as you go, inside the diff.** Improve the lines you already touched — a clearer name,
 a removed dead branch — without widening the change.
 
-**12. Remove the duplication you just created.** Copy-paste inside your own diff is the easiest kind
-to catch and the cheapest to fix. Check that it is true duplication before merging it away.
+**12. Remove the duplication you just created.** Copy-paste in your own diff is easiest to catch,
+cheapest to fix — confirm it's true duplication before merging away.
 
-**13. Validate assumptions against the code.** Confirm every API, option, and config key you
-reference actually exists in this codebase and these dependency versions — the versions are in
-`.clean/context.json` under `dependencies`, or in the manifests directly. Never trust memory: the
-commonest invented API is one from a version you remember rather than the version installed.
+**13. Validate assumptions against the code.** Confirm every API, option, and config key you use
+exists in this codebase and its installed dependency versions (`.clean/context.json`, or
+manifests) — never trust memory (`framework-map.md`, Dependencies And Package Idioms).
 
 ## After
 
-**14. Run the checks.** Rate the change LOW, MEDIUM, or HIGH (Risk Levels in `review-checklist.md`)
-and run what that level owes: the narrowest meaningful check first, then broader ones. Use the
-project's real command, from `.clean/context.json` or the project's own docs.
+**14. Run the checks.** Rate the change LOW, MEDIUM, or HIGH (Risk Levels, `review-checklist.md`);
+run what that level owes, narrowest check first. Use the project's real command
+(`.clean/context.json` or its docs).
 
 **15. Review the impact.** Who calls what you changed? What did you orphan? Is anything now
 unreferenced, half-wired, or newly duplicated?
 
-**16. Verify architecture compliance.** When the project declares layers: did every dependency you
-added point inward, and did any detail — an ORM type, a framework annotation, an HTTP object, a raw
-row — leak into a policy module? Run `scripts/check_boundaries.py`, or check the imports you added
-by hand. Either way: does each new symbol sit in the home its role calls for?
+**16. Verify architecture compliance.** Project declares layers? Every added dependency should point
+inward, with no detail — ORM type, raw row, framework object — leaking into a policy module. Run
+`scripts/check_boundaries.py`, or check the imports by hand; does each new symbol sit in its role's
+home?
 
-**17. Update documentation** that your change made wrong. Do not add new documentation nobody asked
-for. When `.clean/` exists and you added, moved, or deleted files, refresh the map with
-`scripts/map_structure.py --write`.
+**17. Update documentation** your change made wrong; add none unasked. `.clean/` exists, and you
+added, moved, or deleted files? Refresh with `scripts/map_structure.py --write`.
 
-**18. Leave it cleaner than you found it** — within the diff you already have, never by widening it.
+**18. Leave it cleaner than found** — within the diff you have, never by widening it.
 
-**19. Record decisions worth keeping.** When `.clean/` exists, append to `.clean/decisions.md`
-whenever you chose between real alternatives, deferred something deliberately, or discovered a
-constraint the next session would otherwise have to rediscover. When it does not exist, offer to
-create it at the end — creating `.clean/` is the job of the `init`, `audit`, and `new-project`
-workflows, never a silent side effect (`memory-protocol.md`).
+**19. Record decisions worth keeping.** `.clean/` exists? Append to `.clean/decisions.md` whenever
+you chose between alternatives, deferred deliberately, or found a rediscoverable constraint. Not
+yet? Offer at the end — that's `init`, `audit`, and `new-project`'s job, never silent
+(`memory-protocol.md`).
 
 **20. Hand off cleanly.** Report: what changed and why; what command you ran and its result; what you
-did *not* run and what risk remains; what you found but deliberately left alone. If work is
-unfinished and `.clean/` exists, write the remaining steps into `.clean/ledger.md` so the next
-session resumes instead of restarting; otherwise put them in the handoff report and offer to
-persist them.
+did *not* run and the risk that remains; what you found but left alone. Unfinished with `.clean/`
+present? Write remaining steps into `.clean/ledger.md` so the next session resumes, not restarts;
+otherwise put them in the report and offer to persist them.
 
 ## Honesty rules
 
-These are not negotiable, and they matter more than any style rule in this skill.
+Not negotiable — they matter more than any style rule in this skill.
 
-- Never claim a check passed without running it. "This should work" is not a result.
-- Name what you skipped. An honest gap is useful; a silent one is a defect.
-- Never weaken, skip, or delete a failing test to make a suite green. A failing test is information.
+- Never claim a check passed without running it — "this should work" isn't a result.
+- Name what you skipped — an honest gap is useful, a silent one a defect.
+- Never weaken, skip, or delete a failing test to go green. A failing test is information.
 - Never present a stub, a placeholder, or a hardcoded demo value as finished work.
-- If you could not do what was asked, say that plainly rather than delivering something adjacent.
+- Could not do what was asked? Say so, rather than delivering something adjacent.
 
 ## When to stop and ask
 
-- The baseline is already broken and you cannot tell whether you caused a failure.
+- Baseline already broken, and you can't tell whether you caused a failure.
 - The change needs a decision only the user can make: a behavior change, a public API break, a new
   dependency, a schema migration.
-- Following this skill would conflict with the project's own conventions in a way that is not
-  obviously a bug.
-- The task keeps growing past the scope you agreed, or your remaining context is too small to finish
-  the current slice safely.
+- Following this skill conflicts with the project's own conventions in a way that isn't obviously a
+  bug.
+- The task keeps growing past agreed scope, or remaining context is too small to finish the current
+  slice safely.

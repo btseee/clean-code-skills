@@ -1,69 +1,64 @@
 # Memory Protocol
 
-You forget everything between sessions. The project does not. This file defines the small set of
-files that carry a project's design intent forward, so an agent with no memory and no conversation
-history can reconstruct what it needs from the repository alone.
+You forget everything between sessions; the project doesn't. These files carry its design intent,
+letting a memoryless agent rebuild what it needs from the repo alone.
 
-Everything lives in a `.clean/` directory at the project root. Templates are in
-`assets/templates/`.
+Everything lives in `.clean/` at the project root; templates in `assets/templates/`.
 
 | File | Holds | Written by | Read when |
 | --- | --- | --- | --- |
-| `context.json` | detected stack, frameworks, the packs they need, test command, layout, dependencies with versions; plus the interview's `confirmed` object | `scripts/detect_stack.py --write` (merges: detector keys refreshed, everything else preserved) and the `init` interview; or hand-written | every session, first |
-| `architecture.md` | declared layers and allowed dependencies; its absence means framework-first | `init` or `audit`, only when the user opts in, ordering confirmed with the user — or a human | every session; enforced by `check_boundaries.py` |
+| `context.json` | detected stack, frameworks, packs needed, test command, layout, dependencies with versions; the interview's `confirmed` object | `scripts/detect_stack.py --write` (refreshes, keeps rest), `init`'s interview, or hand-written | every session, first |
+| `architecture.md` | declared layers and allowed dependencies; its absence means framework-first | `init`/`audit` if opted in, ordering user-confirmed, or a human | every session; enforced by `check_boundaries.py` |
 | `decisions.md` | decisions made and why, append-only | any session that made a real choice | before proposing a design change |
-| `ledger.md` | the audit's coverage checklist and findings, then cleanup-campaign state | the `audit` workflow first; campaign sessions keep it current | before starting or resuming an audit or campaign |
-| `structure.md`, `structure.json` | every source file's symbols, role, and purpose; placement, duplication, naming, and cycle findings; component metrics | `scripts/map_structure.py --write`, run by `init`, `audit`, and sessions that add or move files; never hand-edited | before changing an area: grep its rows |
-| `roles.md` | the project's own `clean-roles` conventions and confirmed placement exceptions | `init`, `audit`, or a human; grammar in `framework-map.md` | read by `map_structure.py`; overrides the packs |
+| `ledger.md` | audit coverage checklist and findings, then cleanup-campaign state | `audit` workflow first; campaign sessions keep it current | before starting or resuming audit/campaign |
+| `structure.md`, `structure.json` | every file's symbols, role, purpose; placement, duplication, naming, cycle findings; component metrics | `scripts/map_structure.py --write`, run by `init`, `audit`, sessions adding/moving files; never hand-edited | before changing an area: grep its rows |
+| `roles.md` | the project's `clean-roles` conventions and confirmed placement exceptions | `init`, `audit`, or a human; grammar in `framework-map.md` | read by `map_structure.py`; overrides the packs |
 
 ## Rules
 
-**Read before deciding.** The context, architecture, decisions, and ledger files at the start of the
-session, and the structure rows for the area you will change, before touching code. A recorded
-decision is settled: do not re-open it because you would have chosen differently. If it now looks
-wrong, say so and let the user decide.
+**Read before deciding.** Context, architecture, decisions, ledger, area structure rows — before
+touching code (order: `session-protocol.md`). A recorded decision is settled: report a wrong-looking
+one, don't reopen it.
 
-**`architecture.md` outranks your instincts.** It is the project's stated intent. If the code
-disagrees with it, that is a finding to report, not a licence to follow the code.
+**`architecture.md` outranks your instincts** — the project's stated intent. Disagreeing code is a
+finding to report, not licence to follow.
 
-**Write only what the next session cannot re-derive.** Do not record what the code already shows.
-Record the *reasoning* that the code cannot: why this boundary and not that one, what was rejected,
-what constraint forced an unusual choice.
+**Write only what the next session cannot re-derive.** Skip what the code shows; record the
+*reasoning* it can't: why this boundary, not that one; what was rejected; what forced an unusual
+choice.
 
-**Never invent history.** If you do not know why something is the way it is, write that down as an
-open question rather than a plausible-sounding reason. A confident wrong entry is worse than no
-entry, because the next session will trust it.
+**Never invent history.** Don't know why something is the way it is? Write it as an open question,
+not a plausible reason — a confident wrong entry is worse than none: the next session will trust
+it.
 
-**Append; do not rewrite.** `decisions.md` is a log. Supersede an entry with a new one that
-references it, rather than editing the past.
+**Append; do not rewrite.** `decisions.md` is a log — supersede an entry with a new one referencing
+it, not by editing the past.
 
-**Who creates `.clean/`.** The `init`, `audit`, and `new-project` workflows create and populate it
-as part of their job — that is what they are for, and the user invoking them is the consent. A plain coding session
-still does not silently introduce the convention: it offers at the end.
+**Who creates `.clean/`.** `init`, `audit`, and `new-project` create and populate it — invoking them
+is the consent. A plain coding session never introduces it silently: it offers at the end.
 
-**The structure map is a cache, not a record.** Never edit `structure.md` or `structure.json` by
-hand; regenerate them. The header names the commit it was generated at — when that differs from
+**The structure map is a cache, not a record.** Never hand-edit `structure.md` or `structure.json`;
+regenerate them. The header names the commit it was generated at; if that differs from
 `git rev-parse --short HEAD`, regenerate before trusting a row.
 
-**Default to untracked.** Add `.clean/` to the project's `.gitignore` unless the user wants the
-design intent committed. `architecture.md` is the one file usually worth committing, because it is a
-shared decision and it drives a check in CI.
+**Default to untracked.** Add `.clean/` to `.gitignore` unless design intent should be committed.
+`architecture.md` is the one file usually worth committing: a shared decision driving a CI check.
 
 ## What to record, and what not to
 
 Record:
 
 - a choice between real alternatives, and why the loser lost
-- a deliberate deferral, and the condition that should trigger revisiting it
+- a deliberate deferral, and what should trigger revisiting it
 - a constraint discovered the hard way (an API limit, a migration hazard, a load-bearing quirk)
-- a deviation from this skill or from the project's own conventions, and its justification
+- a deviation from this skill or the project's conventions, and its justification
 - a boundary decision: where the line is and which side owns the interface
 - an open question the user needs to answer
 
 Do not record:
 
 - what the code plainly shows
-- a summary of what you changed — that is the commit message's job
+- a summary of what you changed — the commit message's job
 - restatements of this skill's rules
 - anything you are guessing about
 
@@ -71,11 +66,10 @@ Do not record:
 
 ### `context.json`
 
-Two kinds of keys share the file. **Detector-owned keys** (`primary_language`, `frameworks`,
-`dependencies`, `suggested_verify_commands`, and the rest of what `detect_stack.py` emits) are a
-cache of what the project already says; `--write` refreshes them and preserves everything else.
-**`confirmed`** is a reserved top-level object owned by humans and the `init` interview — facts
-detection cannot infer:
+Two key kinds share the file. **Detector-owned** (`primary_language`, `frameworks`, `dependencies`,
+`suggested_verify_commands`, plus `detect_stack.py`'s output) cache the project's own data;
+`--write` refreshes them, keeping the rest. **`confirmed`** is a reserved object for humans and the
+`init` interview — facts detection can't infer:
 
 ```json
 "confirmed": {
@@ -87,7 +81,7 @@ detection cannot infer:
 }
 ```
 
-`confirmed` outranks the detected keys when they disagree, because a person said so.
+`confirmed` outranks detected keys on disagreement — a person said so.
 
 ### `decisions.md`
 
@@ -104,29 +98,23 @@ Append-only. Newest last. One entry per decision:
 
 ### `ledger.md`
 
-Audit and campaign state. The one file that makes a multi-session cleanup survivable — see
-`audit-report.md` and `project-refactor.md`. Keep it current *during* the work, not at the end: an
-accurate ledger and an interrupted campaign is a good outcome, while a finished campaign with a
-stale ledger is not.
+Audit and campaign state — the file that makes multi-session cleanup survivable; see
+`audit-report.md`, `project-refactor.md`. Keep it current *during* work: an accurate ledger with an
+interrupted campaign beats a finished one with a stale ledger.
 
-Sections, in template order: Audit Coverage (the per-file checklist and convergence line),
-Contract, Baseline, Batches (a checklist with commit references), Found But Not Fixed, Deferred,
-Close-out.
+Sections, in template order: Audit Coverage (the per-file checklist and convergence line), Contract,
+Baseline, Batches (a checklist with commit references), Found But Not Fixed, Deferred, Close-out.
 
 ### `architecture.md`
 
-Prose for humans, plus one fenced `clean-architecture` block that tools can read. Layers are
-declared innermost first; the default rule is that a layer may depend only on itself and on layers
-declared before it. See `assets/templates/architecture.md` for the full format and
-`references/architecture.md` for the reasoning behind it. (Three files share the name: the
-template, the reference, and the project's own `.clean/architecture.md` that the template becomes.)
+Prose for humans plus a fenced `clean-architecture` block; layers declare innermost first, each
+depending only on itself and layers before it. Format: `assets/templates/architecture.md`; reasoning:
+`references/architecture.md`. (Three files share this name: template, reference, `.clean/architecture.md`.)
 
 ## If the host has session hooks
 
-Some hosts can run a command when a session starts. Where that exists, printing `.clean/context.json`,
-its packs, the layer declaration, and the structure map's findings at session start is the single
-highest-value hook available, because it removes the chance that an agent simply forgets to look. See `host-matrix.md` and
-`assets/hooks/`.
+Some hosts run a command at session start: printing `.clean/context.json`, packs, layer declaration,
+and structure findings is the highest-value hook — it removes the chance an agent forgets to look.
+See `host-matrix.md`, `assets/hooks/`.
 
-Where it does not exist, step 1 of `session-protocol.md` is the substitute — which is why it is step
-1.
+Absent that, step 1 of `session-protocol.md` substitutes — hence step 1.
