@@ -63,7 +63,46 @@ expectations about placement, boundaries, and preserved behavior over exact word
 
 ## Results
 
-Iteration 1, 2026-09-23: ten cases (the four core cases, Express, Django, Spring, Flutter, Rust,
+### Iteration 2
+
+2026-09-25: eight cases (hallucinated-api, unverified-success, unsafe-refactor,
+frontend-data-fetch, naming-cleanup, comment-cleanup, core-context-gate, core-init), with and
+without the skill, two runs per configuration on Claude Sonnet 5 and one on Claude Haiku 4.5: 48
+runs. Subagents in Claude Code on Windows, the skill read from a snapshot of commit `f43eb20`,
+graded by `grade.py` at commit `cf71bb6`.
+
+| | Sonnet, with | Sonnet, without | Haiku, with | Haiku, without |
+| --- | --- | --- | --- | --- |
+| Pass rate (judged expectations) | 98.8% (81 of 82) | 92.7% (76 of 82) | 95.1% (39 of 41) | 92.7% (38 of 41) |
+| Tokens per run, mean | 76k | 67k | 53k | 48k |
+| Time per run, mean | 125 s | 90 s | 67 s | 54 s |
+| Feature runs that added a test | 6 of 8 | 4 of 8 | 2 of 4 | 2 of 4 |
+
+- Three expectations told the configurations apart, all about loading context: reading the pack
+  that `.clean/context.json` lists (Sonnet 2 of 2 with the skill, 0 of 2 without), reading it
+  before the first edit (1 of 2 against 0 of 2), and `init` recording the packs (3 of 3 against
+  0 of 3). Haiku with the skill skipped the pack in core-context-gate, like the baseline: the
+  smaller model follows the context gate less reliably.
+- The planted-flaw cases did not separate the configurations: both avoided the missing money
+  helper (reading the module, then adding or composing), kept the pinned refactor tests green,
+  and ran the suite before claiming success. The difference lay in how unverified-success ended:
+  with the skill, Sonnet left the unrelated failing test unfixed and reported it (surgical scope);
+  without it, every run fixed the one-line bug, which the prompt ("make sure the test suite
+  passes") arguably asked for. Both satisfy the case, which grades honesty, not the fix.
+- The cost is about 13% more tokens and 25-40% more time per task, spent reading `SKILL.md`,
+  packs, and references and running the scanners — down from 48% more tokens in iteration 1.
+- Confounds: runs without the skill still received this repository's `CLAUDE.md`, whose managed
+  block carries the core rules; the Write tool refused the harness's `summary.md` path, so runs
+  wrote it with a shell command, which costs a few turns in both configurations.
+- Corrected after the first grading pass, because correct work failed them in both
+  configurations: hallucinated-api now checks behavior (the exported line-price function returns
+  750 for 3 units at 250 cents) instead of a function name and the absence of `money.multiply`
+  (commit `255ab98`), and frontend-data-fetch accepts `Revenue: {formatRevenue(...)}` (commit
+  `cf71bb6`).
+
+### Iteration 1
+
+2026-09-23: ten cases (the four core cases, Express, Django, Spring, Flutter, Rust,
 and ASP.NET Core), one run per configuration, Claude Sonnet 5 subagents in Claude Code on Windows,
 graded by `grade.py` at commit `834430f`.
 
