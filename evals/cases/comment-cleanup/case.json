@@ -1,0 +1,37 @@
+{
+  "id": "comment-cleanup",
+  "pack": "core",
+  "prompt": "This file was scaffolded quickly and has a comment above almost every line explaining what it does. Clean up the noise comments in pricing/discount.py, but keep any comment that explains something the code itself can't.",
+  "expected_output": "The comments that just restate the next line (set the percent, check membership, add five) are gone. The comment explaining why the result is truncated rather than rounded stays, since that reasoning isn't visible in the code. apply_seasonal_discount still returns the same values, so the tests still pass.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "pricing/discount.py",
+      "pattern": "#\\s*Set the discount percent to 10",
+      "text": "The comment restating the next line's assignment is gone"
+    },
+    {
+      "type": "file_contains",
+      "glob": "pricing/discount.py",
+      "pattern": "(?i)double-round",
+      "text": "The comment explaining the truncation stays"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "comment_heavy",
+      "path": "pricing/discount.py",
+      "text": "map_structure reports no comment-heavy finding on discount.py"
+    },
+    {
+      "type": "command_passes",
+      "command": ["python", "-m", "unittest", "discover", "-s", "tests"],
+      "timeout": 60,
+      "text": "The test suite still passes"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

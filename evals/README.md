@@ -27,9 +27,12 @@ the skill's own matcher: `**` spans folders, matching ignores case.
 | `file_not_contains` | `glob`, `pattern` | no matching file contains it |
 | `unchanged` | `path` | the file equals the fixture's, line endings aside |
 | `no_new_files` | `glob` | no file matching the glob was added; lockfiles and `.gitignore`, which installing a dependency writes, do not count |
-| `map_finding_absent` | `kind`, optional `path` | `map_structure.py` reports no finding of that kind (mentioning the path) |
+| `new_file` | `glob` | at least one file matching the glob was added; the inverse of `no_new_files`, with the same lockfile exemption |
+| `map_finding_absent` | `kind`, optional `path` | `map_structure.py` reports no finding of that kind; `path` is a glob matched against each finding's own `path` or `folder`, so a case can require a clean file while others in the fixture still have theirs. A kind the scanner does not populate yet (an organization finding not built yet) counts as zero findings |
 | `boundaries_pass` | — | `check_boundaries.py` exits 0 |
 | `transcript_reads` | `pattern` | one of the run's tool calls matches (a plain-text transcript is matched whole), with backslashes read as `/`; skipped when there is none |
+| `read_before_edit` | `pattern` | a tool call matching the pattern happens before the run's first file-changing call (`Edit`, `Write`, `MultiEdit`, `NotebookEdit`), or anywhere at all when there is no such call; skipped when there is no transcript |
+| `command_passes` | `command` (a non-empty list), optional `timeout` (default 60s) | the command exits 0, run with the workspace as its working directory; fails with the tail of its combined output otherwise; skipped when the executable is not found |
 
 `grade.py --self-test` rejects a case whose expectations all pass on the untouched fixture: such a
 case cannot tell a good run from a do-nothing run.

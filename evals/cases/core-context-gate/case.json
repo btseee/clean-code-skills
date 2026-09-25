@@ -15,6 +15,11 @@
       "text": "Reads the Express pack that context.json lists"
     },
     {
+      "type": "read_before_edit",
+      "pattern": "frameworks/express\\.md",
+      "text": "Reads the Express pack before its first edit, not just at some point"
+    },
+    {
       "type": "file_contains",
       "glob": "src/routes/orders.js",
       "pattern": "health",

@@ -1,0 +1,42 @@
+{
+  "id": "frontend-data-fetch",
+  "pack": "frameworks/react.md",
+  "prompt": "RevenueWidget fetches this month's revenue directly in a useEffect and renders nothing while it's loading or if the request fails. The dashboard header should show the same total next to the page title, labeled \"Revenue: $X\". Pull the revenue fetching out so both places can reuse it, and add loading and error states to RevenueWidget.",
+  "expected_output": "The revenue fetch moves into a hook or service module both RevenueWidget and Dashboard import; neither component calls fetch itself. RevenueWidget renders a loading and an error state. Dashboard shows \"Revenue: $X\" next to its title. Nothing lands at the repository root, and map_structure reports no misplaced file.",
+  "expectations": [
+    {
+      "type": "file_not_contains",
+      "glob": "src/components/**",
+      "pattern": "fetch\\(",
+      "text": "RevenueWidget no longer calls fetch itself"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/RevenueWidget.tsx",
+      "pattern": "(?i)loading",
+      "text": "RevenueWidget renders a loading state"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/components/RevenueWidget.tsx",
+      "pattern": "(?i)error",
+      "text": "RevenueWidget renders an error state"
+    },
+    {
+      "type": "file_contains",
+      "glob": "src/pages/Dashboard.tsx",
+      "pattern": "Revenue:\\s*\\$",
+      "text": "Dashboard shows the revenue total next to its title"
+    },
+    {
+      "type": "map_finding_absent",
+      "kind": "misplaced",
+      "text": "No hook, service, or component lands in the wrong folder"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}

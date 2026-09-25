@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,9 +43,12 @@ REQUIRED_FIELDS = {
     "file_not_contains": ("glob", "pattern"),
     "unchanged": ("path",),
     "no_new_files": ("glob",),
+    "new_file": ("glob",),
     "map_finding_absent": ("kind",),
     "boundaries_pass": (),
     "transcript_reads": ("pattern",),
+    "command_passes": ("command",),
+    "read_before_edit": ("pattern",),
 }
 CASE_KEYS = ("id", "pack", "prompt", "expected_output", "expectations")
 SKIPPED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "vendor", "dist", "build"}
@@ -52,7 +56,12 @@ SKIPPED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "vendor", "dist"
 DEPENDENCY_ARTIFACTS = {".gitignore", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
                         "pubspec.lock", "Cargo.lock", "poetry.lock", "Pipfile.lock",
                         "composer.lock", "Gemfile.lock", "go.sum"}
-MAP_FINDING_KINDS = {"misplaced", "mixed", "duplicates", "name_clashes", "synonyms", "cycles"}
+MAP_FINDING_KINDS = {"misplaced", "mixed", "duplicates", "name_clashes", "synonyms", "cycles",
+                     "names", "family", "junk_drawer", "flat_folder", "unreferenced",
+                     "comment_heavy"}
+# Tool calls that count as editing the workspace, for read_before_edit.
+FILE_CHANGING_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+DEFAULT_COMMAND_TIMEOUT = 60
 
 
 def files_in(root: Path) -> list:
@@ -88,6 +97,14 @@ def _search(workspace: Path, paths, pattern: str):
     return None
 
 
+def _new_files(fixture: Path, workspace: Path, glob: str) -> list:
+    """Matching files in workspace the fixture did not already have; installing a
+    dependency's lockfile does not count as one."""
+    before = set(files_in(fixture))
+    return [path for path in _matching(workspace, glob)
+            if path not in before and Path(path).name not in DEPENDENCY_ARTIFACTS]
+
+
 def check(expectation: dict, fixture: Path, workspace: Path, transcript):
     """(passed, evidence) for one expectation; passed is None when it cannot be judged."""
     kind = expectation["type"]
@@ -107,10 +124,11 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
         same = _read(workspace / path) == _read(fixture / path)
         return same, f"{path} {'is unchanged' if same else 'was changed'}"
     if kind == "no_new_files":
-        before = set(files_in(fixture))
-        new = [path for path in _matching(workspace, expectation["glob"])
-               if path not in before and Path(path).name not in DEPENDENCY_ARTIFACTS]
+        new = _new_files(fixture, workspace, expectation["glob"])
         return not new, ", ".join(new[:5]) or "no new matching files"
+    if kind == "new_file":
+        new = _new_files(fixture, workspace, expectation["glob"])
+        return bool(new), ", ".join(new[:5]) or f"no new file matches {expectation['glob']}"
     if kind == "map_finding_absent":
         return _map_finding_absent(workspace, expectation)
     if kind == "boundaries_pass":
@@ -126,13 +144,19 @@ def check(expectation: dict, fixture: Path, workspace: Path, transcript):
         text = re.sub(r"\\+", "/", _tool_calls(_read(Path(transcript))))
         hit = re.search(expectation["pattern"], text)
         return bool(hit), hit.group(0) if hit else "not read"
+    if kind == "read_before_edit":
+        return _read_before_edit(transcript, expectation["pattern"])
+    if kind == "command_passes":
+        return _command_passes(workspace, expectation)
     raise ValueError(f"unknown expectation type {kind!r}")
 
 
-def _tool_calls(text: str) -> str:
-    """The inputs of every tool call in a JSON-lines transcript; any other text as it is.
+def _ordered_tool_calls(text: str) -> list:
+    """(tool name, its input as JSON text) for every tool call, in transcript order.
 
-    A path that appears only inside a file the run was shown is not a file it read.
+    Falls back to a single call with no name, holding the whole text, when the
+    transcript is not JSON lines: a pattern search still works, but nothing counts
+    as file-changing.
     """
     calls = []
     structured = False
@@ -142,7 +166,7 @@ def _tool_calls(text: str) -> str:
         try:
             record = json.loads(line)
         except ValueError:
-            return text
+            return [(None, text)]
         message = record.get("message") if isinstance(record, dict) else None
         if not isinstance(message, dict):
             continue
@@ -150,18 +174,67 @@ def _tool_calls(text: str) -> str:
         content = message.get("content")
         for item in content if isinstance(content, list) else []:
             if isinstance(item, dict) and item.get("type") == "tool_use":
-                calls.append(json.dumps(item.get("input", {})))
-    return "\n".join(calls) if structured else text
+                calls.append((item.get("name"), json.dumps(item.get("input", {}))))
+    return calls if structured else [(None, text)]
+
+
+def _tool_calls(text: str) -> str:
+    """The inputs of every tool call in a JSON-lines transcript; any other text as it is.
+
+    A path that appears only inside a file the run was shown is not a file it read.
+    """
+    return "\n".join(input_text for _, input_text in _ordered_tool_calls(text))
+
+
+def _read_before_edit(transcript, pattern: str):
+    if transcript is None:
+        return None, "no transcript supplied"
+    calls = _ordered_tool_calls(_read(Path(transcript)))
+    first_edit = next((index for index, (name, _) in enumerate(calls) if name in FILE_CHANGING_TOOLS),
+                      len(calls))
+    regex = re.compile(pattern)
+    for _, input_text in calls[:first_edit]:
+        # Windows paths appear as `a\\b` in a JSON transcript; patterns are written with `/`.
+        hit = regex.search(re.sub(r"\\+", "/", input_text))
+        if hit:
+            return True, hit.group(0)
+    if first_edit == len(calls):
+        return False, "not read before the run ended"
+    return False, f"not read before the first file-changing call ({calls[first_edit][0]})"
+
+
+def _command_passes(workspace: Path, expectation: dict):
+    command = list(expectation["command"])
+    if os.name == "nt":
+        resolved = shutil.which(command[0])
+        if resolved is None:
+            return None, f"{command[0]} is not on PATH"
+        command[0] = resolved
+    timeout = expectation.get("timeout", DEFAULT_COMMAND_TIMEOUT)
+    try:
+        completed = subprocess.run(command, cwd=str(workspace), capture_output=True,
+                                   encoding="utf-8", errors="replace", timeout=timeout)
+    except FileNotFoundError:
+        return None, f"{command[0]} is not on PATH"
+    except subprocess.TimeoutExpired:
+        return False, f"timed out after {timeout}s: {' '.join(command)}"
+    if completed.returncode == 0:
+        return True, f"exit 0: {' '.join(command)}"
+    output = (completed.stdout + completed.stderr).strip().splitlines()
+    tail = "\n".join(output[-20:]) or "(no output)"
+    return False, f"exit {completed.returncode}: {tail}"
 
 
 def _map_finding_absent(workspace: Path, expectation: dict):
     import map_structure
     packs, scopes = map_structure.stack_for(workspace, None)
     data = map_structure.build_map(workspace, packs, 2, scopes)
-    prefix = expectation.get("path")
-    items = data["findings"][expectation["kind"]]
-    if prefix:
-        items = [item for item in items if json.dumps(item).find(prefix) >= 0]
+    # An organization finding kind the scanner does not populate yet reports zero findings.
+    items = data["findings"].get(expectation["kind"], [])
+    pattern = expectation.get("path")
+    if pattern:
+        items = [item for item in items
+                if project_files.glob_match(pattern, item.get("path") or item.get("folder") or "")]
     return not items, f"{len(items)} {expectation['kind']} finding(s)"
 
 
@@ -223,6 +296,10 @@ def _case_problems(case_dir: Path) -> list:
             problems.append(f"{label}: {expectation.get('path')!r} is not in the fixture")
         if kind == "map_finding_absent" and expectation.get("kind") not in MAP_FINDING_KINDS:
             problems.append(f"{label}: unknown finding kind {expectation.get('kind')!r}")
+        if kind == "command_passes":
+            command = expectation.get("command")
+            if not isinstance(command, list) or not command:
+                problems.append(f"{label}: 'command' must be a non-empty list")
     if problems:
         return problems
     untouched = grade(case_dir, fixture)

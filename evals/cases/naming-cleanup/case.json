@@ -1,0 +1,36 @@
+{
+  "id": "naming-cleanup",
+  "pack": "core",
+  "prompt": "The variable names in src/legacy/report.js don't say what they hold. Rename tmp and val to something that explains itself, without changing what buildReport returns.",
+  "expected_output": "report.js no longer uses tmp or val; its variables are named for what they hold. buildReport still returns the same shape, so node --test passes. src/legacy/other.js, which was not mentioned, is untouched even though it has the same kind of vague name.",
+  "expectations": [
+    {
+      "type": "map_finding_absent",
+      "kind": "names",
+      "path": "src/legacy/report.js",
+      "text": "map_structure reports no naming finding on report.js"
+    },
+    {
+      "type": "file_not_contains",
+      "glob": "src/legacy/report.js",
+      "pattern": "\\btmp\\b|\\bval\\b",
+      "text": "report.js no longer uses tmp or val"
+    },
+    {
+      "type": "command_passes",
+      "command": ["node", "--test"],
+      "timeout": 60,
+      "text": "node --test still passes after the rename"
+    },
+    {
+      "type": "unchanged",
+      "path": "src/legacy/other.js",
+      "text": "The sibling file, out of scope, is left alone"
+    },
+    {
+      "type": "no_new_files",
+      "glob": "*",
+      "text": "Nothing new at the repository root"
+    }
+  ]
+}
