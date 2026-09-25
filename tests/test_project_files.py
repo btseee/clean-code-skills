@@ -101,7 +101,8 @@ class JunkDrawerNamesTest(unittest.TestCase):
         from structure import organization as structure_organization
         self.assertEqual(project_files.JUNK_DRAWER_NAMES, {
             "utils", "util", "helpers", "helper", "common", "shared", "misc", "miscellaneous", "general",
-            "stuff", "core_utils", "lib_utils", "tools", "extras"})
+            "stuff", "core_utils", "lib_utils", "extras"})
+        self.assertEqual(scan_repo.find_junk_drawers(["tools/search.py", "tools/fetch.py"]), [])
         self.assertFalse(hasattr(scan_repo, "JUNK_DRAWER_NAMES"))
         self.assertFalse(hasattr(structure_organization, "JUNK_DRAWER_NAMES"))
         self.assertEqual(scan_repo.find_junk_drawers(["general/a.py", "general/b.py"]),

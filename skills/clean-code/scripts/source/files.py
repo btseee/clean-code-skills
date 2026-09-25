@@ -54,9 +54,10 @@ TEST_FILE_PATTERN = re.compile(
 TEST_PROJECT_PATTERN = re.compile(r"\.(?:Unit|Integration)?Tests?$", re.IGNORECASE)
 
 # Folders named for no concept, a place to put code rather than what the code is about.
+# `tools` is left out: it is often the domain word itself (an MCP server's tools, build tooling).
 JUNK_DRAWER_NAMES = frozenset({
     "utils", "util", "helpers", "helper", "common", "shared", "misc", "miscellaneous", "general",
-    "stuff", "core_utils", "lib_utils", "tools", "extras",
+    "stuff", "core_utils", "lib_utils", "extras",
 })
 
 GENERATED_MARKERS = (
