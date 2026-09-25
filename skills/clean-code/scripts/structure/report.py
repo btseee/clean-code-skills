@@ -2,30 +2,41 @@
 """The structure map as people and agents read it: .clean/structure.md and a summary.
 
 structure.md is ordered so that a partial read still gets the most important part
-first: the findings, then the folder tree, then the components, then one
-greppable row per file. A model with a small context window reads the top and
-greps the Files table for the paths it is about to change.
+first: the findings, the moves they propose, then the folder tree, then the
+components, then one greppable row per file. A model with a small context window
+reads the top and greps the Files table for the paths it is about to change.
 
 Standard library only.
 """
 
 from __future__ import annotations
 
+import posixpath
 from collections import Counter, defaultdict
 
+ORGANIZATION_TITLES = (
+    ("family", "Families"),
+    ("junk_drawer", "Junk drawers"),
+    ("flat_folder", "Flat folders"),
+    ("unreferenced", "Unreferenced"),
+    ("comment_heavy", "Comment-heavy"),
+)
 FINDING_TITLES = (
     ("misplaced", "Misplaced"),
     ("mixed", "Mixed"),
     ("duplicates", "Duplicates"),
     ("name_clashes", "Name clashes"),
     ("synonyms", "Synonyms"),
+) + ORGANIZATION_TITLES + (
     ("names", "Names"),
     ("cycles", "Cycles"),
 )
-# The terminal summary keeps the order it had before names were reported, names last, so a
-# reader comparing runs sees the same line with one more count.
-SUMMARY_TITLES = (tuple((key, title) for key, title in FINDING_TITLES if key != "names")
-                  + (("names", "Names"),))
+# The terminal summary keeps the order it had before names and the organization findings were
+# reported, then adds them, so a reader comparing runs sees the same line with more counts.
+SUMMARY_TITLES = (tuple((key, title) for key, title in FINDING_TITLES
+                        if key != "names" and (key, title) not in ORGANIZATION_TITLES)
+                  + (("names", "Names"),) + ORGANIZATION_TITLES)
+FOLDER_FINDINGS = frozenset({"family", "junk_drawer", "flat_folder"})
 NAME_EXAMPLES = 5
 MAX_TREE_ROWS = 200
 MAX_GRAPH_NODES = 25
@@ -101,9 +112,49 @@ def _cycle_line(item) -> str:
     return f"{shown} ({counts}{more})"
 
 
+def _folder(folder: str) -> str:
+    return _code(folder + "/" if folder else "./")
+
+
+def _file_names(paths, shown: int) -> str:
+    names = ", ".join(_code(posixpath.basename(path)) for path in paths[:shown])
+    return names + (f", and {len(paths) - shown} more" if len(paths) > shown else "")
+
+
+def _family_line(family) -> str:
+    return (f"{_file_names(family['files'], 6)} in {_folder(family['folder'])} share "
+            f"{_code(family['token'])} and import each other; group them in {_code(family['suggestion'])}.")
+
+
+def _junk_drawer_line(drawer) -> str:
+    splits = "; ".join(
+        f"{split['name'] if split['by'] == 'role' else split['name'] + ' family'} "
+        f"({_file_names(split['files'], 3)}) -> {_destination(split['to'])}"
+        for split in drawer["splits"])
+    return f"{_folder(drawer['folder'])} is named for no concept yet holds several; split it: {splits}."
+
+
+def _flat_folder_line(crowded) -> str:
+    families = ", ".join(_code(token) for token in crowded["families"])
+    start = f", starting with its families {families}" if families else ""
+    return (f"{_folder(crowded['folder'])} holds {crowded['file_count']} source files; "
+            f"group them by concept{start}.")
+
+
+def _unreferenced_line(unused) -> str:
+    return f"{_code(unused['path'])} is possibly unused: no file imports it."
+
+
+def _comment_heavy_line(commented) -> str:
+    return (f"{_code(commented['path'])}: {commented['comment_lines']} of {commented['nonblank_lines']} "
+            f"lines are comments ({round(100 * commented['ratio'])}%).")
+
+
 LINE_RENDERERS = {
     "misplaced": _misplaced_line, "mixed": _mixed_line, "duplicates": _duplicate_line,
     "name_clashes": _clash_line, "synonyms": _synonym_line, "cycles": _cycle_line,
+    "family": _family_line, "junk_drawer": _junk_drawer_line, "flat_folder": _flat_folder_line,
+    "unreferenced": _unreferenced_line, "comment_heavy": _comment_heavy_line,
 }
 
 
@@ -162,6 +213,9 @@ def _header(data) -> list:
     ]
     if data.get("truncated"):
         lines.append("- The walk stopped at the file cap; the map is partial.")
+    if data.get("changed") is not None:
+        lines.append(f"- Findings and moves cover only the {len(data['changed'])} files git reports as "
+                     "changed (`--changed`).")
     unparsed = data.get("unparsed", [])
     if unparsed:
         shown = ", ".join(f"{_code(item['path'])} ({_cell(item['reason'])})"
@@ -190,6 +244,17 @@ def _findings_section(data, top: int) -> list:
         lines += [f"- {LINE_RENDERERS[key](item)}" for item in items[:top]]
         if len(items) > top:
             lines.append(f"- ... and {len(items) - top} more in structure.json")
+    return lines
+
+
+def _moves_section(moves: list, top: int) -> list:
+    lines = ["", "## Proposed moves", ""]
+    if not moves:
+        return lines + ["No moves proposed."]
+    lines += ["From the findings above; confirm each against the code before moving it.", ""]
+    lines += [f"- {_code(move['from'])} -> {_code(move['to'])} ({move['why']})" for move in moves[:top]]
+    if len(moves) > top:
+        lines.append(f"- ... and {len(moves) - top} more in structure.json")
     return lines
 
 
@@ -278,8 +343,8 @@ def _files_section(data, flagged) -> list:
 def render_markdown(data: dict, top: int = 25) -> str:
     """The full structure map, most important section first."""
     flagged = _flagged(data)
-    lines = (_header(data) + _findings_section(data, top) + _tree_section(data, flagged)
-             + _components_section(data) + _files_section(data, flagged))
+    lines = (_header(data) + _findings_section(data, top) + _moves_section(data.get("moves", []), top)
+             + _tree_section(data, flagged) + _components_section(data) + _files_section(data, flagged))
     return "\n".join(lines) + "\n"
 
 
@@ -287,14 +352,17 @@ def _under(path: str, prefix) -> bool:
     return prefix is None or path == prefix or path.startswith(prefix + "/")
 
 
-def _finding_paths(key: str, item) -> list:
+def finding_paths(key: str, finding) -> list:
+    """The paths a finding names: files, and folders or components with a trailing slash."""
     if key in {"duplicates", "name_clashes"}:
-        return [member["path"] for member in item["members"]]
+        return [member["path"] for member in finding["members"]]
     if key == "synonyms":
-        return [entry["path"] for entries in item["verbs"].values() for entry in entries]
+        return [entry["path"] for entries in finding["verbs"].values() for entry in entries]
     if key == "cycles":
-        return [name + "/" for name in item["components"]]
-    return [item["path"]]
+        return [name + "/" for name in finding["components"]]
+    if key in FOLDER_FINDINGS:
+        return [finding["folder"] + "/"]
+    return [finding["path"]]
 
 
 def render_summary(data: dict, path_filter=None) -> str:
@@ -306,17 +374,19 @@ def render_summary(data: dict, path_filter=None) -> str:
             prefix = prefix[2:]
     findings = {
         key: [item for item in data["findings"][key]
-              if any(_under(path.rstrip("/"), prefix) for path in _finding_paths(key, item))]
+              if any(_under(path.rstrip("/"), prefix) for path in finding_paths(key, item))]
         for key, _ in FINDING_TITLES
     }
     counts = ", ".join(f"{title.lower()} {len(findings[key])}" for key, title in SUMMARY_TITLES)
+    scope = (f" (under {prefix})" if prefix else "") + \
+        (" (changed files only)" if data.get("changed") is not None else "")
     lines = [
         "Structure map (evidence for judgement, not a verdict)",
         "",
         f"  Files     : {data['file_count']} source, {data['test_file_count']} test, "
         f"{data['symbol_count']} top-level symbols",
         f"  Packs     : {', '.join(data['packs']) or 'none (generic conventions only)'}",
-        f"  Findings  : {counts}" + (f" (under {prefix})" if prefix else ""),
+        f"  Findings  : {counts}{scope}",
     ]
     unparsed = [item["path"] for item in data.get("unparsed", []) if _under(item["path"], prefix)]
     if unparsed:
